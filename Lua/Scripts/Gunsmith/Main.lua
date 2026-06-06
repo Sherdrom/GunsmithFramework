@@ -35,20 +35,181 @@ local function packageLabel(package)
     return tostring(package.id or package.name or "<unknown>")
 end
 
-local function ensurePackage(package)
-    if type(package) ~= "table" then
-        error("[GunsmithFramework] package must be a table.")
+local function normalizePath(path)
+    if type(path) ~= "string" or path == "" then return nil end
+    return (string.gsub(path, "\\", "/"))
+end
+
+local function trimTrailingSlash(path)
+    path = normalizePath(path)
+    if not path then return nil end
+    return (string.gsub(path, "/+$", ""))
+end
+
+local function basename(path)
+    path = trimTrailingSlash(path)
+    if not path then return nil end
+    return string.match(path, "([^/]+)$")
+end
+
+local function sanitizeId(value)
+    if type(value) ~= "string" or value == "" then return nil end
+    local id = string.lower(value)
+    id = string.gsub(id, "[^%w]+", "_")
+    id = string.gsub(id, "^_+", "")
+    id = string.gsub(id, "_+$", "")
+    if id == "" then return nil end
+    return id
+end
+
+local function inferModDirFromSource(source)
+    source = normalizePath(source)
+    if not source then return nil end
+    if string.sub(source, 1, 1) == "@" then
+        source = string.sub(source, 2)
     end
+
+    for _, marker in ipairs({ "/Lua/Autorun/", "/Lua/Scripts/" }) do
+        local markerIndex = string.find(source, marker, 1, true)
+        if markerIndex then
+            return string.sub(source, 1, markerIndex - 1)
+        end
+    end
+
+    return string.match(source, "^(.*)/[^/]*$")
+end
+
+local function inferCallerModDir(stackLevel)
+    if not debug or not debug.getinfo then return nil end
+    local info = debug.getinfo(stackLevel or 3, "S")
+    return inferModDirFromSource(info and info.source or nil)
+end
+
+local function addUnique(values, value)
+    if type(value) ~= "string" or value == "" then return end
+    for _, existing in ipairs(values) do
+        if existing == value then return end
+    end
+    table.insert(values, value)
+end
+
+local function relativeModPath(path)
+    path = normalizePath(path)
+    if not path then return nil end
+    path = string.gsub(path, "^%%ModDir%%/", "")
+    path = string.gsub(path, "^%./", "")
+    if string.sub(path, 1, 1) == "/" then return nil end
+    return path
+end
+
+local function fileExists(path)
+    if not io or not io.open then return false end
+    local file = io.open(path, "r")
+    if not file then return false end
+    file:close()
+    return true
+end
+
+local function readFile(path)
+    if not io or not io.open then return nil end
+    local file = io.open(path, "r")
+    if not file then return nil end
+    local content = file:read("*a") or ""
+    file:close()
+    return content
+end
+
+local function filelistContent(modDir)
+    modDir = trimTrailingSlash(modDir)
+    if not modDir then return nil end
+    return readFile(modDir .. "/filelist.xml")
+end
+
+local function discoverPackageName(modDir)
+    local content = filelistContent(modDir)
+    if not content then return nil end
+    return string.match(content, "<%s*contentpackage%s+[^>]-name%s*=%s*\"([^\"]+)\"")
+        or string.match(content, "<%s*contentpackage%s+[^>]-name%s*=%s*'([^']+)'")
+end
+
+local function discoverFilelistFiles(modDir, elementName)
+    local files = {}
+    local content = filelistContent(modDir)
+    if not content then return files end
+
+    local pattern = "<%s*" .. elementName .. "%s+[^>]-file%s*=%s*\"([^\"]+)\""
+    for filePath in string.gmatch(content, pattern) do
+        addUnique(files, relativeModPath(filePath))
+    end
+    pattern = "<%s*" .. elementName .. "%s+[^>]-file%s*=%s*'([^']+)'"
+    for filePath in string.gmatch(content, pattern) do
+        addUnique(files, relativeModPath(filePath))
+    end
+
+    return files
+end
+
+local function discoverLocalizationFiles(modDir)
+    local files = {}
+    modDir = trimTrailingSlash(modDir)
+    if not modDir or not io or not io.open then return files end
+
+    files = discoverFilelistFiles(modDir, "Text")
+
+    if #files == 0 then
+        for _, candidate in ipairs({ "text/English.xml", "text/Chinese.xml" }) do
+            if fileExists(modDir .. "/" .. candidate) then
+                addUnique(files, candidate)
+            end
+        end
+    end
+
+    return files
+end
+
+local function entryUsesLegacyDeepLua(package)
+    if type(package) ~= "table" or type(package.modDir) ~= "string" or type(package.entry) ~= "string" then
+        return false
+    end
+    local content = readFile(package.modDir .. "/" .. package.entry)
+    if not content then return false end
+    return string.find(content, "Deep_Lua%.Gunsmith") ~= nil or string.find(content, "Deep_Lua%.Path") ~= nil
+end
+
+local function ensurePackage(package, callerModDir)
+    if type(package) == "string" then
+        package = { entry = package }
+    elseif type(package) ~= "table" then
+        error("[GunsmithFramework] package must be a table or entry path string.")
+    end
+    if package._normalized then return package end
+
+    if type(package.entry) ~= "string" or package.entry == "" then
+        error("[GunsmithFramework] package.entry is required.")
+    end
+
+    package.modDir = trimTrailingSlash(package.modDir or package.modPath or callerModDir)
+    if type(package.modDir) ~= "string" or package.modDir == "" then
+        error("[GunsmithFramework] package.modDir could not be inferred for entry '" .. tostring(package.entry) .. "'. Pass modDir explicitly if this Lua environment does not expose caller source paths.")
+    end
+
+    package.id = package.id or sanitizeId(basename(package.modDir) or package.name or package.entry)
     if type(package.id) ~= "string" or package.id == "" then
         error("[GunsmithFramework] package.id is required.")
     end
-    if type(package.modDir) ~= "string" or package.modDir == "" then
-        error("[GunsmithFramework] package.modDir is required for package '" .. packageLabel(package) .. "'.")
-    end
+
+    package._autoWeaponTags = package.weaponTags == nil
+    package._autoPartTags = package.partTags == nil
+    package._autoLocalizationPrefix = package.localizationPrefix == nil
     package.weaponTags = package.weaponTags or {}
     package.partTags = package.partTags or {}
-    package.localizationFiles = package.localizationFiles or {}
-    package.localizationPrefix = package.localizationPrefix or Framework.LocalizationPrefix
+    package.localizationFiles = package.localizationFiles or discoverLocalizationFiles(package.modDir)
+    package.localizationPrefix = package.localizationPrefix or (package.id .. ".gunsmith")
+    package.name = package.name or discoverPackageName(package.modDir) or basename(package.modDir) or package.id
+    if package.legacyDeepLua == nil then
+        package.legacyDeepLua = entryUsesLegacyDeepLua(package)
+    end
+    package._normalized = true
     return package
 end
 
@@ -171,6 +332,214 @@ local function assignLegacyOwners(package, before)
     end
 end
 
+local function addLocalizationPrefixCount(counts, key)
+    if type(key) ~= "string" or key == "" then return end
+    for _, marker in ipairs({ ".path.", ".part.", ".mount.", ".ui.", ".status.", ".action.", ".stat.", ".stattypes." }) do
+        local index = string.find(key, marker, 1, true)
+        if index and index > 1 then
+            local prefix = string.sub(key, 1, index - 1)
+            counts[prefix] = (counts[prefix] or 0) + 1
+            return
+        end
+    end
+end
+
+local function inferLocalizationPrefix(package)
+    local counts = {}
+
+    for platformId, platform in pairs(Framework.Config.platforms or {}) do
+        if Framework.Owners.platforms[platformId] == package.id and type(platform) == "table" then
+            addLocalizationPrefixCount(counts, platform.localizationPrefix)
+            if type(platform.pathNameKeys) == "table" then
+                for _, key in pairs(platform.pathNameKeys) do
+                    addLocalizationPrefixCount(counts, key)
+                end
+            end
+        end
+    end
+
+    for partId, part in pairs(Framework.Config.parts or {}) do
+        if Framework.Owners.parts[partId] == package.id and type(part) == "table" then
+            addLocalizationPrefixCount(counts, part.nameKey)
+            if type(part.mounts) == "table" then
+                for _, mount in ipairs(part.mounts) do
+                    if type(mount) == "table" then
+                        addLocalizationPrefixCount(counts, mount.nameKey)
+                    end
+                end
+            end
+        end
+    end
+
+    local bestPrefix = nil
+    local bestCount = 0
+    for prefix, count in pairs(counts) do
+        if count > bestCount or (count == bestCount and (not bestPrefix or prefix < bestPrefix)) then
+            bestPrefix = prefix
+            bestCount = count
+        end
+    end
+    return bestPrefix
+end
+
+local function attributeValue(attributes, name)
+    if type(attributes) ~= "string" or type(name) ~= "string" then return nil end
+    name = string.lower(name)
+    for key, value in string.gmatch(attributes, "([%w_%-]+)%s*=%s*\"([^\"]*)\"") do
+        if string.lower(key) == name then return value end
+    end
+    for key, value in string.gmatch(attributes, "([%w_%-]+)%s*=%s*'([^']*)'") do
+        if string.lower(key) == name then return value end
+    end
+    return nil
+end
+
+local function splitTags(value)
+    local tags = {}
+    if type(value) ~= "string" then return tags end
+    for rawTag in string.gmatch(value, "[^,]+") do
+        local tag = string.gsub(rawTag, "^%s+", "")
+        tag = string.gsub(tag, "%s+$", "")
+        if tag ~= "" then
+            table.insert(tags, tag)
+        end
+    end
+    return tags
+end
+
+local function packageItemTags(package)
+    if package._itemTagsByIdentifier then return package._itemTagsByIdentifier end
+
+    local tagsByIdentifier = {}
+    for _, relativePath in ipairs(discoverFilelistFiles(package.modDir, "Item")) do
+        local content = readFile(package.modDir .. "/" .. relativePath)
+        if content then
+            for attributes in string.gmatch(content, "<%s*Item%s+([^>]*)>") do
+                local identifier = attributeValue(attributes, "identifier")
+                local tagSpec = attributeValue(attributes, "tags")
+                if type(identifier) == "string" and identifier ~= "" and type(tagSpec) == "string" then
+                    tagsByIdentifier[identifier] = splitTags(tagSpec)
+                end
+            end
+        end
+    end
+
+    package._itemTagsByIdentifier = tagsByIdentifier
+    return tagsByIdentifier
+end
+
+local commonItemTags = {
+    smallitem = true,
+    mediumitem = true,
+    largeitem = true,
+    weapon = true,
+    gun = true,
+    mountableweapon = true,
+    mobilecontainer = true,
+    container = true,
+    medical = true,
+    tool = true,
+    part = true,
+    accessory = true
+}
+
+local function dominantIdentifierPrefix(package)
+    local counts = {}
+    local function addIdentifier(identifier)
+        if type(identifier) ~= "string" then return end
+        local prefix = string.match(identifier, "^([%w]+)_")
+        if prefix and #prefix >= 3 then
+            counts[prefix] = (counts[prefix] or 0) + 1
+        end
+    end
+
+    for weaponId, _ in pairs(Framework.Config.weapons or {}) do
+        if Framework.Owners.weapons[weaponId] == package.id then
+            addIdentifier(weaponId)
+        end
+    end
+    for partId, part in pairs(Framework.Config.parts or {}) do
+        if Framework.Owners.parts[partId] == package.id then
+            addIdentifier(partId)
+            if type(part) == "table" and type(part.item) == "table" then
+                addIdentifier(part.item.identifier)
+            end
+        end
+    end
+
+    local bestPrefix = nil
+    local bestCount = 0
+    for prefix, count in pairs(counts) do
+        if count > bestCount or (count == bestCount and (not bestPrefix or prefix < bestPrefix)) then
+            bestPrefix = prefix
+            bestCount = count
+        end
+    end
+    return bestPrefix
+end
+
+local function sortedSetValues(set)
+    local values = {}
+    for value, _ in pairs(set) do
+        table.insert(values, value)
+    end
+    table.sort(values)
+    return values
+end
+
+local function inferPackageTags(package)
+    local tagsByIdentifier = packageItemTags(package)
+    local customPrefix = dominantIdentifierPrefix(package)
+    local weaponTags = {}
+    local partTags = {}
+
+    for weaponId, _ in pairs(Framework.Config.weapons or {}) do
+        if Framework.Owners.weapons[weaponId] == package.id then
+            for _, tag in ipairs(tagsByIdentifier[weaponId] or {}) do
+                local normalized = string.lower(tag)
+                if normalized ~= "gunsmith" and string.find(normalized, "gunsmith", 1, true) then
+                    weaponTags[tag] = true
+                end
+            end
+        end
+    end
+
+    for partId, part in pairs(Framework.Config.parts or {}) do
+        if type(part) == "table" and type(part.item) == "table" and type(part.item.identifier) == "string" then
+            if Framework.Owners.parts[partId] == package.id then
+                for _, tag in ipairs(tagsByIdentifier[part.item.identifier] or {}) do
+                    local normalized = string.lower(tag)
+                    if not commonItemTags[normalized] and (
+                        string.find(normalized, "gunsmith", 1, true) or
+                        string.find(normalized, "muzzle", 1, true) or
+                        string.find(normalized, "sub_hanging", 1, true) or
+                        string.find(normalized, "accessory", 1, true) or
+                        (customPrefix and string.sub(normalized, 1, #customPrefix + 1) == customPrefix .. "_")
+                    ) then
+                        partTags[tag] = true
+                    end
+                end
+            end
+        end
+    end
+
+    return sortedSetValues(weaponTags), sortedSetValues(partTags)
+end
+
+local function inferPackageMetadata(package)
+    if package._autoLocalizationPrefix then
+        package.localizationPrefix = inferLocalizationPrefix(package) or package.localizationPrefix
+    end
+
+    local weaponTags, partTags = inferPackageTags(package)
+    if package._autoWeaponTags and #weaponTags > 0 then
+        package.weaponTags = weaponTags
+    end
+    if package._autoPartTags and #partTags > 0 then
+        package.partTags = partTags
+    end
+end
+
 local function loadPackageEntry(package)
     if type(package.entry) ~= "string" or package.entry == "" then return end
 
@@ -211,10 +580,11 @@ local function loadPackageEntry(package)
     end
 
     assignLegacyOwners(package, before)
+    inferPackageMetadata(package)
 end
 
 function Framework.RegisterPackage(package)
-    package = ensurePackage(package)
+    package = ensurePackage(package, inferCallerModDir(3))
     rememberPackage(package)
     loadPackageEntry(package)
     if Framework.Hooks and Framework.Hooks.RefreshRegistrations then
