@@ -48,8 +48,9 @@ local function applyServerSavedSelection(item, selection, platform, weapon)
     local savedState = Hook.Call("GunsmithFrameworkGetSavedState", item)
     if type(savedState) ~= "string" or savedState == "" then return end
 
-    Persistence.ApplySavedParts(selection, platform, weapon, Persistence.Decode(savedState))
-    Core.PruneInvalidSelections(selection, platform, weapon)
+    local ownerId = Core.OwnerForWeapon(weapon)
+    Persistence.ApplySavedParts(selection, platform, weapon, Persistence.Decode(savedState), ownerId)
+    Core.PruneInvalidSelections(selection, platform, weapon, ownerId)
 end
 
 function Runtime.GetSelection(item)
@@ -59,7 +60,7 @@ function Runtime.GetSelection(item)
     local key = Core.ItemKey(item)
     if not State.selections[key] then
         local weapon = Core.WeaponConfig(item)
-        State.selections[key] = Core.BuildDefaultSelection(platform, weapon)
+        State.selections[key] = Core.BuildDefaultSelection(platform, weapon, Core.OwnerForWeapon(weapon))
         if not State.loadedStates[key] then
             State.loadedStates[key] = true
             if SERVER then
@@ -189,7 +190,8 @@ function Runtime.SyncQuickContainer(item)
     if QuickMod.SyncFromContainer(item, selection, platform) then
         finishQuickModChange(item, selection, platform, Core.WeaponConfig(item), true)
     else
-        Core.PruneInvalidSelections(selection, platform, Core.WeaponConfig(item))
+        local weapon = Core.WeaponConfig(item)
+        Core.PruneInvalidSelections(selection, platform, weapon, Core.OwnerForWeapon(weapon))
     end
 
     Runtime.RefreshQuick(item, true)
@@ -201,7 +203,7 @@ finishQuickModChange = function(item, selection, platform, weapon, alreadySynced
         QuickMod.SyncFromContainer(item, selection, platform)
     end
     if not alreadySynced then
-        Core.PruneInvalidSelections(selection, platform, weapon)
+        Core.PruneInvalidSelections(selection, platform, weapon, Core.OwnerForWeapon(weapon))
     end
     saveSelectionIfChanged(item, selection, platform, weapon)
     Runtime.Apply(item, true)
@@ -209,7 +211,8 @@ end
 
 local function buildSignature(item, selection, platform, skipPrune)
     if not skipPrune then
-        Core.PruneInvalidSelections(selection, platform, Core.WeaponConfig(item))
+        local weapon = Core.WeaponConfig(item)
+        Core.PruneInvalidSelections(selection, platform, weapon, Core.OwnerForWeapon(weapon))
     end
     local values = {}
     for _, path in ipairs(Core.SortedSelectionPaths(selection)) do
@@ -526,11 +529,12 @@ function Runtime.CyclePart(item, slotPath)
     local selection = Runtime.GetSelection(item)
     local platform = Core.PlatformConfig(item)
     local weapon = Core.WeaponConfig(item)
+    local ownerId = Core.OwnerForWeapon(weapon)
     if not selection or not platform or not Core.IsValidPath(selection, platform, slotPath) then return end
 
     local parts = {}
-    for _, partId in ipairs(Core.GetPartsForType(Core.PartTypeForPath(selection, slotPath))) do
-        if Core.IsPartCompatible(selection, platform, slotPath, partId) then
+    for _, partId in ipairs(Core.GetPartsForType(Core.PartTypeForPath(selection, slotPath), ownerId)) do
+        if Core.IsPartCompatible(selection, platform, slotPath, partId, ownerId) then
             table.insert(parts, partId)
         end
     end
@@ -639,6 +643,7 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode)
     local selection = Runtime.GetSelection(item)
     local platform = Core.PlatformConfig(item)
     local weapon = Core.WeaponConfig(item)
+    local ownerId = Core.OwnerForWeapon(weapon)
     if not selection or not platform or not Core.IsValidPath(selection, platform, slotPath) then return end
 
     local character = Inventory and Inventory.ActorForItem(item) or nil
@@ -660,7 +665,7 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode)
             if not QuickMod.ClearSlot(item, character, slotIndex, refreshAfterReturn) then return end
         else
             local part = Gunsmith.Config.parts[partId]
-            if not part or not Core.IsPartCompatible(selection, platform, slotPath, partId) then return end
+            if not part or not Core.IsPartCompatible(selection, platform, slotPath, partId, ownerId) then return end
             if selection[slotPath] == partId then return true end
             local partItem = Inventory and Inventory.FindPartItem(character, Inventory.ItemIdentifierForPart(part), item) or nil
             if not partItem then
@@ -697,7 +702,7 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode)
         selection[slotPath] = nil
     else
         local part = Gunsmith.Config.parts[partId]
-        if not part or not Core.IsPartCompatible(selection, platform, slotPath, partId) then return end
+        if not part or not Core.IsPartCompatible(selection, platform, slotPath, partId, ownerId) then return end
         if selection[slotPath] == partId then return end
         if Inventory and not Inventory.ConsumePartItem(character, part, item) then
             print("[GunsmithFramework] Missing part item for " .. tostring(partId))
@@ -709,9 +714,9 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode)
 
     Core.ClearDescendants(selection, slotPath)
     if partId ~= Gunsmith.EmptyPartId then
-        Core.ApplyMountDefaultsForPath(selection, slotPath, {}, 0)
+        Core.ApplyMountDefaultsForPath(selection, slotPath, ownerId, {}, 0)
     end
-    Core.PruneInvalidSelections(selection, platform, weapon)
+    Core.PruneInvalidSelections(selection, platform, weapon, ownerId)
     Core.InvalidateQuickSlotsCache(item)
     if Gunsmith.QuickUiSpec then Gunsmith.QuickUiSpec.InvalidateCache(item) end
     saveSelectionIfChanged(item, selection, platform, weapon)
@@ -727,6 +732,7 @@ function Runtime.InstallQuickItem(item, slotPath, draggedItem)
     local selection = Runtime.GetSelection(item)
     local platform = Core.PlatformConfig(item)
     local weapon = Core.WeaponConfig(item)
+    local ownerId = Core.OwnerForWeapon(weapon)
     if not selection or not platform or not draggedItem then return false end
     if not Core.IsValidPath(selection, platform, slotPath) then return false end
     if not QuickMod then return false end
@@ -734,11 +740,11 @@ function Runtime.InstallQuickItem(item, slotPath, draggedItem)
     local slotIndex = QuickMod.SlotForPath(item, slotPath)
     if slotIndex == nil then return false end
 
-    local partId = QuickMod.PartIdForItem(selection, platform, slotPath, draggedItem)
+    local partId = QuickMod.PartIdForItem(selection, platform, slotPath, draggedItem, ownerId)
     if not partId then return false end
 
     local part = Gunsmith.Config.parts[partId]
-    if not part or not Core.IsPartCompatible(selection, platform, slotPath, partId) then return false end
+    if not part or not Core.IsPartCompatible(selection, platform, slotPath, partId, ownerId) then return false end
     if not QuickMod.CanSlotAcceptItem(item, slotIndex, draggedItem) then return false end
 
     local character = Inventory and Inventory.ActorForItem(item) or nil

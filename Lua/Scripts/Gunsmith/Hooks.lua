@@ -147,8 +147,9 @@ local function registerHiddenQuickSlots()
     for identifier, weapon in pairs(config.weapons) do
         local maxSlot = nil
         local hiddenSlots = {}
-        local platform = config.platforms and config.platforms[weapon.platform] or nil
-        local selection = platform and Core.BuildDefaultSelection(platform, weapon) or nil
+        local ownerId = Core.OwnerForWeaponId(identifier)
+        local platform = Core.PlatformConfigForWeaponId(identifier)
+        local selection = platform and Core.BuildDefaultSelection(platform, weapon, ownerId) or nil
         local quickSlots = nil
 
         if selection and platform and Core.QuickSlotsForSelection then

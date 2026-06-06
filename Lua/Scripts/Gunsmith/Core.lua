@@ -14,37 +14,103 @@ function Core.ItemKey(item)
     return tostring(item.ID)
 end
 
+local function ownersFor(kind)
+    return Gunsmith.Owners and Gunsmith.Owners[kind] or nil
+end
+
+function Core.OwnerFor(kind, key)
+    local owners = ownersFor(kind)
+    if type(owners) ~= "table" or type(key) ~= "string" or key == "" then return nil end
+    return owners[key]
+end
+
+function Core.OwnerForWeaponId(identifier)
+    return Core.OwnerFor("weapons", identifier)
+end
+
+function Core.OwnerForPlatformId(platformId)
+    return Core.OwnerFor("platforms", platformId)
+end
+
+function Core.OwnerForPartId(partId)
+    return Core.OwnerFor("parts", partId)
+end
+
+function Core.OwnerForNpcPreset(profileName)
+    return Core.OwnerFor("npcPresets", profileName)
+end
+
+local function ownerForConfigValue(kind, tableValue, value)
+    if type(value) ~= "table" or type(tableValue) ~= "table" then return nil end
+    for key, candidate in pairs(tableValue) do
+        if candidate == value then
+            return Core.OwnerFor(kind, key)
+        end
+    end
+    return nil
+end
+
+function Core.OwnerForWeapon(weapon)
+    local config = Gunsmith.Config
+    return config and ownerForConfigValue("weapons", config.weapons, weapon) or nil
+end
+
+function Core.OwnerForPlatform(platform)
+    local config = Gunsmith.Config
+    return config and ownerForConfigValue("platforms", config.platforms, platform) or nil
+end
+
+function Core.PackageForOwner(ownerId)
+    if type(ownerId) ~= "string" or ownerId == "" or type(Gunsmith.Packages) ~= "table" then return nil end
+    return Gunsmith.Packages[ownerId]
+end
+
+function Core.OwnerCanReference(ownerId, targetOwnerId)
+    if type(ownerId) ~= "string" or ownerId == "" then return false end
+    if type(targetOwnerId) ~= "string" or targetOwnerId == "" then return false end
+    if ownerId == targetOwnerId then return true end
+    local package = Core.PackageForOwner(ownerId)
+    return type(package) == "table" and type(package._importSet) == "table" and package._importSet[targetOwnerId] == true
+end
+
+function Core.CanUseConfigKey(kind, key, ownerId)
+    return Core.OwnerCanReference(ownerId, Core.OwnerFor(kind, key))
+end
+
+function Core.CanUsePart(partId, ownerId)
+    return Core.CanUseConfigKey("parts", partId, ownerId)
+end
+
 function Core.WeaponConfig(item)
     local config = Gunsmith.Config
     local identifier = Core.ItemIdentifier(item)
     if not config or not identifier then return nil end
+    if not Core.OwnerForWeaponId(identifier) then return nil end
     return config.weapons[identifier]
 end
 
-function Core.PlatformConfig(item)
+function Core.PlatformConfigForWeaponId(identifier)
     local config = Gunsmith.Config
-    local weapon = Core.WeaponConfig(item)
-    if not config or not weapon then return nil end
-    return config.platforms[weapon.platform]
+    if not config or type(identifier) ~= "string" then return nil end
+    local weapon = config.weapons and config.weapons[identifier] or nil
+    local ownerId = Core.OwnerForWeaponId(identifier)
+    if type(weapon) ~= "table" or not ownerId then return nil end
+    local platformId = weapon.platform
+    if type(platformId) ~= "string" or platformId == "" then return nil end
+    if not Core.CanUseConfigKey("platforms", platformId, ownerId) then return nil end
+    return config.platforms and config.platforms[platformId] or nil
+end
+
+function Core.PlatformConfig(item)
+    return Core.PlatformConfigForWeaponId(Core.ItemIdentifier(item))
 end
 
 function Core.PackageForWeaponId(identifier)
-    local ownerId = Gunsmith.Owners and Gunsmith.Owners.weapons and Gunsmith.Owners.weapons[identifier]
-    if ownerId and Gunsmith.Packages then
-        return Gunsmith.Packages[ownerId]
-    end
-    return nil
+    return Core.PackageForOwner(Core.OwnerForWeaponId(identifier))
 end
 
 function Core.PackageForPlatform(platform)
-    if type(platform) ~= "table" or not Gunsmith.Config or not Gunsmith.Config.platforms then return nil end
-    for platformId, candidate in pairs(Gunsmith.Config.platforms) do
-        if candidate == platform then
-            local ownerId = Gunsmith.Owners and Gunsmith.Owners.platforms and Gunsmith.Owners.platforms[platformId]
-            return ownerId and Gunsmith.Packages and Gunsmith.Packages[ownerId] or nil
-        end
-    end
-    return nil
+    return Core.PackageForOwner(Core.OwnerForPlatform(platform))
 end
 
 function Core.LocalizationPrefixForWeaponId(identifier)
@@ -219,7 +285,12 @@ local function partProvidesAccepted(part, accepts)
     return false
 end
 
-function Core.ApplyMountDefaultsForPath(selection, path, visited, depth)
+function Core.ApplyMountDefaultsForPath(selection, path, ownerId, visited, depth)
+    if type(ownerId) == "table" then
+        depth = visited
+        visited = ownerId
+        ownerId = nil
+    end
     if not selection or not path or path == "" then return end
     if depth and depth > 32 then return end
     visited = visited or {}
@@ -235,11 +306,11 @@ function Core.ApplyMountDefaultsForPath(selection, path, visited, depth)
         if type(partId) == "string" and partId ~= "" and not visited[visitKey] then
             visited[visitKey] = true
             local childPart = Core.GetPart(partId)
-            if childPart and mount and childPart.type == (mount.partType or childPathSegment) and partProvidesAccepted(childPart, mount.accepts) then
+            if childPart and Core.CanUsePart(partId, ownerId) and mount and childPart.type == (mount.partType or childPathSegment) and partProvidesAccepted(childPart, mount.accepts) then
                 if not selection[childPath] then
                     selection[childPath] = partId
                 end
-                Core.ApplyMountDefaultsForPath(selection, childPath, visited, (depth or 0) + 1)
+                Core.ApplyMountDefaultsForPath(selection, childPath, ownerId, visited, (depth or 0) + 1)
             end
         end
     end
@@ -289,8 +360,9 @@ end
 
 local defaultSelectionCache = {}
 
-function Core.BuildDefaultSelection(platform, weapon)
+function Core.BuildDefaultSelection(platform, weapon, ownerId)
     if not platform or not weapon or type(weapon.roots) ~= "table" then return {} end
+    ownerId = ownerId or Core.OwnerForWeapon(weapon)
     local cached = defaultSelectionCache[weapon]
     if cached then
         return copySelection(cached)
@@ -300,9 +372,9 @@ function Core.BuildDefaultSelection(platform, weapon)
         local path = root.path
         local partId = Core.RootPartId(weapon, path)
         local part = Core.GetPart(partId)
-        if part and part.type == path then
+        if part and Core.CanUsePart(partId, ownerId) and part.type == path then
             selection[path] = partId
-            Core.ApplyMountDefaultsForPath(selection, path, {}, 0)
+            Core.ApplyMountDefaultsForPath(selection, path, ownerId, {}, 0)
         end
     end
     while pruneExcludedSelections(selection) do end
@@ -471,20 +543,21 @@ end
 
 local partsByTypeCache = {}
 
-function Core.GetPartsForType(partType)
+function Core.GetPartsForType(partType, ownerId)
     if not partType then return {} end
 
-    local cached = partsByTypeCache[partType]
+    local cacheKey = tostring(ownerId or "") .. "\0" .. tostring(partType)
+    local cached = partsByTypeCache[cacheKey]
     if cached then return cached end
 
     local parts = {}
     for partId, part in pairs(Gunsmith.Config.parts) do
-        if part.type == partType then
+        if part.type == partType and Core.CanUsePart(partId, ownerId) then
             table.insert(parts, partId)
         end
     end
     table.sort(parts)
-    partsByTypeCache[partType] = parts
+    partsByTypeCache[cacheKey] = parts
     return parts
 end
 
@@ -625,9 +698,10 @@ function Core.HiddenHomeRootPath(platform)
     return hiddenPath
 end
 
-function Core.IsPartCompatible(selection, platform, path, partId)
+function Core.IsPartCompatible(selection, platform, path, partId, ownerId)
     local part = Core.GetPart(partId)
     if not part or not platform or not path or path == "" then return false end
+    if not Core.CanUsePart(partId, ownerId) then return false end
     if part.type ~= Core.PartTypeForPath(selection, path) then return false end
     if Core.PartConflictsWithSelection(selection, path, partId) then return false end
     if Core.IsRootSlot(platform, path) then return true end
@@ -717,8 +791,9 @@ function Core.IsValidPath(selection, platform, path)
     return false
 end
 
-function Core.PruneInvalidSelections(selection, platform, weapon)
-    local defaults = Core.BuildDefaultSelection(platform, weapon)
+function Core.PruneInvalidSelections(selection, platform, weapon, ownerId)
+    ownerId = ownerId or Core.OwnerForWeapon(weapon)
+    local defaults = Core.BuildDefaultSelection(platform, weapon, ownerId)
     local changed = true
     while changed do
         changed = false
@@ -726,9 +801,9 @@ function Core.PruneInvalidSelections(selection, platform, weapon)
             changed = true
         end
         for path, partId in pairs(selection) do
-            if not Core.IsValidPath(selection, platform, path) or not Core.IsPartCompatible(selection, platform, path, partId) then
+            if not Core.IsValidPath(selection, platform, path) or not Core.IsPartCompatible(selection, platform, path, partId, ownerId) then
                 local defaultPartId = defaults[path]
-                if defaultPartId and partId ~= defaultPartId and Core.IsPartCompatible(selection, platform, path, defaultPartId) then
+                if defaultPartId and partId ~= defaultPartId and Core.IsPartCompatible(selection, platform, path, defaultPartId, ownerId) then
                     selection[path] = defaultPartId
                 else
                     selection[path] = nil
@@ -741,6 +816,17 @@ end
 
 function Core.ClearDescendants(selection, slotPath)
     clearDescendants(selection, slotPath)
+end
+
+function Core.ClearConfigCaches()
+    rootSlotDefsCache = setmetatable({}, { __mode = "k" })
+    rootSlotDefByPathCache = setmetatable({}, { __mode = "k" })
+    mountByParentPartCache = setmetatable({}, { __mode = "k" })
+    requiredSlotSetByPlatformCache = setmetatable({}, { __mode = "k" })
+    hiddenHomeRootPathCache = setmetatable({}, { __mode = "k" })
+    defaultSelectionCache = {}
+    quickSlotsCache = setmetatable({}, { __mode = "k" })
+    partsByTypeCache = {}
 end
 
 function Core.SortedSelectionPaths(selection)

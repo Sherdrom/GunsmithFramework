@@ -18,7 +18,7 @@ local function quickSlotHasItem(item, quickSlotIndex)
     return QuickMod.HasSlotItem(item, quickSlotIndex) == true
 end
 
-local function appendPartEntry(entries, item, selection, platform, slotPath, partId, quickSlotIndex, availableIds)
+local function appendPartEntry(entries, item, selection, platform, slotPath, partId, quickSlotIndex, availableIds, ownerId)
     local part = Gunsmith.Config.parts[partId]
     if not part then return end
 
@@ -27,7 +27,7 @@ local function appendPartEntry(entries, item, selection, platform, slotPath, par
     local replacingExisting = quickSlotHasItem(item, quickSlotIndex)
     if selection[slotPath] == partId then
         status = "installed"
-    elseif not Core.IsPartCompatible(selection, platform, slotPath, partId) then
+    elseif not Core.IsPartCompatible(selection, platform, slotPath, partId, ownerId) then
         status = "incompatible"
     elseif identifier and identifier ~= "" and not replacingExisting and not canQuickSlotAccept(item, quickSlotIndex, identifier) then
         status = "incompatible"
@@ -64,16 +64,16 @@ local function quickSlotsForItem(item, selection, platform)
     return slots
 end
 
-local function compatibleItemIdentifiers(item, selection, platform, slotPath, quickSlotIndex)
+local function compatibleItemIdentifiers(item, selection, platform, slotPath, quickSlotIndex, ownerId)
     local identifiers = {}
     local seen = {}
     local partType = Core.PartTypeForPath(selection, slotPath)
     local replacingExisting = quickSlotHasItem(item, quickSlotIndex)
-    for _, partId in ipairs(Core.GetPartsForType(partType)) do
+    for _, partId in ipairs(Core.GetPartsForType(partType, ownerId)) do
         local part = Gunsmith.Config.parts[partId]
         local identifier = part and part.item and part.item.identifier or nil
         if identifier and identifier ~= "" and not seen[identifier] and
-            Core.IsPartCompatible(selection, platform, slotPath, partId) and
+            Core.IsPartCompatible(selection, platform, slotPath, partId, ownerId) and
             (replacingExisting or canQuickSlotAccept(item, quickSlotIndex, identifier)) then
             seen[identifier] = true
             table.insert(identifiers, identifier)
@@ -82,7 +82,7 @@ local function compatibleItemIdentifiers(item, selection, platform, slotPath, qu
     return table.concat(identifiers, "~")
 end
 
-local function quickMeta(item, selection, platform, weapon, quickSlot)
+local function quickMeta(item, selection, platform, weapon, quickSlot, ownerId)
     local anchor = quickSlot.anchor or Core.ResolveMountAnchor(selection, platform, weapon, quickSlot.path)
     local valid = anchor and "1" or "0"
     anchor = anchor or { x = 0, y = 0 }
@@ -92,7 +92,7 @@ local function quickMeta(item, selection, platform, weapon, quickSlot)
         anchor.x or 0,
         anchor.y or 0,
         valid,
-        compatibleItemIdentifiers(item, selection, platform, quickSlot.path, quickSlot.slot))
+        compatibleItemIdentifiers(item, selection, platform, quickSlot.path, quickSlot.slot, ownerId))
 end
 
 local buildCache = setmetatable({}, { __mode = "k" })
@@ -104,6 +104,7 @@ function QuickUiSpec.Build(item, selection, platform)
     end
 
     local weapon = Core.WeaponConfig(item)
+    local ownerId = Core.OwnerForWeapon(weapon)
     local character = Inventory and Inventory.ActorForItem(item) or nil
     local availableIds = Inventory and Inventory.CollectAvailableItemIds(character, item) or {}
     local entries = {}
@@ -119,8 +120,8 @@ function QuickUiSpec.Build(item, selection, platform)
             end
 
             local partEntries = { Gunsmith.EmptyPartId .. ":" .. Core.FrameworkLocalizationKey("ui.empty_part") .. ":" .. emptyStatus }
-            for _, partId in ipairs(Core.GetPartsForType(partType)) do
-                appendPartEntry(partEntries, item, selection, platform, quickSlot.path, partId, quickSlot.slot, availableIds)
+            for _, partId in ipairs(Core.GetPartsForType(partType, ownerId)) do
+                appendPartEntry(partEntries, item, selection, platform, quickSlot.path, partId, quickSlot.slot, availableIds, ownerId)
             end
 
             table.insert(entries, table.concat({
@@ -129,7 +130,7 @@ function QuickUiSpec.Build(item, selection, platform)
                 tostring(selection[quickSlot.path] or ""),
                 "0",
                 table.concat(partEntries, ","),
-                quickMeta(item, selection, platform, weapon, quickSlot)
+                quickMeta(item, selection, platform, weapon, quickSlot, ownerId)
             }, "|"))
         end
     end

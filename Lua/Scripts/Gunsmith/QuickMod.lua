@@ -54,18 +54,18 @@ function QuickMod.HasSlotItem(item, slotIndex)
     return slotItem(item, slotIndex) ~= nil
 end
 
-local function findCompatiblePartId(selection, platform, path, identifier)
+local function findCompatiblePartId(selection, platform, path, identifier, ownerId)
     if not Core.IsValidPath(selection, platform, path) then return nil end
     for _, partId in ipairs(partIdsForItemIdentifier(identifier)) do
-        if Core.IsPartCompatible(selection, platform, path, partId) then
+        if Core.IsPartCompatible(selection, platform, path, partId, ownerId) then
             return partId
         end
     end
     return nil
 end
 
-function QuickMod.PartIdForItem(selection, platform, path, item)
-    return findCompatiblePartId(selection, platform, path, Core.ItemIdentifier(item))
+function QuickMod.PartIdForItem(selection, platform, path, item, ownerId)
+    return findCompatiblePartId(selection, platform, path, Core.ItemIdentifier(item), ownerId)
 end
 
 local function beginQuickSlotMutation(item)
@@ -124,6 +124,7 @@ end
 function QuickMod.SyncFromContainer(item, selection, platform)
     local quickSlots = quickSlotsForItem(item)
     if not quickSlots or not selection or not platform then return false end
+    local ownerId = Core.OwnerForWeaponId(Core.ItemIdentifier(item))
 
     local changed = false
     for _, quickSlot in ipairs(quickSlots) do
@@ -131,7 +132,7 @@ function QuickMod.SyncFromContainer(item, selection, platform)
         local contained = slotItem(item, quickSlot.slot)
         local newPartId = nil
         if contained then
-            newPartId = findCompatiblePartId(selection, platform, path, Core.ItemIdentifier(contained))
+            newPartId = findCompatiblePartId(selection, platform, path, Core.ItemIdentifier(contained), ownerId)
         end
 
         if newPartId then

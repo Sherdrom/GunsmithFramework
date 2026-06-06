@@ -261,6 +261,7 @@ function Validation.Run(configOverride, label)
     local platforms = config.platforms
     local weapons = config.weapons
     local parts = config.parts
+    local profiles = config.npcPresets and config.npcPresets.profiles or {}
     if type(platforms) ~= "table" then table.insert(errors, "Missing Gunsmith.Config.platforms.") end
     if type(weapons) ~= "table" then table.insert(errors, "Missing Gunsmith.Config.weapons.") end
     if type(parts) ~= "table" then table.insert(errors, "Missing Gunsmith.Config.parts.") end
@@ -276,6 +277,95 @@ function Validation.Run(configOverride, label)
     local validatedDefaultParents = {}
     local localizationKeys = {}
     addRegisteredFrameworkLocalizationKeys(localizationKeys)
+    local owners = (configOverride and (configOverride.owners or configOverride.Owners)) or Gunsmith.Owners
+    local packages = (configOverride and (configOverride.packages or configOverride.Packages)) or Gunsmith.Packages
+    local enforceOwners = configOverride == nil or type(owners) == "table"
+
+    local function ownerFor(kind, key)
+        local ownerTable = type(owners) == "table" and owners[kind] or nil
+        if type(ownerTable) ~= "table" or type(key) ~= "string" or key == "" then return nil end
+        return ownerTable[key]
+    end
+
+    local function packageFor(ownerId)
+        return type(packages) == "table" and packages[ownerId] or nil
+    end
+
+    local function ownerCanReference(ownerId, targetOwnerId)
+        if not enforceOwners then return true end
+        if type(ownerId) ~= "string" or ownerId == "" then return false end
+        if type(targetOwnerId) ~= "string" or targetOwnerId == "" then return false end
+        if ownerId == targetOwnerId then return true end
+        local package = packageFor(ownerId)
+        if type(package) ~= "table" then return false end
+        if type(package._importSet) == "table" and package._importSet[targetOwnerId] == true then return true end
+        if type(package.imports) == "table" then
+            for _, importId in ipairs(package.imports) do
+                if importId == targetOwnerId then return true end
+            end
+        end
+        return false
+    end
+
+    local function validateOwned(kind, key, label)
+        if not enforceOwners then return end
+        local ownerId = ownerFor(kind, key)
+        if type(ownerId) ~= "string" or ownerId == "" then
+            table.insert(errors, label .. " is not owned by any registered package.")
+        elseif type(packages) == "table" and type(packages[ownerId]) ~= "table" then
+            table.insert(errors, label .. " is owned by missing package '" .. tostring(ownerId) .. "'.")
+        end
+    end
+
+    local function validateReference(kind, key, ownerId, label)
+        if not enforceOwners then return end
+        local targetOwner = ownerFor(kind, key)
+        if type(targetOwner) ~= "string" or targetOwner == "" then
+            table.insert(errors, label .. " references unowned " .. kind .. " '" .. tostring(key) .. "'.")
+        elseif not ownerCanReference(ownerId, targetOwner) then
+            table.insert(errors, label .. " references " .. kind .. " '" .. tostring(key) .. "' owned by package '" .. tostring(targetOwner) .. "' without importing it.")
+        end
+    end
+
+    local function validateImportArray(packageId, imports)
+        if imports == nil then return end
+        if type(imports) ~= "table" then
+            table.insert(errors, "Package '" .. tostring(packageId) .. "' imports must be a string array.")
+            return
+        end
+        local count = 0
+        for key, _ in pairs(imports) do
+            if type(key) ~= "number" or key < 1 or key % 1 ~= 0 then
+                table.insert(errors, "Package '" .. tostring(packageId) .. "' imports must be a string array.")
+                return
+            end
+            count = count + 1
+        end
+        for index = 1, count do
+            local importId = imports[index]
+            if type(importId) ~= "string" or importId == "" then
+                table.insert(errors, "Package '" .. tostring(packageId) .. "' imports #" .. tostring(index) .. " must be a non-empty package id string.")
+            elseif type(packages[importId]) ~= "table" then
+                table.insert(errors, "Package '" .. tostring(packageId) .. "' imports missing package '" .. tostring(importId) .. "'.")
+            end
+        end
+    end
+
+    if enforceOwners then
+        if type(packages) ~= "table" then
+            table.insert(errors, "Missing Gunsmith.Packages for owner isolation.")
+        else
+            for packageId, package in pairs(packages) do
+                if type(package) == "table" then
+                    validateImportArray(packageId, package.imports)
+                end
+            end
+        end
+        for platformId, _ in pairs(platforms) do validateOwned("platforms", platformId, "Platform '" .. tostring(platformId) .. "'") end
+        for weaponId, _ in pairs(weapons) do validateOwned("weapons", weaponId, "Weapon '" .. tostring(weaponId) .. "'") end
+        for partId, _ in pairs(parts) do validateOwned("parts", partId, "Part '" .. tostring(partId) .. "'") end
+        for profileName, _ in pairs(profiles) do validateOwned("npcPresets", profileName, "NPC preset '" .. tostring(profileName) .. "'") end
+    end
 
     local function partCanAttachToMount(part, mount)
         if type(part) ~= "table" or type(mount) ~= "table" then return false end
@@ -284,7 +374,7 @@ function Validation.Run(configOverride, label)
             part.type == expectedType and partProvidesAccepted(part, mount.accepts)
     end
 
-    local function collectQuickKeys(parentPart, quickKeys, visited, depth, includeOptional)
+    local function collectQuickKeys(parentPart, quickKeys, visited, depth, includeOptional, ownerId)
         if type(parentPart) ~= "table" or type(parentPart.mounts) ~= "table" or depth > 32 then return end
         for _, mount in ipairs(parentPart.mounts) do
             local quick = mount.quick
@@ -293,43 +383,44 @@ function Validation.Run(configOverride, label)
             end
 
             local childPartId = mount.defaultPart
-            if type(childPartId) == "string" and childPartId ~= "" and not visited[childPartId] then
+            if type(childPartId) == "string" and childPartId ~= "" and ownerCanReference(ownerId, ownerFor("parts", childPartId)) and not visited[childPartId] then
                 visited[childPartId] = true
-                collectQuickKeys(parts[childPartId], quickKeys, visited, depth + 1, includeOptional)
+                collectQuickKeys(parts[childPartId], quickKeys, visited, depth + 1, includeOptional, ownerId)
             end
 
             if includeOptional then
                 for candidateId, candidatePart in pairs(parts) do
-                    if not visited[candidateId] and partCanAttachToMount(candidatePart, mount) then
+                    if ownerCanReference(ownerId, ownerFor("parts", candidateId)) and not visited[candidateId] and partCanAttachToMount(candidatePart, mount) then
                         visited[candidateId] = true
-                        collectQuickKeys(candidatePart, quickKeys, visited, depth + 1, includeOptional)
+                        collectQuickKeys(candidatePart, quickKeys, visited, depth + 1, includeOptional, ownerId)
                     end
                 end
             end
         end
     end
 
-    local function reachableQuickKeysForWeapon(weapon, platformRootSlots)
+    local function reachableQuickKeysForWeapon(weapon, platformRootSlots, ownerId)
         local quickKeys = {}
         if type(weapon.roots) ~= "table" then return quickKeys end
         for path, _ in pairs(platformRootSlots or {}) do
             local root = weapon.roots[path]
             local rootPartId = type(root) == "table" and root.part or nil
-            if type(rootPartId) == "string" and rootPartId ~= "" then
-                collectQuickKeys(parts[rootPartId], quickKeys, { [rootPartId] = true }, 0, true)
+            if type(rootPartId) == "string" and rootPartId ~= "" and ownerCanReference(ownerId, ownerFor("parts", rootPartId)) then
+                collectQuickKeys(parts[rootPartId], quickKeys, { [rootPartId] = true }, 0, true, ownerId)
             end
         end
         return quickKeys
     end
 
-    local function validateDefaultChildren(parentPartId, parentPart, path, stack, depth)
+    local function validateDefaultChildren(parentPartId, parentPart, path, stack, depth, ownerId)
         if type(parentPart.mounts) ~= "table" then return end
         if depth > 32 then
             table.insert(errors, "Default part tree under '" .. tostring(path) .. "' is deeper than 32 levels.")
             return
         end
-        if validatedDefaultParents[parentPartId] then return end
-        validatedDefaultParents[parentPartId] = true
+        local validationKey = tostring(ownerId or "") .. ":" .. tostring(parentPartId)
+        if validatedDefaultParents[validationKey] then return end
+        validatedDefaultParents[validationKey] = true
 
         for _, mount in ipairs(parentPart.mounts) do
             local childPartId = mount.defaultPart
@@ -341,6 +432,7 @@ function Validation.Run(configOverride, label)
                     local childPath = path .. "/" .. tostring(childPathSegment)
                     local childPart = parts[childPartId]
                     defaultPartIds[childPartId] = true
+                    validateReference("parts", childPartId, ownerId, "Part '" .. tostring(parentPartId) .. "' mount '" .. tostring(childPathSegment) .. "' defaultPart")
 
                     if stack[childPartId] then
                         table.insert(errors, "Mount defaultPart contains a cycle at '" .. tostring(childPartId) .. "'.")
@@ -355,7 +447,7 @@ function Validation.Run(configOverride, label)
                         end
 
                         stack[childPartId] = true
-                        validateDefaultChildren(childPartId, childPart, childPath, stack, depth + 1)
+                        validateDefaultChildren(childPartId, childPart, childPath, stack, depth + 1, ownerId)
                         stack[childPartId] = nil
                     end
                 end
@@ -473,9 +565,11 @@ function Validation.Run(configOverride, label)
     for weaponId, weapon in pairs(weapons) do
         local platformId = type(weapon) == "table" and weapon.platform or nil
         local platform = type(platformId) == "string" and platforms[platformId] or nil
+        local weaponOwner = ownerFor("weapons", weaponId)
         if type(weapon) ~= "table" or type(platformId) ~= "string" or not platform then
             table.insert(errors, "Weapon '" .. tostring(weaponId) .. "' references missing platform '" .. tostring(platformId) .. "'.")
         else
+            validateReference("platforms", platformId, weaponOwner, "Weapon '" .. tostring(weaponId) .. "' platform")
             if weapon.defaults ~= nil then table.insert(errors, "Weapon '" .. tostring(weaponId) .. "' uses removed field 'defaults'.") end
             if weapon.rootAccepts ~= nil then table.insert(errors, "Weapon '" .. tostring(weaponId) .. "' uses removed field 'rootAccepts'.") end
             if weapon.quickSlotCalibration ~= nil then table.insert(errors, "Weapon '" .. tostring(weaponId) .. "' uses removed field 'quickSlotCalibration'.") end
@@ -510,8 +604,9 @@ function Validation.Run(configOverride, label)
                     elseif part.type ~= path then
                         table.insert(errors, "Weapon '" .. tostring(weaponId) .. "' root part '" .. tostring(partId) .. "' type does not match '" .. tostring(path) .. "'.")
                     else
+                        validateReference("parts", partId, weaponOwner, rootLabel .. ".part")
                         defaultPartIds[partId] = true
-                        validateDefaultChildren(partId, part, path, { [partId] = true }, 0)
+                        validateDefaultChildren(partId, part, path, { [partId] = true }, 0, weaponOwner)
                     end
                     if type(root) == "table" then
                         if not validOptionalPoint(root.socket) or root.socket == nil then
@@ -547,7 +642,7 @@ function Validation.Run(configOverride, label)
                 if type(weapon.quickSlotBindings) ~= "table" then
                     table.insert(errors, "Weapon '" .. tostring(weaponId) .. "' quickSlotBindings must be a table.")
                 else
-                    local quickKeys = reachableQuickKeysForWeapon(weapon, rootSlots)
+                    local quickKeys = reachableQuickKeysForWeapon(weapon, rootSlots, weaponOwner)
                     local usedSlots = {}
                     for key, binding in pairs(weapon.quickSlotBindings) do
                         local bindingLabel = "Weapon '" .. tostring(weaponId) .. "' quickSlotBindings '" .. tostring(key) .. "'"
@@ -608,6 +703,7 @@ function Validation.Run(configOverride, label)
                     table.insert(errors, "Part '" .. partId .. "' excludes must be a non-empty string array when declared.")
                 else
                     local seenExcludes = {}
+                    local partOwner = ownerFor("parts", partId)
                     for _, excludedPartId in ipairs(part.excludes) do
                         if excludedPartId == partId then
                             table.insert(errors, "Part '" .. partId .. "' excludes itself.")
@@ -615,6 +711,8 @@ function Validation.Run(configOverride, label)
                             table.insert(errors, "Part '" .. partId .. "' excludes missing part '" .. tostring(excludedPartId) .. "'.")
                         elseif seenExcludes[excludedPartId] then
                             table.insert(errors, "Part '" .. partId .. "' excludes duplicate part '" .. tostring(excludedPartId) .. "'.")
+                        else
+                            validateReference("parts", excludedPartId, partOwner, "Part '" .. partId .. "' excludes")
                         end
                         seenExcludes[excludedPartId] = true
                     end
@@ -739,7 +837,45 @@ function Validation.Run(configOverride, label)
 
     for partId, part in pairs(parts) do
         if type(part) == "table" and type(part.mounts) == "table" then
-            validateDefaultChildren(partId, part, part.type or partId, { [partId] = true }, 0)
+            validateDefaultChildren(partId, part, part.type or partId, { [partId] = true }, 0, ownerFor("parts", partId))
+        end
+    end
+
+    for profileName, profile in pairs(profiles) do
+        local profileOwner = ownerFor("npcPresets", profileName)
+        if type(profile) ~= "table" then
+            table.insert(errors, "NPC preset '" .. tostring(profileName) .. "' must be a table.")
+        else
+            if profile.weapon ~= nil then
+                if type(profile.weapon) ~= "string" or profile.weapon == "" then
+                    table.insert(errors, "NPC preset '" .. tostring(profileName) .. "' weapon must be a non-empty string when declared.")
+                elseif type(weapons[profile.weapon]) ~= "table" then
+                    table.insert(warnings, "NPC preset '" .. tostring(profileName) .. "' references missing weapon '" .. tostring(profile.weapon) .. "'.")
+                else
+                    validateReference("weapons", profile.weapon, profileOwner, "NPC preset '" .. tostring(profileName) .. "' weapon")
+                    local weaponOwner = ownerFor("weapons", profile.weapon)
+                    if enforceOwners and not ownerCanReference(weaponOwner, profileOwner) then
+                        table.insert(errors, "Weapon '" .. tostring(profile.weapon) .. "' cannot use NPC preset '" .. tostring(profileName) .. "' owned by package '" .. tostring(profileOwner or "<none>") .. "' without importing it.")
+                    end
+                end
+            end
+            if profile.parts ~= nil then
+                if type(profile.parts) ~= "table" then
+                    table.insert(errors, "NPC preset '" .. tostring(profileName) .. "' parts must be a table when declared.")
+                else
+                    for path, partId in pairs(profile.parts) do
+                        if type(path) ~= "string" or path == "" then
+                            table.insert(errors, "NPC preset '" .. tostring(profileName) .. "' parts contains an invalid path.")
+                        elseif type(partId) ~= "string" or partId == "" then
+                            table.insert(errors, "NPC preset '" .. tostring(profileName) .. "' part at path '" .. tostring(path) .. "' must be a non-empty part id string.")
+                        elseif not parts[partId] then
+                            table.insert(warnings, "NPC preset '" .. tostring(profileName) .. "' references missing part '" .. tostring(partId) .. "'.")
+                        else
+                            validateReference("parts", partId, profileOwner, "NPC preset '" .. tostring(profileName) .. "' part '" .. tostring(path) .. "'")
+                        end
+                    end
+                end
+            end
         end
     end
 
@@ -948,8 +1084,68 @@ function Validation.RunSelfTest()
         }
     }
 
+    local ownerIsolationBadConfig = {
+        packages = {
+            A = { id = "A", imports = {} },
+            B = { id = "B", imports = {} }
+        },
+        owners = {
+            platforms = { b_platform = "B" },
+            weapons = { a_weapon = "A" },
+            parts = { b_receiver = "B" },
+            npcPresets = {}
+        },
+        platforms = {
+            b_platform = {
+                canvas = { w = 128, h = 64 },
+                rootSlots = { { path = "receiver" } },
+                pathNameKeys = { receiver = "gunsmith.framework.test.path.receiver" }
+            }
+        },
+        weapons = {
+            a_weapon = {
+                platform = "b_platform",
+                roots = {
+                    receiver = {
+                        part = "b_receiver",
+                        socket = { x = 0, y = 0 }
+                    }
+                }
+            }
+        },
+        parts = {
+            b_receiver = {
+                type = "receiver",
+                nameKey = "gunsmith.framework.test.part.receiver",
+                provides = { "receiver" },
+                item = { virtual = true }
+            }
+        }
+    }
+
+    local ownerIsolationAllowedConfig = {
+        packages = {
+            A = { id = "A", imports = { "B" } },
+            B = { id = "B", imports = {} }
+        },
+        owners = {
+            platforms = { b_platform = "B" },
+            weapons = { a_weapon = "A" },
+            parts = { b_receiver = "B" },
+            npcPresets = {}
+        },
+        platforms = ownerIsolationBadConfig.platforms,
+        weapons = ownerIsolationBadConfig.weapons,
+        parts = ownerIsolationBadConfig.parts
+    }
+
     print("[GunsmithFramework][Validation][SelfTest] Running intentional broken-config validation test.")
-    return Validation.Run(badConfig, "SelfTest")
+    local result = Validation.Run(badConfig, "SelfTest")
+    print("[GunsmithFramework][Validation][SelfTest] Running owner-isolation rejection test.")
+    Validation.Run(ownerIsolationBadConfig, "OwnerIsolationSelfTest")
+    print("[GunsmithFramework][Validation][SelfTest] Running owner-isolation import allow test.")
+    Validation.Run(ownerIsolationAllowedConfig, "OwnerIsolationAllowedSelfTest")
+    return result
 end
 
 function Validation.RegisterCommands()

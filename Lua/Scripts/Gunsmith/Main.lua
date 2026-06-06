@@ -61,6 +61,39 @@ local function sanitizeId(value)
     return id
 end
 
+local function normalizeImports(package)
+    local imports = package.imports
+    local normalized = {}
+    local set = {}
+    if imports == nil then
+        package.imports = normalized
+        package._importSet = set
+        return
+    end
+    if type(imports) ~= "table" then
+        error("[GunsmithFramework] package.imports must be a string array.")
+    end
+    local count = 0
+    for key, _ in pairs(imports) do
+        if type(key) ~= "number" or key < 1 or key % 1 ~= 0 then
+            error("[GunsmithFramework] package.imports must be a string array.")
+        end
+        count = count + 1
+    end
+    for index = 1, count do
+        local packageId = imports[index]
+        if type(packageId) ~= "string" or packageId == "" then
+            error("[GunsmithFramework] package.imports #" .. tostring(index) .. " must be a non-empty package id string.")
+        end
+        if not set[packageId] then
+            set[packageId] = true
+            table.insert(normalized, packageId)
+        end
+    end
+    package.imports = normalized
+    package._importSet = set
+end
+
 local function inferModDirFromSource(source)
     source = normalizePath(source)
     if not source then return nil end
@@ -196,6 +229,7 @@ local function ensurePackage(package, callerModDir)
     package.localizationFiles = package.localizationFiles or discoverLocalizationFiles(package.modDir)
     package.localizationPrefix = package.localizationPrefix or (package.id .. ".gunsmith")
     package.name = package.name or discoverPackageName(package.modDir) or basename(package.modDir) or package.id
+    normalizeImports(package)
     package._normalized = true
     return package
 end
@@ -504,6 +538,9 @@ function Framework.RegisterPackage(package)
     package = ensurePackage(package, inferCallerModDir(3))
     rememberPackage(package)
     loadPackageEntry(package)
+    if Framework.Core and Framework.Core.ClearConfigCaches then
+        Framework.Core.ClearConfigCaches()
+    end
     if Framework.Hooks and Framework.Hooks.RefreshRegistrations then
         Framework.Hooks.RefreshRegistrations()
     end

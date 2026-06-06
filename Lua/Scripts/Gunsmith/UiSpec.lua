@@ -7,14 +7,14 @@ local Stats = Gunsmith.Stats
 local UiSpec = {}
 Gunsmith.UiSpec = UiSpec
 
-local function appendPartEntry(entries, item, selection, platform, slotPath, partId)
+local function appendPartEntry(entries, item, selection, platform, slotPath, partId, ownerId)
     local part = Gunsmith.Config.parts[partId]
     if part then
         local weapon = Core.WeaponConfig(item)
         local status = "available"
         if selection[slotPath] == partId then
             status = "installed"
-        elseif not Core.IsPartCompatible(selection, platform, slotPath, partId) then
+        elseif not Core.IsPartCompatible(selection, platform, slotPath, partId, ownerId) then
             status = "incompatible"
         elseif Inventory and not Inventory.HasPartItem(Inventory.ActorForItem(item), part, item) then
             status = "missing"
@@ -35,6 +35,7 @@ end
 
 function UiSpec.Build(item, selection, platform, currentPath)
     local path = Core.NormalizeUiPath(platform, currentPath or "")
+    local ownerId = Core.OwnerForWeaponId(Core.ItemIdentifier(item))
     local entries = {}
 
     for _, slot in ipairs(Core.SlotsForPath(selection, platform, path)) do
@@ -45,8 +46,8 @@ function UiSpec.Build(item, selection, platform, currentPath)
             emptyStatus = "installed"
         end
         local partEntries = { Gunsmith.EmptyPartId .. ":" .. Core.FrameworkLocalizationKey("ui.empty_part") .. ":" .. emptyStatus }
-        for _, partId in ipairs(Core.GetPartsForType(slot.partType)) do
-            appendPartEntry(partEntries, item, selection, platform, slot.path, partId)
+        for _, partId in ipairs(Core.GetPartsForType(slot.partType, ownerId)) do
+            appendPartEntry(partEntries, item, selection, platform, slot.path, partId, ownerId)
         end
 
         local slotPath = slot.path

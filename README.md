@@ -243,6 +243,8 @@ GunsmithFramework.RegisterPackage({
     localizationFiles = { "text/English.xml", "text/Chinese.xml" },
     -- 可选：只在想覆盖框架 UI 文案前缀时填写。
     -- localizationPrefix = "my.gunsmith",
+    -- 可选：只在需要引用其他 Gunsmith package 的 platform/part/preset 时填写。
+    -- imports = { "shared_gunsmith_pack" },
     weaponTags = { "my_gunsmith_weapon" },
     partTags = { "my_gunsmith_part" },
     override = false
@@ -260,9 +262,19 @@ GunsmithFramework.RegisterPackage({
 | `name` | string | 从 filelist 或目录名推断 | 显示/日志用名称。 |
 | `localizationFiles` | string array | 从 filelist 的 `<Text>` 推断 | 校验本地化 key 时读取的文本文件。 |
 | `localizationPrefix` | string | `id .. ".gunsmith"`，也会尝试从已注册 key 推断 | 可选。覆盖此包的框架 UI 文案前缀；不写也能正常工作。 |
+| `imports` | string array | `{}` | 可选。显式允许本包引用其他 package 拥有的 platform、part、weapon 或 NPC preset。默认禁止跨包引用。 |
 | `weaponTags` | string array | 尝试从 XML item tags 推断 | 注册为 Gunsmith 武器标签。 |
 | `partTags` | string array | 尝试从 XML item tags 推断 | 注入 Quick Slot 容器时用作可放入部件标签。 |
 | `override` | boolean | `false` | 为 `true` 时允许覆盖其他包已有的同 id platform/weapon/part/preset。 |
+
+owner 隔离规则：
+
+- 每个通过 `RegisterPackage` 加载的 platform、weapon、part、NPC preset 都会记录所属 package。
+- 默认只能引用本 package 拥有的配置。weapon 的 `platform`、root part、`defaultPart`、NPC preset 的 `weapon/parts`，以及 UI/Quick UI 的部件候选都会按 owner 过滤。
+- 如果要复用其他包的配置，在当前包声明 `imports = { "other_package_id" }`。被 import 的包必须已经注册。
+- `imports` 只允许引用，不允许覆盖同名配置。覆盖同名 platform/weapon/part/preset 仍然必须使用 `override = true`。
+- 仍建议所有全局 key 使用模组前缀，例如 `my_mod_ar_platform`、`my_mod_receiver`，避免 duplicate key。
+- 直接写全局 `GunsmithFramework.Config` 而不通过 `RegisterPackage` 不属于支持的第三方接口；校验器会把真实配置中的无 owner 条目标为错误。
 
 配置入口内可用：
 

@@ -63,6 +63,14 @@ local function matchingProfile(item, profileName)
 
     local weaponIdentifier = Core.ItemIdentifier(item)
     if not weaponIdentifier then return nil end
+    local weaponOwner = Core.OwnerForWeaponId(weaponIdentifier)
+    local profileOwner = Core.OwnerForNpcPreset(profileName)
+    if not Core.OwnerCanReference(weaponOwner, profileOwner) then
+        warnOnce(
+            "owner:" .. profileName .. ":" .. tostring(weaponIdentifier),
+            "Profile '" .. tostring(profileName) .. "' is owned by package '" .. tostring(profileOwner or "<none>") .. "' and cannot be used by weapon '" .. tostring(weaponIdentifier) .. "' owned by '" .. tostring(weaponOwner or "<none>") .. "'.")
+        return nil
+    end
     if profile.weapon and profile.weapon ~= weaponIdentifier then
         warnOnce(
             "weapon:" .. profileName .. ":" .. tostring(weaponIdentifier),
@@ -73,7 +81,7 @@ local function matchingProfile(item, profileName)
     return profileName, profile
 end
 
-local function validatePartPath(selection, platform, path, partId)
+local function validatePartPath(selection, platform, path, partId, ownerId)
     if not Core.IsValidPath(selection, platform, path) then
         warn("Invalid path '" .. tostring(path) .. "' for part '" .. tostring(partId) .. "'.")
         return false
@@ -83,23 +91,23 @@ local function validatePartPath(selection, platform, path, partId)
         warn("Missing part '" .. tostring(partId) .. "'.")
         return false
     end
-    if not Core.IsPartCompatible(selection, platform, path, partId) then
+    if not Core.IsPartCompatible(selection, platform, path, partId, ownerId) then
         warn("Incompatible part '" .. tostring(partId) .. "' at path '" .. tostring(path) .. "'.")
         return false
     end
     return true
 end
 
-local function buildSelection(profile, platform, weapon)
-    local selection = Core.BuildDefaultSelection(platform, weapon)
+local function buildSelection(profile, platform, weapon, ownerId)
+    local selection = Core.BuildDefaultSelection(platform, weapon, ownerId)
     local parts = type(profile.parts) == "table" and profile.parts or {}
 
     for path, partId in pairs(parts) do
-        validatePartPath(selection, platform, path, partId)
+        validatePartPath(selection, platform, path, partId, ownerId)
     end
 
-    Persistence.ApplySavedParts(selection, platform, weapon, parts)
-    Core.PruneInvalidSelections(selection, platform, weapon)
+    Persistence.ApplySavedParts(selection, platform, weapon, parts, ownerId)
+    Core.PruneInvalidSelections(selection, platform, weapon, ownerId)
     return selection
 end
 
@@ -143,7 +151,7 @@ local function schedulePresetRecovery(item, profileName)
         local key = Core.ItemKey(item)
         if type(profile) ~= "table" or not State or not platform or not weapon or not key then return end
 
-        local selection = buildSelection(profile, platform, weapon)
+        local selection = buildSelection(profile, platform, weapon, Core.OwnerForWeapon(weapon))
         State.selections[key] = selection
         State.loadedStates[key] = true
         State.appliedSignatures[item] = nil
@@ -198,6 +206,7 @@ function NpcPresets.TryApply(item, diagnose, presetName)
     local State = Gunsmith.State
     local platform = Core.PlatformConfig(item)
     local key = Core.ItemKey(item)
+    local ownerId = Core.OwnerForWeapon(weapon)
     if not State or not platform or not weapon or not key then
         warnOnce(
             "runtime:" .. profileName .. ":" .. tostring(Core.ItemIdentifier(item)),
@@ -205,7 +214,7 @@ function NpcPresets.TryApply(item, diagnose, presetName)
         return false
     end
 
-    local selection = buildSelection(profile, platform, weapon)
+    local selection = buildSelection(profile, platform, weapon, ownerId)
     State.selections[key] = selection
     State.loadedStates[key] = true
     State.appliedSignatures[item] = nil

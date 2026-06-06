@@ -76,8 +76,9 @@ function Persistence.Decode(json)
     return parts
 end
 
-function Persistence.ApplySavedParts(selection, platform, weapon, savedParts)
+function Persistence.ApplySavedParts(selection, platform, weapon, savedParts, ownerId)
     if type(savedParts) ~= "table" then return end
+    ownerId = ownerId or Core.OwnerForWeapon(weapon)
 
     for _, path in ipairs(sortedSavedPaths(savedParts)) do
         local partId = savedParts[path]
@@ -88,11 +89,11 @@ function Persistence.ApplySavedParts(selection, platform, weapon, savedParts)
                 end
             else
                 local part = Gunsmith.Config.parts[partId]
-                if part and Core.IsPartCompatible(selection, platform, path, partId) then
+                if part and Core.IsPartCompatible(selection, platform, path, partId, ownerId) then
                     selection[path] = partId
                 end
             end
-            Core.PruneInvalidSelections(selection, platform, weapon)
+            Core.PruneInvalidSelections(selection, platform, weapon, ownerId)
         end
     end
 end
@@ -105,9 +106,10 @@ function Persistence.Receive(item, json)
     if not State or not platform or not key then return end
 
     local hasSavedState = type(json) == "string" and json ~= ""
-    local selection = Core.BuildDefaultSelection(platform, weapon)
-    Persistence.ApplySavedParts(selection, platform, weapon, Persistence.Decode(json))
-    Core.PruneInvalidSelections(selection, platform, weapon)
+    local ownerId = Core.OwnerForWeapon(weapon)
+    local selection = Core.BuildDefaultSelection(platform, weapon, ownerId)
+    Persistence.ApplySavedParts(selection, platform, weapon, Persistence.Decode(json), ownerId)
+    Core.PruneInvalidSelections(selection, platform, weapon, ownerId)
 
     State.selections[key] = selection
     State.loadedStates[key] = true
@@ -131,6 +133,6 @@ function Persistence.Save(item)
     local selection = Gunsmith.Runtime and Gunsmith.Runtime.GetSelection(item) or nil
     if not platform or not selection then return end
 
-    Core.PruneInvalidSelections(selection, platform, weapon)
+    Core.PruneInvalidSelections(selection, platform, weapon, Core.OwnerForWeapon(weapon))
     Hook.Call("GunsmithFrameworkSaveState", item, Persistence.Encode(selection, platform, weapon))
 end
