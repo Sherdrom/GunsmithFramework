@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<infotexts language="English">
+  <gunsmith.framework.ui.title>{0} Gunsmith</gunsmith.framework.ui.title>
+  <gunsmith.framework.ui.quick_title>{0} Quick Gunsmith</gunsmith.framework.ui.quick_title>
+  <gunsmith.framework.ui.quick_root>Quick Slots</gunsmith.framework.ui.quick_root>
+  <gunsmith.framework.ui.close>Close</gunsmith.framework.ui.close>
+  <gunsmith.framework.ui.current_slots>Slots</gunsmith.framework.ui.current_slots>
+  <gunsmith.framework.ui.back>Back</gunsmith.framework.ui.back>
+  <gunsmith.framework.ui.preview_placeholder>No preview available</gunsmith.framework.ui.preview_placeholder>
+  <gunsmith.framework.ui.path_line>Path: {0}</gunsmith.framework.ui.path_line>
+  <gunsmith.framework.ui.enter_mounts>Open Mounts</gunsmith.framework.ui.enter_mounts>
+  <gunsmith.framework.ui.part_list_title>{0}</gunsmith.framework.ui.part_list_title>
+  <gunsmith.framework.ui.part_detail_title>Part Details</gunsmith.framework.ui.part_detail_title>
+  <gunsmith.framework.ui.empty_part>Empty</gunsmith.framework.ui.empty_part>
+  <gunsmith.framework.ui.weapon_root>Weapon</gunsmith.framework.ui.weapon_root>
+  <gunsmith.framework.status.installed>Installed</gunsmith.framework.status.installed>
+  <gunsmith.framework.status.missing>Missing</gunsmith.framework.status.missing>
+  <gunsmith.framework.status.incompatible>Incompatible</gunsmith.framework.status.incompatible>
+  <gunsmith.framework.status.disabled>Disabled</gunsmith.framework.status.disabled>
+  <gunsmith.framework.status.available>Available</gunsmith.framework.status.available>
+  <gunsmith.framework.action.installed>Installed</gunsmith.framework.action.installed>
+  <gunsmith.framework.action.missing>Missing item</gunsmith.framework.action.missing>
+  <gunsmith.framework.action.incompatible>Incompatible</gunsmith.framework.action.incompatible>
+  <gunsmith.framework.action.disabled>Unavailable</gunsmith.framework.action.disabled>
+  <gunsmith.framework.action.remove>Remove</gunsmith.framework.action.remove>
+  <gunsmith.framework.action.install>Install</gunsmith.framework.action.install>
+  <gunsmith.framework.stat.ergonomics>Ergonomics</gunsmith.framework.stat.ergonomics>
+  <gunsmith.framework.stat.none>No stat changes</gunsmith.framework.stat.none>
+  <gunsmith.framework.stattypes.ElectricalSkillBonus>Electrical Skill Bonus</gunsmith.framework.stattypes.ElectricalSkillBonus>
+  <gunsmith.framework.stattypes.HelmSkillBonus>Helm Skill Bonus</gunsmith.framework.stattypes.HelmSkillBonus>
+  <gunsmith.framework.stattypes.MechanicalSkillBonus>Mechanical Skill Bonus</gunsmith.framework.stattypes.MechanicalSkillBonus>
+  <gunsmith.framework.stattypes.MedicalSkillBonus>Medical Skill Bonus</gunsmith.framework.stattypes.MedicalSkillBonus>
+  <gunsmith.framework.stattypes.WeaponsSkillBonus>Weapons Skill Bonus</gunsmith.framework.stattypes.WeaponsSkillBonus>
+  <gunsmith.framework.stattypes.HelmSkillOverride>Helm Skill Override</gunsmith.framework.stattypes.HelmSkillOverride>
+  <gunsmith.framework.stattypes.MedicalSkillOverride>Medical Skill Override</gunsmith.framework.stattypes.MedicalSkillOverride>
+  <gunsmith.framework.stattypes.WeaponsSkillOverride>Weapons Skill Override</gunsmith.framework.stattypes.WeaponsSkillOverride>
+  <gunsmith.framework.stattypes.ElectricalSkillOverride>Electrical Skill Override</gunsmith.framework.stattypes.ElectricalSkillOverride>
+  <gunsmith.framework.stattypes.MechanicalSkillOverride>Mechanical Skill Override</gunsmith.framework.stattypes.MechanicalSkillOverride>
+  <gunsmith.framework.stattypes.MaximumHealthMultiplier>Maximum Health</gunsmith.framework.stattypes.MaximumHealthMultiplier>
+  <gunsmith.framework.stattypes.MovementSpeed>Movement Speed</gunsmith.framework.stattypes.MovementSpeed>
+  <gunsmith.framework.stattypes.WalkingSpeed>Walking Speed</gunsmith.framework.stattypes.WalkingSpeed>
+  <gunsmith.framework.stattypes.SwimmingSpeed>Swimming Speed</gunsmith.framework.stattypes.SwimmingSpeed>
+  <gunsmith.framework.stattypes.PropulsionSpeed>Propulsion Speed</gunsmith.framework.stattypes.PropulsionSpeed>
+  <gunsmith.framework.stattypes.BuffDurationMultiplier>Buff Duration</gunsmith.framework.stattypes.BuffDurationMultiplier>
+  <gunsmith.framework.stattypes.DebuffDurationMultiplier>Debuff Duration</gunsmith.framework.stattypes.DebuffDurationMultiplier>
+  <gunsmith.framework.stattypes.MedicalItemEffectivenessMultiplier>Medical Item Effectiveness</gunsmith.framework.stattypes.MedicalItemEffectivenessMultiplier>
+  <gunsmith.framework.stattypes.FlowResistance>Flow Resistance</gunsmith.framework.stattypes.FlowResistance>
+  <gunsmith.framework.stattypes.AttackMultiplier>Attack Damage</gunsmith.framework.stattypes.AttackMultiplier>
+  <gunsmith.framework.stattypes.TeamAttackMultiplier>Team Damage</gunsmith.framework.stattypes.TeamAttackMultiplier>
+  <gunsmith.framework.stattypes.RangedAttackSpeed>Ranged Attack Speed</gunsmith.framework.stattypes.RangedAttackSpeed>
+  <gunsmith.framework.stattypes.RangedAttackMultiplier>Ranged Attack Damage</gunsmith.framework.stattypes.RangedAttackMultiplier>
+  <gunsmith.framework.stattypes.TurretAttackSpeed>Turret Attack Speed</gunsmith.framework.stattypes.TurretAttackSpeed>
+  <gunsmith.framework.stattypes.TurretPowerCostReduction>Turret Power Cost Reduction</gunsmith.framework.stattypes.TurretPowerCostReduction>
+  <gunsmith.framework.stattypes.TurretChargeSpeed>Turret Charge Speed</gunsmith.framework.stattypes.TurretChargeSpeed>
+  <gunsmith.framework.stattypes.MeleeAttackSpeed>Melee Attack Speed</gunsmith.framework.stattypes.MeleeAttackSpeed>
+  <gunsmith.framework.stattypes.MeleeAttackMultiplier>Melee Attack Damage</gunsmith.framework.stattypes.MeleeAttackMultiplier>
+  <gunsmith.framework.stattypes.RangedSpreadReduction>Ranged Spread Reduction</gunsmith.framework.stattypes.RangedSpreadReduction>
+  <gunsmith.framework.stattypes.RepairSpeed>Repair Speed</gunsmith.framework.stattypes.RepairSpeed>
+  <gunsmith.framework.stattypes.MechanicalRepairSpeed>Mechanical Repair Speed</gunsmith.framework.stattypes.MechanicalRepairSpeed>
+  <gunsmith.framework.stattypes.ElectricalRepairSpeed>Electrical Repair Speed</gunsmith.framework.stattypes.ElectricalRepairSpeed>
+  <gunsmith.framework.stattypes.DeconstructorSpeedMultiplier>Deconstructor Speed</gunsmith.framework.stattypes.DeconstructorSpeedMultiplier>
+  <gunsmith.framework.stattypes.RepairToolStructureRepairMultiplier>Repair Tool Structure Repair</gunsmith.framework.stattypes.RepairToolStructureRepairMultiplier>
+  <gunsmith.framework.stattypes.RepairToolStructureDamageMultiplier>Repair Tool Structure Damage</gunsmith.framework.stattypes.RepairToolStructureDamageMultiplier>
+  <gunsmith.framework.stattypes.RepairToolDeattachTimeMultiplier>Repair Tool Deattach Time</gunsmith.framework.stattypes.RepairToolDeattachTimeMultiplier>
+  <gunsmith.framework.stattypes.MaxRepairConditionMultiplierMechanical>Mechanical Max Repair Condition</gunsmith.framework.stattypes.MaxRepairConditionMultiplierMechanical>
+  <gunsmith.framework.stattypes.MaxRepairConditionMultiplierElectrical>Electrical Max Repair Condition</gunsmith.framework.stattypes.MaxRepairConditionMultiplierElectrical>
+  <gunsmith.framework.stattypes.IncreaseFabricationQuality>Fabrication Quality</gunsmith.framework.stattypes.IncreaseFabricationQuality>
+  <gunsmith.framework.stattypes.GeneticMaterialRefineBonus>Genetic Material Refine Bonus</gunsmith.framework.stattypes.GeneticMaterialRefineBonus>
+  <gunsmith.framework.stattypes.GeneticMaterialTaintedProbabilityReductionOnCombine>Genetic Taint Reduction On Combine</gunsmith.framework.stattypes.GeneticMaterialTaintedProbabilityReductionOnCombine>
+  <gunsmith.framework.stattypes.SkillGainSpeed>Skill Gain Speed</gunsmith.framework.stattypes.SkillGainSpeed>
+  <gunsmith.framework.stattypes.ExtraLevelGain>Extra Level Gain</gunsmith.framework.stattypes.ExtraLevelGain>
+  <gunsmith.framework.stattypes.HelmSkillGainSpeed>Helm Skill Gain Speed</gunsmith.framework.stattypes.HelmSkillGainSpeed>
+  <gunsmith.framework.stattypes.WeaponsSkillGainSpeed>Weapons Skill Gain Speed</gunsmith.framework.stattypes.WeaponsSkillGainSpeed>
+  <gunsmith.framework.stattypes.MedicalSkillGainSpeed>Medical Skill Gain Speed</gunsmith.framework.stattypes.MedicalSkillGainSpeed>
+  <gunsmith.framework.stattypes.ElectricalSkillGainSpeed>Electrical Skill Gain Speed</gunsmith.framework.stattypes.ElectricalSkillGainSpeed>
+  <gunsmith.framework.stattypes.MechanicalSkillGainSpeed>Mechanical Skill Gain Speed</gunsmith.framework.stattypes.MechanicalSkillGainSpeed>
+  <gunsmith.framework.stattypes.MedicalItemApplyingMultiplier>Medical Item Applying Speed</gunsmith.framework.stattypes.MedicalItemApplyingMultiplier>
+  <gunsmith.framework.stattypes.BuffItemApplyingMultiplier>Buff Item Applying Speed</gunsmith.framework.stattypes.BuffItemApplyingMultiplier>
+  <gunsmith.framework.stattypes.PoisonMultiplier>Poison Effect</gunsmith.framework.stattypes.PoisonMultiplier>
+  <gunsmith.framework.stattypes.TinkeringDuration>Tinkering Duration</gunsmith.framework.stattypes.TinkeringDuration>
+  <gunsmith.framework.stattypes.TinkeringStrength>Tinkering Strength</gunsmith.framework.stattypes.TinkeringStrength>
+  <gunsmith.framework.stattypes.TinkeringDamage>Tinkering Damage</gunsmith.framework.stattypes.TinkeringDamage>
+  <gunsmith.framework.stattypes.ReputationGainMultiplier>Reputation Gain</gunsmith.framework.stattypes.ReputationGainMultiplier>
+  <gunsmith.framework.stattypes.ReputationLossMultiplier>Reputation Loss</gunsmith.framework.stattypes.ReputationLossMultiplier>
+  <gunsmith.framework.stattypes.MissionMoneyGainMultiplier>Mission Money Gain</gunsmith.framework.stattypes.MissionMoneyGainMultiplier>
+  <gunsmith.framework.stattypes.ExperienceGainMultiplier>Experience Gain</gunsmith.framework.stattypes.ExperienceGainMultiplier>
+  <gunsmith.framework.stattypes.MissionExperienceGainMultiplier>Mission Experience Gain</gunsmith.framework.stattypes.MissionExperienceGainMultiplier>
+  <gunsmith.framework.stattypes.ExtraMissionCount>Extra Mission Count</gunsmith.framework.stattypes.ExtraMissionCount>
+  <gunsmith.framework.stattypes.ExtraSpecialSalesCount>Extra Special Sales Count</gunsmith.framework.stattypes.ExtraSpecialSalesCount>
+  <gunsmith.framework.stattypes.StoreSellMultiplier>Store Sell Price</gunsmith.framework.stattypes.StoreSellMultiplier>
+  <gunsmith.framework.stattypes.StoreBuyMultiplierAffiliated>Affiliated Store Buy Price</gunsmith.framework.stattypes.StoreBuyMultiplierAffiliated>
+  <gunsmith.framework.stattypes.StoreBuyMultiplier>Store Buy Price</gunsmith.framework.stattypes.StoreBuyMultiplier>
+  <gunsmith.framework.stattypes.ShipyardBuyMultiplierAffiliated>Affiliated Shipyard Buy Price</gunsmith.framework.stattypes.ShipyardBuyMultiplierAffiliated>
+  <gunsmith.framework.stattypes.ShipyardBuyMultiplier>Shipyard Buy Price</gunsmith.framework.stattypes.ShipyardBuyMultiplier>
+  <gunsmith.framework.stattypes.MaxAttachableCount>Max Attachable Count</gunsmith.framework.stattypes.MaxAttachableCount>
+  <gunsmith.framework.stattypes.ExplosionRadiusMultiplier>Explosion Radius</gunsmith.framework.stattypes.ExplosionRadiusMultiplier>
+  <gunsmith.framework.stattypes.ExplosionDamageMultiplier>Explosion Damage</gunsmith.framework.stattypes.ExplosionDamageMultiplier>
+  <gunsmith.framework.stattypes.FabricationSpeed>Fabrication Speed</gunsmith.framework.stattypes.FabricationSpeed>
+  <gunsmith.framework.stattypes.BallastFloraDamageMultiplier>Ballast Flora Damage</gunsmith.framework.stattypes.BallastFloraDamageMultiplier>
+  <gunsmith.framework.stattypes.HoldBreathMultiplier>Hold Breath Time</gunsmith.framework.stattypes.HoldBreathMultiplier>
+  <gunsmith.framework.stattypes.Apprenticeship>Apprenticeship</gunsmith.framework.stattypes.Apprenticeship>
+  <gunsmith.framework.stattypes.CPRBoost>CPR Boost</gunsmith.framework.stattypes.CPRBoost>
+  <gunsmith.framework.stattypes.LockedTalents>Locked Talents</gunsmith.framework.stattypes.LockedTalents>
+  <gunsmith.framework.stattypes.HireCostMultiplier>Hire Cost</gunsmith.framework.stattypes.HireCostMultiplier>
+  <gunsmith.framework.stattypes.InventoryExtraStackSize>Inventory Extra Stack Size</gunsmith.framework.stattypes.InventoryExtraStackSize>
+  <gunsmith.framework.stattypes.SoundRangeMultiplier>Sound Range</gunsmith.framework.stattypes.SoundRangeMultiplier>
+  <gunsmith.framework.stattypes.SightRangeMultiplier>Sight Range</gunsmith.framework.stattypes.SightRangeMultiplier>
+  <gunsmith.framework.stattypes.DualWieldingPenaltyReduction>Dual Wielding Penalty Reduction</gunsmith.framework.stattypes.DualWieldingPenaltyReduction>
+  <gunsmith.framework.stattypes.NaturalMeleeAttackMultiplier>Natural Melee Damage</gunsmith.framework.stattypes.NaturalMeleeAttackMultiplier>
+</infotexts>

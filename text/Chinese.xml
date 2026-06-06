@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<infotexts language="Simplified Chinese" nowhitespace="false" translatedname="中文(简体)">
+  <gunsmith.framework.ui.title>改装: {0}</gunsmith.framework.ui.title>
+  <gunsmith.framework.ui.quick_title>快速改装: {0}</gunsmith.framework.ui.quick_title>
+  <gunsmith.framework.ui.quick_root>快速改装</gunsmith.framework.ui.quick_root>
+  <gunsmith.framework.ui.close>关闭</gunsmith.framework.ui.close>
+  <gunsmith.framework.ui.current_slots>当前层级槽位</gunsmith.framework.ui.current_slots>
+  <gunsmith.framework.ui.back>[返回上级]</gunsmith.framework.ui.back>
+  <gunsmith.framework.ui.preview_placeholder>枪械预览区域</gunsmith.framework.ui.preview_placeholder>
+  <gunsmith.framework.ui.path_line>路径: {0}</gunsmith.framework.ui.path_line>
+  <gunsmith.framework.ui.enter_mounts>进入该配件挂点</gunsmith.framework.ui.enter_mounts>
+  <gunsmith.framework.ui.part_list_title>{0}配件</gunsmith.framework.ui.part_list_title>
+  <gunsmith.framework.ui.part_detail_title>选中配件属性</gunsmith.framework.ui.part_detail_title>
+  <gunsmith.framework.ui.empty_part>[空]</gunsmith.framework.ui.empty_part>
+  <gunsmith.framework.ui.weapon_root>枪械</gunsmith.framework.ui.weapon_root>
+  <gunsmith.framework.status.installed>[已安装] {0}</gunsmith.framework.status.installed>
+  <gunsmith.framework.status.missing>[缺少配件] {0}</gunsmith.framework.status.missing>
+  <gunsmith.framework.status.incompatible>[不兼容] {0}</gunsmith.framework.status.incompatible>
+  <gunsmith.framework.status.disabled>[不可拆空] {0}</gunsmith.framework.status.disabled>
+  <gunsmith.framework.status.available>[可安装] {0}</gunsmith.framework.status.available>
+  <gunsmith.framework.action.installed>已安装</gunsmith.framework.action.installed>
+  <gunsmith.framework.action.missing>缺少配件</gunsmith.framework.action.missing>
+  <gunsmith.framework.action.incompatible>不兼容</gunsmith.framework.action.incompatible>
+  <gunsmith.framework.action.disabled>不可拆空</gunsmith.framework.action.disabled>
+  <gunsmith.framework.action.remove>拆除该配件</gunsmith.framework.action.remove>
+  <gunsmith.framework.action.install>安装该配件</gunsmith.framework.action.install>
+  <gunsmith.framework.stat.ergonomics>操控</gunsmith.framework.stat.ergonomics>
+  <gunsmith.framework.stat.none>无属性修正</gunsmith.framework.stat.none>
+  <gunsmith.framework.stattypes.ElectricalSkillBonus>电气技能</gunsmith.framework.stattypes.ElectricalSkillBonus>
+  <gunsmith.framework.stattypes.HelmSkillBonus>掌舵技能</gunsmith.framework.stattypes.HelmSkillBonus>
+  <gunsmith.framework.stattypes.MechanicalSkillBonus>机械技能</gunsmith.framework.stattypes.MechanicalSkillBonus>
+  <gunsmith.framework.stattypes.MedicalSkillBonus>医疗技能</gunsmith.framework.stattypes.MedicalSkillBonus>
+  <gunsmith.framework.stattypes.WeaponsSkillBonus>武器技能</gunsmith.framework.stattypes.WeaponsSkillBonus>
+  <gunsmith.framework.stattypes.HelmSkillOverride>掌舵技能下限</gunsmith.framework.stattypes.HelmSkillOverride>
+  <gunsmith.framework.stattypes.MedicalSkillOverride>医疗技能下限</gunsmith.framework.stattypes.MedicalSkillOverride>
+  <gunsmith.framework.stattypes.WeaponsSkillOverride>武器技能下限</gunsmith.framework.stattypes.WeaponsSkillOverride>
+  <gunsmith.framework.stattypes.ElectricalSkillOverride>电气技能下限</gunsmith.framework.stattypes.ElectricalSkillOverride>
+  <gunsmith.framework.stattypes.MechanicalSkillOverride>机械技能下限</gunsmith.framework.stattypes.MechanicalSkillOverride>
+  <gunsmith.framework.stattypes.MaximumHealthMultiplier>最大生命</gunsmith.framework.stattypes.MaximumHealthMultiplier>
+  <gunsmith.framework.stattypes.MovementSpeed>移动速度</gunsmith.framework.stattypes.MovementSpeed>
+  <gunsmith.framework.stattypes.WalkingSpeed>行走速度</gunsmith.framework.stattypes.WalkingSpeed>
+  <gunsmith.framework.stattypes.SwimmingSpeed>游泳速度</gunsmith.framework.stattypes.SwimmingSpeed>
+  <gunsmith.framework.stattypes.PropulsionSpeed>推进速度</gunsmith.framework.stattypes.PropulsionSpeed>
+  <gunsmith.framework.stattypes.BuffDurationMultiplier>增益持续时间</gunsmith.framework.stattypes.BuffDurationMultiplier>
+  <gunsmith.framework.stattypes.DebuffDurationMultiplier>减益持续时间</gunsmith.framework.stattypes.DebuffDurationMultiplier>
+  <gunsmith.framework.stattypes.MedicalItemEffectivenessMultiplier>医疗物品效果</gunsmith.framework.stattypes.MedicalItemEffectivenessMultiplier>
+  <gunsmith.framework.stattypes.FlowResistance>水流抗性</gunsmith.framework.stattypes.FlowResistance>
+  <gunsmith.framework.stattypes.AttackMultiplier>攻击伤害</gunsmith.framework.stattypes.AttackMultiplier>
+  <gunsmith.framework.stattypes.TeamAttackMultiplier>友军伤害</gunsmith.framework.stattypes.TeamAttackMultiplier>
+  <gunsmith.framework.stattypes.RangedAttackSpeed>射速修正</gunsmith.framework.stattypes.RangedAttackSpeed>
+  <gunsmith.framework.stattypes.RangedAttackMultiplier>伤害修正</gunsmith.framework.stattypes.RangedAttackMultiplier>
+  <gunsmith.framework.stattypes.TurretAttackSpeed>炮塔射速</gunsmith.framework.stattypes.TurretAttackSpeed>
+  <gunsmith.framework.stattypes.TurretPowerCostReduction>炮塔耗电降低</gunsmith.framework.stattypes.TurretPowerCostReduction>
+  <gunsmith.framework.stattypes.TurretChargeSpeed>炮塔充能速度</gunsmith.framework.stattypes.TurretChargeSpeed>
+  <gunsmith.framework.stattypes.MeleeAttackSpeed>近战攻速</gunsmith.framework.stattypes.MeleeAttackSpeed>
+  <gunsmith.framework.stattypes.MeleeAttackMultiplier>近战伤害</gunsmith.framework.stattypes.MeleeAttackMultiplier>
+  <gunsmith.framework.stattypes.RangedSpreadReduction>散布改善</gunsmith.framework.stattypes.RangedSpreadReduction>
+  <gunsmith.framework.stattypes.RepairSpeed>维修速度</gunsmith.framework.stattypes.RepairSpeed>
+  <gunsmith.framework.stattypes.MechanicalRepairSpeed>机械维修速度</gunsmith.framework.stattypes.MechanicalRepairSpeed>
+  <gunsmith.framework.stattypes.ElectricalRepairSpeed>电气维修速度</gunsmith.framework.stattypes.ElectricalRepairSpeed>
+  <gunsmith.framework.stattypes.DeconstructorSpeedMultiplier>拆解速度</gunsmith.framework.stattypes.DeconstructorSpeedMultiplier>
+  <gunsmith.framework.stattypes.RepairToolStructureRepairMultiplier>维修工具结构修复</gunsmith.framework.stattypes.RepairToolStructureRepairMultiplier>
+  <gunsmith.framework.stattypes.RepairToolStructureDamageMultiplier>维修工具结构伤害</gunsmith.framework.stattypes.RepairToolStructureDamageMultiplier>
+  <gunsmith.framework.stattypes.RepairToolDeattachTimeMultiplier>维修工具拆除时间</gunsmith.framework.stattypes.RepairToolDeattachTimeMultiplier>
+  <gunsmith.framework.stattypes.MaxRepairConditionMultiplierMechanical>机械最大维修质量</gunsmith.framework.stattypes.MaxRepairConditionMultiplierMechanical>
+  <gunsmith.framework.stattypes.MaxRepairConditionMultiplierElectrical>电气最大维修质量</gunsmith.framework.stattypes.MaxRepairConditionMultiplierElectrical>
+  <gunsmith.framework.stattypes.IncreaseFabricationQuality>制造品质提升</gunsmith.framework.stattypes.IncreaseFabricationQuality>
+  <gunsmith.framework.stattypes.GeneticMaterialRefineBonus>基因材料精炼加成</gunsmith.framework.stattypes.GeneticMaterialRefineBonus>
+  <gunsmith.framework.stattypes.GeneticMaterialTaintedProbabilityReductionOnCombine>基因污染概率降低</gunsmith.framework.stattypes.GeneticMaterialTaintedProbabilityReductionOnCombine>
+  <gunsmith.framework.stattypes.SkillGainSpeed>技能成长</gunsmith.framework.stattypes.SkillGainSpeed>
+  <gunsmith.framework.stattypes.ExtraLevelGain>额外等级获取</gunsmith.framework.stattypes.ExtraLevelGain>
+  <gunsmith.framework.stattypes.HelmSkillGainSpeed>掌舵技能成长</gunsmith.framework.stattypes.HelmSkillGainSpeed>
+  <gunsmith.framework.stattypes.WeaponsSkillGainSpeed>武器技能成长</gunsmith.framework.stattypes.WeaponsSkillGainSpeed>
+  <gunsmith.framework.stattypes.MedicalSkillGainSpeed>医疗技能成长</gunsmith.framework.stattypes.MedicalSkillGainSpeed>
+  <gunsmith.framework.stattypes.ElectricalSkillGainSpeed>电气技能成长</gunsmith.framework.stattypes.ElectricalSkillGainSpeed>
+  <gunsmith.framework.stattypes.MechanicalSkillGainSpeed>机械技能成长</gunsmith.framework.stattypes.MechanicalSkillGainSpeed>
+  <gunsmith.framework.stattypes.MedicalItemApplyingMultiplier>医疗物品使用速度</gunsmith.framework.stattypes.MedicalItemApplyingMultiplier>
+  <gunsmith.framework.stattypes.BuffItemApplyingMultiplier>增益物品使用速度</gunsmith.framework.stattypes.BuffItemApplyingMultiplier>
+  <gunsmith.framework.stattypes.PoisonMultiplier>毒物效果</gunsmith.framework.stattypes.PoisonMultiplier>
+  <gunsmith.framework.stattypes.TinkeringDuration>鼓捣持续时间</gunsmith.framework.stattypes.TinkeringDuration>
+  <gunsmith.framework.stattypes.TinkeringStrength>鼓捣强度</gunsmith.framework.stattypes.TinkeringStrength>
+  <gunsmith.framework.stattypes.TinkeringDamage>鼓捣伤害</gunsmith.framework.stattypes.TinkeringDamage>
+  <gunsmith.framework.stattypes.ReputationGainMultiplier>声望获取</gunsmith.framework.stattypes.ReputationGainMultiplier>
+  <gunsmith.framework.stattypes.ReputationLossMultiplier>声望损失</gunsmith.framework.stattypes.ReputationLossMultiplier>
+  <gunsmith.framework.stattypes.MissionMoneyGainMultiplier>任务金钱</gunsmith.framework.stattypes.MissionMoneyGainMultiplier>
+  <gunsmith.framework.stattypes.ExperienceGainMultiplier>经验获取</gunsmith.framework.stattypes.ExperienceGainMultiplier>
+  <gunsmith.framework.stattypes.MissionExperienceGainMultiplier>任务经验</gunsmith.framework.stattypes.MissionExperienceGainMultiplier>
+  <gunsmith.framework.stattypes.ExtraMissionCount>额外任务数量</gunsmith.framework.stattypes.ExtraMissionCount>
+  <gunsmith.framework.stattypes.ExtraSpecialSalesCount>额外特卖数量</gunsmith.framework.stattypes.ExtraSpecialSalesCount>
+  <gunsmith.framework.stattypes.StoreSellMultiplier>商店售价</gunsmith.framework.stattypes.StoreSellMultiplier>
+  <gunsmith.framework.stattypes.StoreBuyMultiplierAffiliated>同盟商店买价</gunsmith.framework.stattypes.StoreBuyMultiplierAffiliated>
+  <gunsmith.framework.stattypes.StoreBuyMultiplier>商店买价</gunsmith.framework.stattypes.StoreBuyMultiplier>
+  <gunsmith.framework.stattypes.ShipyardBuyMultiplierAffiliated>同盟船坞买价</gunsmith.framework.stattypes.ShipyardBuyMultiplierAffiliated>
+  <gunsmith.framework.stattypes.ShipyardBuyMultiplier>船坞买价</gunsmith.framework.stattypes.ShipyardBuyMultiplier>
+  <gunsmith.framework.stattypes.MaxAttachableCount>最大可附加数量</gunsmith.framework.stattypes.MaxAttachableCount>
+  <gunsmith.framework.stattypes.ExplosionRadiusMultiplier>爆炸范围</gunsmith.framework.stattypes.ExplosionRadiusMultiplier>
+  <gunsmith.framework.stattypes.ExplosionDamageMultiplier>爆炸伤害</gunsmith.framework.stattypes.ExplosionDamageMultiplier>
+  <gunsmith.framework.stattypes.FabricationSpeed>制造速度</gunsmith.framework.stattypes.FabricationSpeed>
+  <gunsmith.framework.stattypes.BallastFloraDamageMultiplier>压载舱菌群伤害</gunsmith.framework.stattypes.BallastFloraDamageMultiplier>
+  <gunsmith.framework.stattypes.HoldBreathMultiplier>屏息时间</gunsmith.framework.stattypes.HoldBreathMultiplier>
+  <gunsmith.framework.stattypes.Apprenticeship>学徒加成</gunsmith.framework.stattypes.Apprenticeship>
+  <gunsmith.framework.stattypes.CPRBoost>心肺复苏加成</gunsmith.framework.stattypes.CPRBoost>
+  <gunsmith.framework.stattypes.LockedTalents>锁定天赋</gunsmith.framework.stattypes.LockedTalents>
+  <gunsmith.framework.stattypes.HireCostMultiplier>雇佣费用</gunsmith.framework.stattypes.HireCostMultiplier>
+  <gunsmith.framework.stattypes.InventoryExtraStackSize>额外堆叠数量</gunsmith.framework.stattypes.InventoryExtraStackSize>
+  <gunsmith.framework.stattypes.SoundRangeMultiplier>声音范围</gunsmith.framework.stattypes.SoundRangeMultiplier>
+  <gunsmith.framework.stattypes.SightRangeMultiplier>视野范围</gunsmith.framework.stattypes.SightRangeMultiplier>
+  <gunsmith.framework.stattypes.DualWieldingPenaltyReduction>双持惩罚降低</gunsmith.framework.stattypes.DualWieldingPenaltyReduction>
+  <gunsmith.framework.stattypes.NaturalMeleeAttackMultiplier>徒手近战伤害</gunsmith.framework.stattypes.NaturalMeleeAttackMultiplier>
+</infotexts>

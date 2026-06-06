@@ -1,0 +1,65 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+	],
+	"settings": {
+		"Lua.diagnostics.libraryFiles": "Enable",
+		"Lua.workspace.library": [
+			".Tools/Library/Client",
+			".Tools/Library/Server",
+		],
+
+		"Lua.diagnostics.disable": [
+			"param-type-mismatch",
+			"return-type-mismatch",
+			"undefined-field",
+			"need-check-nil",
+			"assign-type-mismatch",
+			"redundant-return-value",
+			"missing-parameter",
+			"undefined-global",
+			"missing-return-value",
+			"undefined-doc-name",
+			"missing-return",
+			"cast-local-type",
+			"deprecated",
+		],
+	},
+	"launch": {
+	"version": "0.2.0",
+    "configurations": [
+		{
+			"name": "Windows Debug C#",
+			"type": "coreclr",
+			"request": "launch",
+			"program": "${workspaceFolder}/../../Barotrauma.exe",
+			"args": ["watch", "run"],
+			"requireExactSource": false
+		},
+		{
+			"name": "Linux Debug C#",
+			"type": "coreclr",
+			"request": "launch",
+			"program": "${workspaceFolder}/../../Barotrauma",
+			"args": ["watch", "run"],
+			"requireExactSource": false
+		},
+		{
+			"name": "MacOS Attach C# (Steam Online)",
+			"type": "coreclr",
+			"request": "attach",
+			"processName": "Barotrauma",
+			"targetArchitecture": "x86_64",
+			"requireExactSource": false
+		},
+        {
+            "name": "Debug lua",
+            "type": "moonsharp-debug",
+            "request": "attach",
+			"debugServer" : 41912
+        }
+    ]
+	}
+}

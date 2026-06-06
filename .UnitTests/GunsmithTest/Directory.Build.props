@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <GunSmithTestRoot>$(MSBuildThisFileDirectory)</GunSmithTestRoot>
+    <RepoRoot>$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..'))))</RepoRoot>
+    <IsMacOS>$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))</IsMacOS>
+    <GunSmithPlatform Condition="'$(GunSmithPlatform)' == '' and '$(OS)' == 'Windows_NT'">Windows</GunSmithPlatform>
+    <GunSmithPlatform Condition="'$(GunSmithPlatform)' == '' and '$(OS)' != 'Windows_NT' and '$(IsMacOS)' == 'true'">OSX</GunSmithPlatform>
+    <GunSmithPlatform Condition="'$(GunSmithPlatform)' == ''">Linux</GunSmithPlatform>
+    <GunSmithProjectProperties>SkipModDeploy=true;Platform=x64</GunSmithProjectProperties>
+    <GunSmithRefDir>$(RepoRoot).Tools/Refs/$(GunSmithPlatform)</GunSmithRefDir>
+    <GunSmithMonoGameAssembly Condition="'$(GunSmithPlatform)' == 'Windows'">MonoGame.Framework.Windows.NetStandard</GunSmithMonoGameAssembly>
+    <GunSmithMonoGameAssembly Condition="'$(GunSmithPlatform)' == 'Linux'">MonoGame.Framework.Linux.NetStandard</GunSmithMonoGameAssembly>
+    <GunSmithMonoGameAssembly Condition="'$(GunSmithPlatform)' == 'OSX'">MonoGame.Framework.MacOS.NetStandard</GunSmithMonoGameAssembly>
+  </PropertyGroup>
+</Project>

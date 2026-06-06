@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModConfig>
+  <Lua File="%ModDir%/Lua/Autorun/GunsmithFramework.lua" IsAutorun="true" />
+  <Assembly File="%ModDir%/bin/Client/Linux/GunsmithFramework.dll" Target="Client" Platform="Linux" />
+  <Assembly File="%ModDir%/bin/Client/OSX/GunsmithFramework.dll" Target="Client" Platform="OSX" />
+  <Assembly File="%ModDir%/bin/Client/Windows/GunsmithFramework.dll" Target="Client" Platform="Windows" />
+  <Assembly File="%ModDir%/bin/Server/Linux/GunsmithFramework.dll" Target="Server" Platform="Linux" />
+  <Assembly File="%ModDir%/bin/Server/OSX/GunsmithFramework.dll" Target="Server" Platform="OSX" />
+  <Assembly File="%ModDir%/bin/Server/Windows/GunsmithFramework.dll" Target="Server" Platform="Windows" />
+</ModConfig>

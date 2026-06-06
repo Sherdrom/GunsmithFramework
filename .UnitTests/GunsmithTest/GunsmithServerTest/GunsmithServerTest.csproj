@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RollForward>Major</RollForward>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="DedicatedServer">
+      <HintPath>$(GunSmithRefDir)/DedicatedServer.dll</HintPath>
+    </Reference>
+    <Reference Include="BarotraumaCore">
+      <HintPath>$(GunSmithRefDir)/BarotraumaCore.dll</HintPath>
+    </Reference>
+    <Reference Include="$(GunSmithMonoGameAssembly)">
+      <HintPath>$(RepoRoot).Tools/Refs/$(GunSmithMonoGameAssembly).dll</HintPath>
+    </Reference>
+    <Reference Include="XNATypes">
+      <HintPath>$(RepoRoot).Tools/Refs/XNATypes.dll</HintPath>
+    </Reference>
+    <ProjectReference Include="$(RepoRoot).AssemblyCSharpSource/GunSmith/ServerProject/$(GunSmithPlatform)Server.csproj" AdditionalProperties="$(GunSmithProjectProperties)" />
+  </ItemGroup>
+</Project>

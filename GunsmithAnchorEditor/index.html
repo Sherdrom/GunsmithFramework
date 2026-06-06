@@ -1,0 +1,1789 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GunSmith Anchor Editor</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111418;
+      --panel: #1b2027;
+      --panel-2: #232a33;
+      --line: #3a4452;
+      --text: #e8edf2;
+      --muted: #aab5c2;
+      --accent: #65b7ff;
+      --green: #65d486;
+      --orange: #ffb45f;
+      --red: #ff6b6b;
+      --yellow: #f2d166;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font: 13px/1.4 "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    header {
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line);
+      background: #151a20;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 280px minmax(520px, 1fr) 360px;
+      gap: 10px;
+      padding: 10px;
+      height: calc(100vh - 48px);
+    }
+
+    section {
+      min-height: 0;
+      overflow: auto;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+
+    section.tools {
+      align-self: start;
+      max-height: 100%;
+    }
+
+    .panel-title {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding: 9px 10px;
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--line);
+      font-weight: 600;
+    }
+
+    .group {
+      padding: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .row.tight {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .field-pair {
+      margin-bottom: 8px;
+    }
+
+    .pair-label {
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    label { color: var(--muted); }
+    input, select, textarea, button {
+      width: 100%;
+      min-height: 28px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #11161d;
+      color: var(--text);
+      font: inherit;
+    }
+
+    input[type="file"] {
+      padding: 4px;
+    }
+
+    input[type="checkbox"] {
+      width: auto;
+      min-height: auto;
+    }
+
+    input, select, textarea {
+      padding: 4px 6px;
+    }
+
+    textarea {
+      min-height: 210px;
+      resize: vertical;
+      white-space: pre;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+    }
+
+    button {
+      cursor: pointer;
+      background: #283241;
+      padding: 5px 8px;
+    }
+
+    button:hover { background: #334052; }
+    button.primary { background: #1f5d8f; }
+    button.danger { background: #6b2a2a; }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .mode-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .mode-grid button.active {
+      border-color: var(--accent);
+      color: white;
+      background: #1f5d8f;
+    }
+
+    .canvas-wrap {
+      display: grid;
+      grid-template-rows: 1fr 260px;
+      gap: 10px;
+      height: 100%;
+      padding: 10px;
+    }
+
+    .canvas-box {
+      position: relative;
+      min-height: 0;
+      background: #080a0d;
+      border: 1px solid var(--line);
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+    }
+
+    .hud {
+      position: absolute;
+      left: 8px;
+      bottom: 8px;
+      padding: 5px 7px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(0,0,0,0.62);
+      color: var(--muted);
+      pointer-events: none;
+      font-family: Consolas, "Courier New", monospace;
+    }
+
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .part-item {
+      padding: 7px 8px;
+      border: 1px solid var(--line);
+      background: #151b23;
+      cursor: pointer;
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr);
+      gap: 7px;
+      align-items: center;
+    }
+
+    .part-item.active {
+      border-color: var(--accent);
+      background: #1b3146;
+    }
+
+    .part-item.hidden-layer .part-info {
+      opacity: 0.45;
+    }
+
+    .part-item small {
+      display: block;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .visibility-toggle {
+      width: 28px;
+      min-height: 28px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+      color: var(--muted);
+      background: #11161d;
+    }
+
+    .visibility-toggle.visible {
+      color: var(--accent);
+    }
+
+    .visibility-toggle.hidden {
+      color: var(--muted);
+      text-decoration: line-through;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      margin: 6px 0 0;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      margin-right: 5px;
+      border-radius: 50%;
+      vertical-align: -1px;
+    }
+
+    .blue { background: var(--accent); }
+    .green { background: var(--green); }
+    .orange { background: var(--orange); }
+
+    @media (max-width: 1180px) {
+      main { grid-template-columns: 260px minmax(420px, 1fr); }
+      section.right { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>GunSmith Anchor Editor</h1>
+    <div>单文件坐标工具 - 不读取或改写 Lua 配置</div>
+  </header>
+
+  <main>
+    <section class="tools">
+      <div class="panel-title">项目与工具</div>
+      <div class="group">
+        <div class="row"><label>精灵图</label><input id="imageFile" type="file" accept="image/*" multiple></div>
+        <div class="row"><label>查看图片</label><select id="imageSelect"></select></div>
+        <div class="buttons">
+          <button id="saveProject" class="primary">保存工程</button>
+          <button id="exportProjectPaths">导出(相对路径)</button>
+          <button id="exportProjectEmbedded">导出(内嵌图片)</button>
+          <button id="loadProjectButton">导入工程 JSON</button>
+        </div>
+        <input id="loadProject" type="file" accept="application/json" hidden>
+        <p id="projectStatus" class="hint">选择项目内 GunSmith 图片会自动匹配相对路径；相对路径导出不会写入图片 DataURL。</p>
+      </div>
+
+      <div class="group">
+        <div class="row"><label>模式</label><span id="modeLabel">框选 source</span></div>
+        <div class="mode-grid">
+          <button data-mode="source" class="active">框 source</button>
+          <button data-mode="attach">取 attachPoint</button>
+          <button data-mode="root">取 rootSocket</button>
+          <button data-mode="anchor">取 mount.anchor</button>
+          <button data-mode="pan">移动视图</button>
+          <button id="fitImage">适配图片</button>
+        </div>
+        <p class="hint">source/attachPoint 在上方图片画布操作；rootSocket/mount.anchor 在下方预览画布操作。</p>
+      </div>
+
+      <div class="group">
+        <div class="row"><label>缩放</label><input id="zoom" type="range" min="0.25" max="8" step="0.25" value="1"></div>
+        <div class="row"><label>网格</label><input id="showGrid" type="checkbox" checked></div>
+        <div class="row">
+          <label>背景</label>
+          <select id="backgroundColor">
+            <option value="dark">深色</option>
+            <option value="white">白色</option>
+            <option value="green">绿色</option>
+          </select>
+        </div>
+        <div class="legend">
+          <span><i class="dot blue"></i>root</span>
+          <span><i class="dot green"></i>attach</span>
+          <span><i class="dot orange"></i>anchor</span>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="row"><label>画布宽</label><input id="canvasW" type="number" value="640"></div>
+        <div class="row"><label>画布高</label><input id="canvasH" type="number" value="260"></div>
+        <div class="row"><label>root x</label><input id="rootX" type="number" value="209"></div>
+        <div class="row"><label>root y</label><input id="rootY" type="number" value="160"></div>
+      </div>
+
+    </section>
+
+    <section>
+      <div class="canvas-wrap">
+        <div class="canvas-box">
+          <canvas id="sheetCanvas"></canvas>
+          <div id="sheetHud" class="hud">sheet: -, -</div>
+        </div>
+        <div class="canvas-box">
+          <canvas id="previewCanvas"></canvas>
+          <div id="previewHud" class="hud">preview: -, -</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="right">
+      <div class="panel-title">部件</div>
+      <div class="group">
+        <div id="partList" class="list"></div>
+      </div>
+
+      <div class="group">
+        <div class="buttons">
+          <button id="addPart" class="primary">新增部件</button>
+          <button id="duplicatePart">复制部件</button>
+          <button id="deletePart" class="danger">删除部件</button>
+          <button id="loadM4Example">填入 M4 示例</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="row"><label>part id</label><input id="partId"></div>
+        <div class="row"><label>名称</label><input id="partName"></div>
+        <div class="row"><label>type</label><input id="partType"></div>
+        <div class="row"><label>texture</label><select id="partImageIndex"></select></div>
+        <div class="row"><label>父部件</label><select id="parentIndex"></select></div>
+        <div class="row"><label>path</label><input id="mountPath" placeholder="barrel / handguard / top_rail"></div>
+        <div class="row"><label>order</label><input id="order" type="number"></div>
+        <div class="row"><label>scale</label><input id="scale" type="number" step="0.05"></div>
+        <div class="field-pair">
+          <div class="pair-label">source 起点 x / y</div>
+          <div class="row tight">
+            <input id="sourceX" type="number" placeholder="source x">
+            <input id="sourceY" type="number" placeholder="source y">
+          </div>
+        </div>
+        <div class="field-pair">
+          <div class="pair-label">source 尺寸 w / h</div>
+          <div class="row tight">
+            <input id="sourceW" type="number" placeholder="source w">
+            <input id="sourceH" type="number" placeholder="source h">
+          </div>
+        </div>
+        <div class="field-pair">
+          <div class="pair-label">attachPoint x / y</div>
+          <div class="row tight">
+            <input id="attachX" type="number" placeholder="attach x">
+            <input id="attachY" type="number" placeholder="attach y">
+          </div>
+        </div>
+        <div class="field-pair">
+          <div class="pair-label">mount.anchor x / y</div>
+          <div class="row tight">
+            <input id="anchorX" type="number" placeholder="anchor x">
+            <input id="anchorY" type="number" placeholder="anchor y">
+          </div>
+        </div>
+        <div class="buttons">
+          <button id="applyFields" class="primary">应用字段</button>
+          <button id="exportLua">生成 Lua 片段</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <textarea id="exportText" spellcheck="false"></textarea>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const PROJECT_IMAGE_FILES = [
+      { path: "GunSmith/AK/DustCover/SharedDustCoverAK.png", name: "SharedDustCoverAK.png", size: 85253 },
+      { path: "GunSmith/AK/HandGuard/SharedHandGuardAK.png", name: "SharedHandGuardAK.png", size: 91994 },
+      { path: "GunSmith/AK/Main/AK74.png", name: "AK74.png", size: 94513 },
+      { path: "GunSmith/AR/Barrel/Barrel.png", name: "Barrel.png", size: 49053 },
+      { path: "GunSmith/AR/HandGuard/HK416.png", name: "HK416.png", size: 91768 },
+      { path: "GunSmith/AR/HandGuard/M4A1.png", name: "M4A1.png", size: 85120 },
+      { path: "GunSmith/AR/Main/HK416.png", name: "HK416.png", size: 82017 },
+      { path: "GunSmith/AR/Main/M4A1.png", name: "M4A1.png", size: 81350 },
+      { path: "GunSmith/AR/UpperReceiver/HK416.png", name: "HK416.png", size: 79557 },
+      { path: "GunSmith/AR/UpperReceiver/M4A1.png", name: "M4A1.png", size: 81455 },
+      { path: "GunSmith/SharedParts/BufferTube/SharedBufferTube.png", name: "SharedBufferTube.png", size: 88052 },
+      { path: "GunSmith/SharedParts/PistolGrip/SharedGripAK.png", name: "SharedGripAK.png", size: 85281 },
+      { path: "GunSmith/SharedParts/PistolGrip/SharedGripAR.png", name: "SharedGripAR.png", size: 90235 },
+      { path: "GunSmith/SharedParts/Rail/SharedRailParts.png", name: "SharedRailParts.png", size: 87809 },
+      { path: "GunSmith/SharedParts/Stock/SharedStockAK.png", name: "SharedStockAK.png", size: 100746 },
+      { path: "GunSmith/SharedParts/Stock/SharedStockAR.png", name: "SharedStockAR.png", size: 102670 }
+    ];
+
+    const state = {
+      images: [],
+      activeImageIndex: 0,
+      mode: "source",
+      sheet: { zoom: 1, panX: 0, panY: 0 },
+      preview: { zoom: 1, panX: 0, panY: 0, fitted: false },
+      background: "dark",
+      canvas: { w: 640, h: 260 },
+      rootSocket: { x: 209, y: 160 },
+      projectHandle: null,
+      projectDirectoryHandle: null,
+      projectName: "",
+      saveImageMode: "paths",
+      selected: 0,
+      parts: [
+        createPart("M4_receiver_std", "M4 标准机匣", "receiver", null, "receiver", 30)
+      ],
+      drag: null
+    };
+
+    const el = {};
+    for (const id of [
+      "imageFile", "imageSelect", "saveProject", "exportProjectPaths", "exportProjectEmbedded", "loadProjectButton", "loadProject",
+      "projectStatus", "fitImage", "zoom", "showGrid", "backgroundColor",
+      "canvasW", "canvasH", "rootX", "rootY", "addPart", "duplicatePart", "deletePart", "loadM4Example",
+      "sheetCanvas", "previewCanvas", "sheetHud", "previewHud", "partList", "partId", "partName", "partType",
+      "partImageIndex", "parentIndex", "mountPath", "order", "scale", "sourceX", "sourceY", "sourceW", "sourceH", "attachX",
+      "attachY", "anchorX", "anchorY", "applyFields", "exportLua", "exportText", "modeLabel"
+    ]) {
+      el[id] = document.getElementById(id);
+    }
+
+    function createPart(id, name, type, parentIndex, mountPath, order) {
+      return {
+        id,
+        name,
+        type,
+        parentIndex,
+        mountPath,
+        source: { x: 0, y: 0, w: 64, h: 64 },
+        attachPoint: { x: 0, y: 0 },
+        anchor: { x: 0, y: 0 },
+        order,
+        scale: 1,
+        imageIndex: 0,
+        visible: true
+      };
+    }
+
+    function selectedPart() {
+      return state.parts[state.selected] || null;
+    }
+
+    function activeImageEntry() {
+      return state.images[state.activeImageIndex] || null;
+    }
+
+    function imageEntryForPart(part) {
+      return state.images[part?.imageIndex] || activeImageEntry();
+    }
+
+    function isPartVisible(part) {
+      return part?.visible !== false;
+    }
+
+    function normalizePart(part) {
+      if (!part) return part;
+      if (!Number.isInteger(part.imageIndex)) part.imageIndex = 0;
+      if (part.imageIndex < 0 || part.imageIndex >= state.images.length) part.imageIndex = 0;
+      if (typeof part.visible !== "boolean") part.visible = true;
+      return part;
+    }
+
+    function refreshImageSelects() {
+      const options = state.images
+        .map((entry, index) => `<option value="${index}">${escapeHtml(entry.path || entry.name || `image_${index + 1}`)}</option>`)
+        .join("");
+      el.imageSelect.innerHTML = options || `<option value="">未导入图片</option>`;
+      el.partImageIndex.innerHTML = options || `<option value="">未导入图片</option>`;
+      el.imageSelect.value = state.images.length ? String(state.activeImageIndex) : "";
+      const part = selectedPart();
+      el.partImageIndex.value = part && state.images.length ? String(part.imageIndex || 0) : "";
+    }
+
+    function resizeCanvases() {
+      for (const canvas of [el.sheetCanvas, el.previewCanvas]) {
+        const rect = canvas.getBoundingClientRect();
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width = Math.max(Math.floor(rect.width * ratio), 1);
+        canvas.height = Math.max(Math.floor(rect.height * ratio), 1);
+        canvas.getContext("2d").setTransform(ratio, 0, 0, ratio, 0, 0);
+      }
+      draw();
+    }
+
+    function canvasPoint(event, canvas) {
+      const rect = canvas.getBoundingClientRect();
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+
+    function screenToSheet(point) {
+      return {
+        x: Math.floor((point.x - state.sheet.panX) / state.sheet.zoom),
+        y: Math.floor((point.y - state.sheet.panY) / state.sheet.zoom)
+      };
+    }
+
+    function sheetToScreen(point) {
+      return {
+        x: point.x * state.sheet.zoom + state.sheet.panX,
+        y: point.y * state.sheet.zoom + state.sheet.panY
+      };
+    }
+
+    function screenToPreview(point) {
+      return {
+        x: Math.round((point.x - state.preview.panX) / state.preview.zoom),
+        y: Math.round((point.y - state.preview.panY) / state.preview.zoom)
+      };
+    }
+
+    function previewToScreen(point) {
+      return {
+        x: point.x * state.preview.zoom + state.preview.panX,
+        y: point.y * state.preview.zoom + state.preview.panY
+      };
+    }
+
+    function fitImage() {
+      const entry = activeImageEntry();
+      if (!entry?.image) return;
+      const rect = el.sheetCanvas.getBoundingClientRect();
+      state.sheet.zoom = Math.min(rect.width / entry.image.width, rect.height / entry.image.height, 1);
+      state.sheet.panX = Math.max((rect.width - entry.image.width * state.sheet.zoom) / 2, 0);
+      state.sheet.panY = Math.max((rect.height - entry.image.height * state.sheet.zoom) / 2, 0);
+      el.zoom.value = state.sheet.zoom;
+      draw();
+    }
+
+    function backgroundFill() {
+      if (state.background === "white") return "#ffffff";
+      if (state.background === "green") return "#00ff00";
+      return "#080a0d";
+    }
+
+    function gridColor() {
+      if (state.background === "dark") return "rgba(255,255,255,0.08)";
+      return "rgba(0,0,0,0.14)";
+    }
+
+    function zoomAt(view, screenPoint, deltaY, minZoom, maxZoom) {
+      const oldZoom = view.zoom;
+      const factor = deltaY < 0 ? 1.15 : 1 / 1.15;
+      const nextZoom = Math.min(Math.max(oldZoom * factor, minZoom), maxZoom);
+      if (Math.abs(nextZoom - oldZoom) < 0.0001) return;
+
+      const worldX = (screenPoint.x - view.panX) / oldZoom;
+      const worldY = (screenPoint.y - view.panY) / oldZoom;
+      view.zoom = nextZoom;
+      view.panX = screenPoint.x - worldX * nextZoom;
+      view.panY = screenPoint.y - worldY * nextZoom;
+    }
+
+    function fitPreview() {
+      const rect = el.previewCanvas.getBoundingClientRect();
+      state.preview.zoom = Math.min(rect.width / state.canvas.w, rect.height / state.canvas.h, 2);
+      state.preview.panX = (rect.width - state.canvas.w * state.preview.zoom) / 2;
+      state.preview.panY = (rect.height - state.canvas.h * state.preview.zoom) / 2;
+      state.preview.fitted = true;
+    }
+
+    function selectedSourceScreenRect() {
+      const part = selectedPart();
+      if (!part) return null;
+      const topLeft = sheetToScreen({ x: part.source.x, y: part.source.y });
+      return {
+        x: topLeft.x,
+        y: topLeft.y,
+        w: part.source.w * state.sheet.zoom,
+        h: part.source.h * state.sheet.zoom
+      };
+    }
+
+    function sourceResizeHandleAt(point) {
+      const rect = selectedSourceScreenRect();
+      if (!rect) return null;
+      const tolerance = 8;
+      const left = Math.abs(point.x - rect.x) <= tolerance;
+      const right = Math.abs(point.x - (rect.x + rect.w)) <= tolerance;
+      const top = Math.abs(point.y - rect.y) <= tolerance;
+      const bottom = Math.abs(point.y - (rect.y + rect.h)) <= tolerance;
+      const withinX = point.x >= rect.x - tolerance && point.x <= rect.x + rect.w + tolerance;
+      const withinY = point.y >= rect.y - tolerance && point.y <= rect.y + rect.h + tolerance;
+
+      if (top && left) return "nw";
+      if (top && right) return "ne";
+      if (bottom && left) return "sw";
+      if (bottom && right) return "se";
+      if (top && withinX) return "n";
+      if (bottom && withinX) return "s";
+      if (left && withinY) return "w";
+      if (right && withinY) return "e";
+      return null;
+    }
+
+    function cursorForHandle(handle) {
+      return ({
+        n: "ns-resize",
+        s: "ns-resize",
+        e: "ew-resize",
+        w: "ew-resize",
+        nw: "nwse-resize",
+        se: "nwse-resize",
+        ne: "nesw-resize",
+        sw: "nesw-resize"
+      })[handle] || "";
+    }
+
+    function resizeSourceWithHandle(part, handle, sheetPoint, original) {
+      let left = original.x;
+      let top = original.y;
+      let right = original.x + original.w;
+      let bottom = original.y + original.h;
+
+      if (handle.includes("w")) left = sheetPoint.x;
+      if (handle.includes("e")) right = sheetPoint.x;
+      if (handle.includes("n")) top = sheetPoint.y;
+      if (handle.includes("s")) bottom = sheetPoint.y;
+
+      if (handle.includes("w")) left = Math.min(left, original.x + original.w - 1);
+      if (handle.includes("e")) right = Math.max(right, original.x + 1);
+      if (handle.includes("n")) top = Math.min(top, original.y + original.h - 1);
+      if (handle.includes("s")) bottom = Math.max(bottom, original.y + 1);
+
+      const nextLeft = Math.min(left, right - 1);
+      const nextTop = Math.min(top, bottom - 1);
+      const nextRight = Math.max(right, nextLeft + 1);
+      const nextBottom = Math.max(bottom, nextTop + 1);
+      part.source = {
+        x: nextLeft,
+        y: nextTop,
+        w: nextRight - nextLeft,
+        h: nextBottom - nextTop
+      };
+    }
+
+    function draw() {
+      drawSheet();
+      drawPreview();
+      refreshPartPanel();
+    }
+
+    function refreshPartPanel() {
+      renderPartList();
+      syncFields();
+    }
+
+    function selectPart(index) {
+      if (!Number.isInteger(index) || index < 0 || index >= state.parts.length) return;
+      state.selected = index;
+      const part = selectedPart();
+      if (part && Number.isInteger(part.imageIndex)) state.activeImageIndex = part.imageIndex;
+      refreshPartPanel();
+      drawSheet();
+      drawPreview();
+    }
+
+    function drawSheet() {
+      const canvas = el.sheetCanvas;
+      const ctx = canvas.getContext("2d");
+      const rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      ctx.fillStyle = backgroundFill();
+      ctx.fillRect(0, 0, rect.width, rect.height);
+      const entry = activeImageEntry();
+      if (!entry?.image) {
+        drawCenteredText(ctx, rect, "导入一张或多张精灵图后开始取点");
+        return;
+      }
+
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(entry.image, state.sheet.panX, state.sheet.panY, entry.image.width * state.sheet.zoom, entry.image.height * state.sheet.zoom);
+      if (el.showGrid.checked && state.sheet.zoom >= 3) drawGrid(ctx, rect, state.sheet);
+
+      state.parts.forEach((part, index) => {
+        normalizePart(part);
+        if (part.imageIndex !== state.activeImageIndex) return;
+        const color = index === state.selected ? "#65b7ff" : "rgba(255,255,255,0.45)";
+        const a = sheetToScreen({ x: part.source.x, y: part.source.y });
+        ctx.strokeStyle = color;
+        ctx.lineWidth = index === state.selected ? 2 : 1;
+        ctx.strokeRect(a.x, a.y, part.source.w * state.sheet.zoom, part.source.h * state.sheet.zoom);
+        const p = sheetToScreen({ x: part.source.x + part.attachPoint.x, y: part.source.y + part.attachPoint.y });
+        drawCross(ctx, p.x, p.y, "#65d486", 5);
+        if (index === state.selected) drawSourceHandles(ctx, a.x, a.y, part.source.w * state.sheet.zoom, part.source.h * state.sheet.zoom);
+      });
+
+      if (state.drag && state.drag.kind === "source") {
+        const x = Math.min(state.drag.start.x, state.drag.current.x);
+        const y = Math.min(state.drag.start.y, state.drag.current.y);
+        const w = Math.abs(state.drag.current.x - state.drag.start.x);
+        const h = Math.abs(state.drag.current.y - state.drag.start.y);
+        const a = sheetToScreen({ x, y });
+        ctx.strokeStyle = "#f2d166";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(a.x, a.y, w * state.sheet.zoom, h * state.sheet.zoom);
+      }
+    }
+
+    function drawSourceHandles(ctx, x, y, w, h) {
+      const points = [
+        [x, y], [x + w / 2, y], [x + w, y],
+        [x, y + h / 2], [x + w, y + h / 2],
+        [x, y + h], [x + w / 2, y + h], [x + w, y + h]
+      ];
+      ctx.fillStyle = "#f2d166";
+      ctx.strokeStyle = "#111418";
+      for (const [px, py] of points) {
+        ctx.fillRect(px - 4, py - 4, 8, 8);
+        ctx.strokeRect(px - 4, py - 4, 8, 8);
+      }
+    }
+
+    function drawPreview() {
+      const canvas = el.previewCanvas;
+      const ctx = canvas.getContext("2d");
+      const rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      ctx.fillStyle = backgroundFill();
+      ctx.fillRect(0, 0, rect.width, rect.height);
+
+      if (!state.preview.fitted) fitPreview();
+      const topLeft = previewToScreen({ x: 0, y: 0 });
+      ctx.strokeStyle = state.background === "dark" ? "#3a4452" : "rgba(0,0,0,0.35)";
+      ctx.strokeRect(topLeft.x, topLeft.y, state.canvas.w * state.preview.zoom, state.canvas.h * state.preview.zoom);
+
+      if (!state.images.length) {
+        drawCenteredText(ctx, rect, "当前武器预览");
+        return;
+      }
+
+      const layouts = computeLayouts();
+      const sorted = [...state.parts.keys()].sort((a, b) => state.parts[a].order - state.parts[b].order);
+      ctx.imageSmoothingEnabled = false;
+      for (const index of sorted) {
+        const part = state.parts[index];
+        normalizePart(part);
+        if (!isPartVisible(part)) continue;
+        const layout = layouts[index];
+        const entry = imageEntryForPart(part);
+        if (!layout) continue;
+        if (!entry?.image) continue;
+        const dst = previewToScreen({ x: layout.x, y: layout.y });
+        ctx.drawImage(
+          entry.image,
+          part.source.x, part.source.y, part.source.w, part.source.h,
+          dst.x, dst.y,
+          part.source.w * part.scale * state.preview.zoom,
+          part.source.h * part.scale * state.preview.zoom
+        );
+      }
+
+      const root = previewToScreen(state.rootSocket);
+      drawCross(ctx, root.x, root.y, "#65b7ff", 7);
+      drawLabel(ctx, root.x + 8, root.y - 10, "rootSocket", "#65b7ff");
+
+      state.parts.forEach((part, index) => {
+        normalizePart(part);
+        if (!isPartVisible(part)) return;
+        const layout = layouts[index];
+        if (!layout) return;
+        const attach = previewToScreen({
+          x: layout.x + part.attachPoint.x * part.scale,
+          y: layout.y + part.attachPoint.y * part.scale
+        });
+        drawCross(ctx, attach.x, attach.y, "#65d486", 5);
+        if (index === state.selected) drawLabel(ctx, attach.x + 8, attach.y - 10, part.id, "#65d486");
+
+        if (part.parentIndex !== null && layouts[part.parentIndex]) {
+          const parent = state.parts[part.parentIndex];
+          const parentLayout = layouts[part.parentIndex];
+          const anchor = previewToScreen({
+            x: parentLayout.x + (parent.attachPoint.x + part.anchor.x) * parent.scale,
+            y: parentLayout.y + (parent.attachPoint.y + part.anchor.y) * parent.scale
+          });
+          drawCross(ctx, anchor.x, anchor.y, "#ffb45f", 5);
+        }
+      });
+    }
+
+    function computeLayouts() {
+      const layouts = {};
+      const resolving = new Set();
+      const resolve = (index) => {
+        if (layouts[index]) return layouts[index];
+        if (resolving.has(index)) return null;
+        const part = state.parts[index];
+        if (!part) return null;
+        resolving.add(index);
+        let anchor = state.rootSocket;
+        if (part.parentIndex !== null && state.parts[part.parentIndex]) {
+          const parentLayout = resolve(part.parentIndex);
+          const parent = state.parts[part.parentIndex];
+          if (!parentLayout) {
+            resolving.delete(index);
+            return null;
+          }
+          anchor = {
+            x: parentLayout.x + (parent.attachPoint.x + part.anchor.x) * parent.scale,
+            y: parentLayout.y + (parent.attachPoint.y + part.anchor.y) * parent.scale
+          };
+        }
+        layouts[index] = {
+          x: anchor.x - part.attachPoint.x * part.scale,
+          y: anchor.y - part.attachPoint.y * part.scale
+        };
+        resolving.delete(index);
+        return layouts[index];
+      };
+      state.parts.forEach((_, index) => resolve(index));
+      return layouts;
+    }
+
+    function drawGrid(ctx, rect, view) {
+      const step = view.zoom;
+      ctx.strokeStyle = gridColor();
+      ctx.lineWidth = 1;
+      const startX = view.panX % step;
+      const startY = view.panY % step;
+      for (let x = startX; x < rect.width; x += step) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, rect.height); ctx.stroke();
+      }
+      for (let y = startY; y < rect.height; y += step) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(rect.width, y); ctx.stroke();
+      }
+    }
+
+    function drawCross(ctx, x, y, color, size) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x - size, y); ctx.lineTo(x + size, y);
+      ctx.moveTo(x, y - size); ctx.lineTo(x, y + size);
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.fillRect(x - 2, y - 2, 4, 4);
+    }
+
+    function drawLabel(ctx, x, y, text, color) {
+      ctx.font = "12px Consolas, monospace";
+      ctx.fillStyle = "rgba(0,0,0,0.65)";
+      const width = ctx.measureText(text).width + 8;
+      ctx.fillRect(x - 3, y - 12, width, 16);
+      ctx.fillStyle = color;
+      ctx.fillText(text, x, y);
+    }
+
+    function drawCenteredText(ctx, rect, text) {
+      ctx.fillStyle = "#aab5c2";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "14px Segoe UI";
+      ctx.fillText(text, rect.width / 2, rect.height / 2);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+    }
+
+    function renderPartList() {
+      el.partList.innerHTML = "";
+      state.parts.forEach((part, index) => {
+        normalizePart(part);
+        const visible = isPartVisible(part);
+        const item = document.createElement("div");
+        item.className = "part-item" + (index === state.selected ? " active" : "") + (visible ? "" : " hidden-layer");
+        item.dataset.index = String(index);
+        item.innerHTML = `
+          <button class="visibility-toggle ${visible ? "visible" : "hidden"}" data-action="toggle-visibility" title="${visible ? "隐藏图层" : "显示图层"}" aria-label="${visible ? "隐藏图层" : "显示图层"}">${visible ? "👁" : "⊘"}</button>
+          <div class="part-info"><strong>${escapeHtml(part.id)}</strong><small>${escapeHtml(part.type)} | parent: ${part.parentIndex === null ? "root" : state.parts[part.parentIndex]?.id || "?"}</small></div>
+        `;
+        el.partList.appendChild(item);
+      });
+    }
+
+    function syncFields() {
+      el.canvasW.value = state.canvas.w;
+      el.canvasH.value = state.canvas.h;
+      el.rootX.value = state.rootSocket.x;
+      el.rootY.value = state.rootSocket.y;
+      refreshImageSelects();
+      const part = selectedPart();
+      if (!part) return;
+      normalizePart(part);
+      const previousParent = el.parentIndex.value;
+      el.parentIndex.innerHTML = `<option value="">root</option>` + state.parts
+        .map((candidate, index) => index === state.selected ? "" : `<option value="${index}">${escapeHtml(candidate.id)}</option>`)
+        .join("");
+      el.parentIndex.value = part.parentIndex === null ? "" : String(part.parentIndex);
+      if (previousParent !== el.parentIndex.value) el.parentIndex.value = part.parentIndex === null ? "" : String(part.parentIndex);
+      el.partId.value = part.id;
+      el.partName.value = part.name;
+      el.partType.value = part.type;
+      el.partImageIndex.value = state.images.length ? String(part.imageIndex || 0) : "";
+      el.mountPath.value = part.mountPath;
+      el.order.value = part.order;
+      el.scale.value = part.scale;
+      el.sourceX.value = part.source.x;
+      el.sourceY.value = part.source.y;
+      el.sourceW.value = part.source.w;
+      el.sourceH.value = part.source.h;
+      el.attachX.value = part.attachPoint.x;
+      el.attachY.value = part.attachPoint.y;
+      el.anchorX.value = part.anchor.x;
+      el.anchorY.value = part.anchor.y;
+    }
+
+    function applyFields() {
+      state.canvas.w = number(el.canvasW.value, state.canvas.w);
+      state.canvas.h = number(el.canvasH.value, state.canvas.h);
+      state.preview.fitted = false;
+      state.rootSocket.x = number(el.rootX.value, state.rootSocket.x);
+      state.rootSocket.y = number(el.rootY.value, state.rootSocket.y);
+      const part = selectedPart();
+      if (part) {
+        part.id = el.partId.value.trim() || part.id;
+        part.name = el.partName.value.trim() || part.name;
+        part.type = el.partType.value.trim() || part.type;
+        if (state.images.length && el.partImageIndex.value !== "") {
+          part.imageIndex = Number(el.partImageIndex.value);
+          state.activeImageIndex = part.imageIndex;
+        }
+        part.parentIndex = el.parentIndex.value === "" ? null : Number(el.parentIndex.value);
+        part.mountPath = el.mountPath.value.trim() || part.mountPath;
+        part.order = number(el.order.value, part.order);
+        part.scale = Math.max(number(el.scale.value, part.scale), 0.01);
+        part.source = {
+          x: number(el.sourceX.value, part.source.x),
+          y: number(el.sourceY.value, part.source.y),
+          w: Math.max(number(el.sourceW.value, part.source.w), 1),
+          h: Math.max(number(el.sourceH.value, part.source.h), 1)
+        };
+        part.attachPoint = {
+          x: number(el.attachX.value, part.attachPoint.x),
+          y: number(el.attachY.value, part.attachPoint.y)
+        };
+        part.anchor = {
+          x: number(el.anchorX.value, part.anchor.x),
+          y: number(el.anchorY.value, part.anchor.y)
+        };
+      }
+      draw();
+    }
+
+    function exportLua() {
+      applyFields();
+      const part = selectedPart();
+      if (!part) return;
+      const textureEntry = imageEntryForPart(part);
+      const texture = textureEntry?.path || textureEntry?.name || "weapon/gunsmith/gunsmith_test_rifle.png";
+      const texturePath = texture.replace(/\\/g, "/");
+      const childMounts = state.parts.filter(child => child.parentIndex === state.selected);
+      const mountLines = (indent) => childMounts
+        .map(child => `${indent}{ path = "${child.mountPath}", name = "${child.name}", accepts = { "" }, defaultPart = "${child.id}", anchor = { x = ${fmt(child.anchor.x)}, y = ${fmt(child.anchor.y)} } }`)
+        .join(",\n");
+
+      const rootsText = [
+        "roots = {",
+        "    receiver = {",
+        `        part = "${part.id}",`,
+        `        socket = { x = ${fmt(state.rootSocket.x)}, y = ${fmt(state.rootSocket.y)} },`,
+        "        itemPosOrigin = { x = 0, y = 0 } -- 按游戏内预览手动校准",
+        "    }",
+        "}"
+      ].join("\n");
+
+      const partText = [
+        `parts.${part.id} = {`,
+        `    type = "${part.type}",`,
+        `    name = "${part.name}",`,
+        `    provides = { "" },`,
+        "    item = { identifier = \"\" },",
+        "    visual = {",
+        `        texture = Deep_Lua.Path .. "/${texturePath}",`,
+        `        source = { x = ${fmt(part.source.x)}, y = ${fmt(part.source.y)}, w = ${fmt(part.source.w)}, h = ${fmt(part.source.h)} },`,
+        `        attachPoint = { x = ${fmt(part.attachPoint.x)}, y = ${fmt(part.attachPoint.y)} },`,
+        `        order = ${fmt(part.order)},`,
+        `        scale = ${fmt(part.scale)}`,
+        "    },",
+        "    mounts = {",
+        mountLines("        ") || "        -- child mounts here",
+        "    }",
+        "}"
+      ].join("\n");
+
+      el.exportText.value = part.parentIndex === null ? `${rootsText}\n\n${partText}` : partText;
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+      document.querySelectorAll("[data-mode]").forEach(button => button.classList.toggle("active", button.dataset.mode === mode));
+      const labels = {
+        source: "框选 source",
+        attach: "取 attachPoint",
+        root: "取 rootSocket",
+        anchor: "取 mount.anchor",
+        pan: "移动视图"
+      };
+      el.modeLabel.textContent = labels[mode] || mode;
+    }
+
+    function handleSheetDown(event) {
+      const point = canvasPoint(event, el.sheetCanvas);
+      const sheet = screenToSheet(point);
+      if (event.button === 1) {
+        event.preventDefault();
+        state.drag = { kind: "panSheet", start: point, panX: state.sheet.panX, panY: state.sheet.panY };
+      } else if (state.mode === "source") {
+        const part = selectedPart();
+        const handle = sourceResizeHandleAt(point);
+        if (part && handle) {
+          state.drag = { kind: "resizeSource", handle, original: { ...part.source } };
+        } else {
+          state.drag = { kind: "source", start: sheet, current: sheet };
+        }
+      } else if (state.mode === "attach") {
+        const part = selectedPart();
+        if (part) {
+          part.attachPoint = { x: sheet.x - part.source.x, y: sheet.y - part.source.y };
+          draw();
+        }
+      } else if (state.mode === "pan") {
+        state.drag = { kind: "panSheet", start: point, panX: state.sheet.panX, panY: state.sheet.panY };
+      }
+    }
+
+    function handleSheetMove(event) {
+      const point = canvasPoint(event, el.sheetCanvas);
+      const sheet = screenToSheet(point);
+      el.sheetHud.textContent = `sheet: ${sheet.x}, ${sheet.y}`;
+      if (!state.drag) {
+        el.sheetCanvas.style.cursor = state.mode === "source" ? cursorForHandle(sourceResizeHandleAt(point)) : "";
+        return;
+      }
+      if (state.drag.kind === "source") {
+        state.drag.current = sheet;
+        drawSheet();
+      } else if (state.drag.kind === "resizeSource") {
+        const part = selectedPart();
+        if (part) {
+          resizeSourceWithHandle(part, state.drag.handle, sheet, state.drag.original);
+          syncFields();
+          drawSheet();
+          drawPreview();
+        }
+      } else if (state.drag.kind === "panSheet") {
+        state.sheet.panX = state.drag.panX + point.x - state.drag.start.x;
+        state.sheet.panY = state.drag.panY + point.y - state.drag.start.y;
+        draw();
+      }
+    }
+
+    function handleSheetUp() {
+      if (!state.drag) return;
+
+      if (state.drag.kind === "source") {
+        const part = selectedPart();
+        if (part) {
+          const x = Math.min(state.drag.start.x, state.drag.current.x);
+          const y = Math.min(state.drag.start.y, state.drag.current.y);
+          const w = Math.abs(state.drag.current.x - state.drag.start.x);
+          const h = Math.abs(state.drag.current.y - state.drag.start.y);
+          if (w > 0 && h > 0) {
+            part.source = { x, y, w, h };
+          }
+        }
+      } else if (state.drag.kind === "resizeSource") {
+        syncFields();
+      }
+      state.drag = null;
+      draw();
+    }
+
+    function handlePreviewDown(event) {
+      const point = canvasPoint(event, el.previewCanvas);
+      const world = screenToPreview(point);
+      if (event.button === 1) {
+        event.preventDefault();
+        state.drag = { kind: "panPreview", start: point, panX: state.preview.panX, panY: state.preview.panY };
+      } else if (state.mode === "root") {
+        state.rootSocket = world;
+        draw();
+      } else if (state.mode === "anchor") {
+        const part = selectedPart();
+        if (part && part.parentIndex !== null) {
+          const layouts = computeLayouts();
+          const parent = state.parts[part.parentIndex];
+          const parentLayout = layouts[part.parentIndex];
+          if (parent && parentLayout) {
+            part.anchor = {
+              x: Math.round((world.x - parentLayout.x) / parent.scale - parent.attachPoint.x),
+              y: Math.round((world.y - parentLayout.y) / parent.scale - parent.attachPoint.y)
+            };
+            draw();
+          }
+        }
+      } else if (state.mode === "pan") {
+        state.drag = { kind: "panPreview", start: point, panX: state.preview.panX, panY: state.preview.panY };
+      }
+    }
+
+    function handlePreviewMove(event) {
+      const point = canvasPoint(event, el.previewCanvas);
+      const world = screenToPreview(point);
+      el.previewHud.textContent = `preview: ${world.x}, ${world.y}`;
+      if (state.drag && state.drag.kind === "panPreview") {
+        state.preview.panX = state.drag.panX + point.x - state.drag.start.x;
+        state.preview.panY = state.drag.panY + point.y - state.drag.start.y;
+        drawPreview();
+      }
+    }
+
+    function normalizePath(path) {
+      return String(path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    }
+
+    function projectRootFolderName() {
+      const path = decodeURIComponent(location.pathname || "").replace(/\\/g, "/");
+      const beforeTool = path.split("/.Tools/GunsmithAnchorEditor/")[0];
+      return beforeTool.split("/").filter(Boolean).pop() || "";
+    }
+
+    function projectRelativePathFromFile(file) {
+      const exactMatches = PROJECT_IMAGE_FILES.filter(entry => entry.name === file.name && entry.size === file.size);
+      if (exactMatches.length === 1) return exactMatches[0].path;
+      const raw = normalizePath(file.webkitRelativePath || "");
+      if (!raw) return "";
+      const parts = raw.split("/").filter(Boolean);
+      const rootName = projectRootFolderName();
+      if (parts.length > 1 && rootName && parts[0] === rootName) return parts.slice(1).join("/");
+      return parts.join("/");
+    }
+
+    function dataUrlByteSize(dataUrl) {
+      const base64 = String(dataUrl || "").split(",", 2)[1] || "";
+      if (!base64) return 0;
+      const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
+      return Math.floor(base64.length * 3 / 4) - padding;
+    }
+
+    function inferProjectPathFromImageEntry(entry) {
+      if (entry.path) return normalizePath(entry.path);
+      const name = entry.name || "";
+      const size = dataUrlByteSize(entry.dataUrl);
+      if (name && size > 0) {
+        const exactMatches = PROJECT_IMAGE_FILES.filter(candidate => candidate.name === name && candidate.size === size);
+        if (exactMatches.length === 1) return exactMatches[0].path;
+      }
+      if (name) {
+        const nameMatches = PROJECT_IMAGE_FILES.filter(candidate => candidate.name === name);
+        if (nameMatches.length === 1) return nameMatches[0].path;
+      }
+      return "";
+    }
+
+    function projectImageUrl(path) {
+      const normalized = normalizePath(path);
+      return "../../" + normalized.split("/").map(encodeURIComponent).join("/");
+    }
+
+    function imageSource(entry) {
+      if (entry?.path) return projectImageUrl(entry.path);
+      return entry?.dataUrl || "";
+    }
+
+    function setProjectStatus(message) {
+      el.projectStatus.textContent = message;
+    }
+
+    function openPickerStore() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open("GunsmithAnchorEditor", 1);
+        request.onupgradeneeded = () => request.result.createObjectStore("handles");
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("无法打开浏览器本地存储"));
+      });
+    }
+
+    async function rememberPickerHandle(key, handle) {
+      if (!handle || !window.indexedDB) return;
+      try {
+        const db = await openPickerStore();
+        const tx = db.transaction("handles", "readwrite");
+        tx.objectStore("handles").put(handle, key);
+        await new Promise((resolve, reject) => {
+          tx.oncomplete = resolve;
+          tx.onerror = () => reject(tx.error || new Error("无法保存文件选择位置"));
+        });
+        db.close();
+      } catch {
+        // Directory memory is a convenience only.
+      }
+    }
+
+    async function loadPickerHandle(key) {
+      if (!window.indexedDB) return null;
+      try {
+        const db = await openPickerStore();
+        const tx = db.transaction("handles", "readonly");
+        const request = tx.objectStore("handles").get(key);
+        const handle = await new Promise((resolve, reject) => {
+          request.onsuccess = () => resolve(request.result || null);
+          request.onerror = () => reject(request.error || new Error("无法读取文件选择位置"));
+        });
+        db.close();
+        return handle;
+      } catch {
+        return null;
+      }
+    }
+
+    async function jsonPickerOptions(extra = {}) {
+      const options = {
+        id: "gunsmithAnchorProjectJson",
+        types: [{ description: "JSON", accept: { "application/json": [".json"] } }],
+        ...extra
+      };
+      const startIn = state.projectHandle || await loadPickerHandle("projectJson");
+      if (startIn) options.startIn = startIn;
+      return options;
+    }
+
+    async function showJsonOpenPicker() {
+      const options = await jsonPickerOptions({ multiple: false });
+      try {
+        return await window.showOpenFilePicker(options);
+      } catch (error) {
+        if (options.startIn && error instanceof TypeError) {
+          delete options.startIn;
+          return await window.showOpenFilePicker(options);
+        }
+        throw error;
+      }
+    }
+
+    async function showJsonSavePicker(suggestedName) {
+      const options = await jsonPickerOptions({ suggestedName });
+      try {
+        return await window.showSaveFilePicker(options);
+      } catch (error) {
+        if (options.startIn && error instanceof TypeError) {
+          delete options.startIn;
+          return await window.showSaveFilePicker(options);
+        }
+        throw error;
+      }
+    }
+
+    function blobToDataUrl(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error || new Error("读取图片数据失败"));
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function fileFromDirectoryHandle(rootHandle, relativePath) {
+      const parts = normalizePath(relativePath).split("/").filter(Boolean);
+      if (!parts.length) return null;
+      let handle = rootHandle;
+      for (let i = 0; i < parts.length - 1; i += 1) {
+        handle = await handle.getDirectoryHandle(parts[i]);
+      }
+      const fileHandle = await handle.getFileHandle(parts[parts.length - 1]);
+      return await fileHandle.getFile();
+    }
+
+    async function dataUrlFromProjectDirectory(entry) {
+      if (!entry.path || !window.showDirectoryPicker) return "";
+      if (!state.projectDirectoryHandle) {
+        setProjectStatus(`请选择项目根目录，用于读取 ${entry.path} 并写入内嵌图片 JSON。`);
+        state.projectDirectoryHandle = await window.showDirectoryPicker({ id: "gunsmithAnchorProjectRoot", mode: "read" });
+      }
+      try {
+        return await blobToDataUrl(await fileFromDirectoryHandle(state.projectDirectoryHandle, entry.path));
+      } catch (error) {
+        state.projectDirectoryHandle = null;
+        throw new Error(`无法从所选项目目录读取 ${entry.path}：${error.message}`);
+      }
+    }
+
+    function loadImages(files) {
+      const list = Array.from(files || []).filter(file => file.type.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp)$/i.test(file.name));
+      if (!list.length) return;
+      const baseIndex = state.images.length;
+      state.images.length = baseIndex + list.length;
+      let remaining = list.length;
+      list.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const path = projectRelativePathFromFile(file);
+            state.images[baseIndex + index] = {
+              name: file.name,
+              path,
+              dataUrl: reader.result,
+              image: img
+            };
+            remaining -= 1;
+            if (remaining === 0) {
+              state.images = state.images.filter(Boolean);
+              state.activeImageIndex = Math.min(baseIndex + list.length - 1, state.images.length - 1);
+              const part = selectedPart();
+              if (part) part.imageIndex = state.activeImageIndex;
+              refreshImageSelects();
+              const imported = state.images.slice(baseIndex);
+              const matched = imported.filter(entry => entry.path).length;
+              setProjectStatus(matched > 0
+                ? `已导入 ${imported.length} 张图片，其中 ${matched} 张匹配项目相对路径。`
+                : "已导入图片；未匹配到项目相对路径。");
+              fitImage();
+            }
+          };
+          img.onerror = () => {
+            state.images[baseIndex + index] = null;
+            remaining -= 1;
+            if (remaining === 0) {
+              state.images = state.images.filter(Boolean);
+              state.activeImageIndex = Math.min(baseIndex + list.length - 1, Math.max(state.images.length - 1, 0));
+              refreshImageSelects();
+              draw();
+            }
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function loadImageEntries(entries, onDone) {
+      if (!Array.isArray(entries) || !entries.length) {
+        state.images = [];
+        onDone?.();
+        return;
+      }
+      state.images = new Array(entries.length);
+      let remaining = entries.length;
+      entries.forEach((entry, index) => {
+        const img = new Image();
+        let usingFallback = false;
+        img.onload = () => {
+          const inferredPath = inferProjectPathFromImageEntry(entry);
+          state.images[index] = {
+            name: entry.name || entry.path || "",
+            path: inferredPath,
+            dataUrl: entry.dataUrl || "",
+            image: img
+          };
+          remaining -= 1;
+          if (remaining === 0) {
+            state.images = state.images.filter(Boolean);
+            onDone?.();
+          }
+        };
+        img.onerror = () => {
+          if (!usingFallback && entry.dataUrl && entry.path) {
+            usingFallback = true;
+            img.src = entry.dataUrl;
+            return;
+          }
+          state.images[index] = null;
+          remaining -= 1;
+          if (remaining === 0) {
+            state.images = state.images.filter(Boolean);
+            onDone?.();
+          }
+        };
+        img.src = imageSource(entry);
+      });
+    }
+
+    async function imageDataUrlForExport(entry) {
+      if (entry.dataUrl) return entry.dataUrl;
+      if (entry.path) {
+        try {
+          const response = await fetch(imageSource(entry));
+          if (response.ok) return await blobToDataUrl(await response.blob());
+        } catch {
+          // file:// may block fetch; fall back to canvas below.
+        }
+      }
+      if (!entry.image) return "";
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = entry.image.naturalWidth || entry.image.width;
+        canvas.height = entry.image.naturalHeight || entry.image.height;
+        canvas.getContext("2d").drawImage(entry.image, 0, 0);
+        return canvas.toDataURL("image/png");
+      } catch {
+        return await dataUrlFromProjectDirectory(entry);
+      }
+    }
+
+    async function projectImageData(imageMode) {
+      const images = [];
+      for (const entry of state.images) {
+        const data = { name: entry.name || "" };
+        if (imageMode === "embedded") {
+          const dataUrl = await imageDataUrlForExport(entry);
+          if (!dataUrl) {
+            throw new Error(`无法把图片 ${entry.path || entry.name || "未命名图片"} 写入 JSON。浏览器允许显示本地图片，但阻止脚本反读图片数据；请使用支持目录读取的浏览器，或重新通过“精灵图”选择该图片。`);
+          }
+          const inferredPath = inferProjectPathFromImageEntry(entry);
+          if (inferredPath) {
+            entry.path = inferredPath;
+            data.path = inferredPath;
+          }
+          data.dataUrl = dataUrl;
+        } else if (entry.path) {
+          data.path = normalizePath(entry.path);
+        } else {
+          const inferredPath = inferProjectPathFromImageEntry(entry);
+          if (inferredPath) {
+            entry.path = inferredPath;
+            data.path = inferredPath;
+          }
+        }
+        images.push(data);
+      }
+      return images;
+    }
+
+    function migrateProjectImages(data) {
+      if (Array.isArray(data.images)) return data.images;
+      if (data.imageDataUrl) return [{ name: data.imageName || "", dataUrl: data.imageDataUrl }];
+      return [];
+    }
+
+    async function projectData(imageMode) {
+      applyFields();
+      return {
+        version: 2,
+        imageMode,
+        images: await projectImageData(imageMode),
+        activeImageIndex: state.activeImageIndex,
+        background: state.background,
+        canvas: state.canvas,
+        rootSocket: state.rootSocket,
+        parts: state.parts,
+        selected: state.selected
+      };
+    }
+
+    async function projectJson(imageMode) {
+      return JSON.stringify(await projectData(imageMode), null, 2);
+    }
+
+    function exportStatusSuffix(imageMode) {
+      if (imageMode === "embedded") return "图片数据已写入 JSON。";
+      const missing = state.images.filter(entry => !entry.path).length;
+      return missing > 0
+        ? `${missing} 张图片没有项目相对路径，已按要求不写入图片数据。`
+        : "仅保存项目相对路径，未写入图片数据。";
+    }
+
+    async function writeProjectToHandle(handle, imageMode, data = null) {
+      const output = data ?? await projectJson(imageMode);
+      let writable = null;
+      try {
+        writable = await handle.createWritable();
+        await writable.write(output);
+        await writable.close();
+        writable = null;
+      } catch (error) {
+        if (writable && typeof writable.abort === "function") {
+          try { await writable.abort(); } catch {}
+        }
+        throw error;
+      }
+      state.projectHandle = handle;
+      state.projectName = handle.name || state.projectName;
+      state.saveImageMode = imageMode;
+      await rememberPickerHandle("projectJson", handle);
+      setProjectStatus(`已保存到 ${state.projectName || "当前工程 JSON"}。${exportStatusSuffix(imageMode)}`);
+    }
+
+    async function exportProject(imageMode) {
+      setProjectStatus("正在生成工程 JSON...");
+      const data = await projectJson(imageMode);
+      if (window.showSaveFilePicker) {
+        const handle = await showJsonSavePicker(state.projectName || "gunsmith-anchor-project.json");
+        await writeProjectToHandle(handle, imageMode, data);
+        return;
+      }
+      await downloadProjectJson(imageMode, data);
+      setProjectStatus(`浏览器不支持直接写文件，已用下载方式导出。${exportStatusSuffix(imageMode)}`);
+    }
+
+    async function downloadProjectJson(imageMode, data = null) {
+      const output = data ?? await projectJson(imageMode);
+      const blob = new Blob([output], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = state.projectName || "gunsmith-anchor-project.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function saveProject() {
+      if (state.projectHandle) {
+        await writeProjectToHandle(state.projectHandle, state.saveImageMode || "paths");
+        return;
+      }
+      await exportProject(state.saveImageMode || "paths");
+    }
+
+    async function openProject() {
+      if (window.showOpenFilePicker) {
+        const [handle] = await showJsonOpenPicker();
+        const file = await handle.getFile();
+        state.projectHandle = handle;
+        state.projectName = handle.name || file.name || "";
+        await rememberPickerHandle("projectJson", handle);
+        loadProject(file, { handle });
+        return;
+      }
+      el.loadProject.click();
+    }
+
+    function loadProject(file, options = {}) {
+      if (!file) return;
+      state.projectHandle = options.handle || null;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const data = JSON.parse(reader.result);
+        state.projectName = file.name || state.projectName;
+        state.background = data.background || state.background;
+        el.backgroundColor.value = state.background;
+        state.canvas = data.canvas || state.canvas;
+        state.preview.fitted = false;
+        state.rootSocket = data.rootSocket || state.rootSocket;
+        state.parts = Array.isArray(data.parts) ? data.parts : state.parts;
+        state.selected = Math.min(data.selected || 0, state.parts.length - 1);
+        state.saveImageMode = data.imageMode || (migrateProjectImages(data).some(entry => entry.dataUrl) ? "embedded" : "paths");
+        loadImageEntries(migrateProjectImages(data), () => {
+          state.activeImageIndex = Math.min(data.activeImageIndex || 0, Math.max(state.images.length - 1, 0));
+          state.parts.forEach(normalizePart);
+          refreshImageSelects();
+          setProjectStatus(`已打开 ${state.projectName || "工程 JSON"}。`);
+          if (state.images.length) fitImage();
+          else draw();
+        });
+      };
+      reader.readAsText(file);
+    }
+
+    function loadM4Example() {
+      state.canvas = { w: 640, h: 260 };
+      state.preview.fitted = false;
+      state.rootSocket = { x: 209, y: 160 };
+      state.parts = [
+        Object.assign(createPart("M4_receiver_std", "M4 标准机匣", "receiver", null, "receiver", 30), {
+          source: { x: 254, y: 370, w: 135, h: 96 },
+          attachPoint: { x: 71, y: 47 }
+        }),
+        Object.assign(createPart("AR_barrel_std", "M4标准枪管", "barrel", 0, "barrel", 20), {
+          source: { x: 147, y: 688, w: 214, h: 56 },
+          attachPoint: { x: 2, y: 40 },
+          anchor: { x: 62, y: -3 }
+        }),
+        Object.assign(createPart("AR_handguard_std", "M4 标准护木", "handguard", 0, "handguard", 40), {
+          source: { x: 255, y: 502, w: 112, h: 43 },
+          attachPoint: { x: 1, y: 21 },
+          anchor: { x: 62, y: -3 }
+        }),
+        Object.assign(createPart("AR_grip_std", "M4标准握把", "pistol_grip", 0, "pistol_grip", 50), {
+          source: { x: 256, y: 585, w: 57, h: 63 },
+          attachPoint: { x: 54, y: 2 },
+          anchor: { x: -26, y: 27 }
+        }),
+        Object.assign(createPart("AR_stock_std", "M4标准枪托", "stock", 0, "stock", 10), {
+          source: { x: 256, y: 271, w: 113, h: 84 },
+          attachPoint: { x: 111, y: 15 },
+          anchor: { x: -68, y: 0 }
+        })
+      ];
+      state.selected = 0;
+      draw();
+    }
+
+    function number(value, fallback) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    function fmt(value) {
+      return Number.isInteger(value) ? String(value) : Number(value).toFixed(3).replace(/\.?0+$/, "");
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    function nudgeByKeyboard(event) {
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+
+      const direction = {
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+        Numpad4: [-1, 0],
+        Numpad6: [1, 0],
+        Numpad8: [0, -1],
+        Numpad2: [0, 1]
+      }[event.code];
+      if (!direction) return;
+
+      const step = event.shiftKey ? 10 : 1;
+      const dx = direction[0] * step;
+      const dy = direction[1] * step;
+      const part = selectedPart();
+      if (state.mode === "root") {
+        state.rootSocket.x += dx;
+        state.rootSocket.y += dy;
+      } else if (state.mode === "anchor" && part) {
+        part.anchor.x += dx;
+        part.anchor.y += dy;
+      } else if (state.mode === "attach" && part) {
+        part.attachPoint.x += dx;
+        part.attachPoint.y += dy;
+      } else if (state.mode === "source" && part) {
+        part.source.x += dx;
+        part.source.y += dy;
+      } else {
+        return;
+      }
+
+      event.preventDefault();
+      draw();
+    }
+
+    document.querySelectorAll("[data-mode]").forEach(button => button.onclick = () => setMode(button.dataset.mode));
+    el.partList.addEventListener("click", event => {
+      const item = event.target.closest(".part-item");
+      if (!item || !el.partList.contains(item)) return;
+      const index = Number(item.dataset.index);
+      if (event.target.closest("[data-action='toggle-visibility']")) {
+        const part = state.parts[index];
+        if (!part) return;
+        normalizePart(part);
+        part.visible = !isPartVisible(part);
+        renderPartList();
+        drawPreview();
+        return;
+      }
+      selectPart(index);
+    });
+    el.imageFile.onchange = event => loadImages(event.target.files);
+    el.imageSelect.onchange = () => {
+      if (!state.images.length) return;
+      state.activeImageIndex = Number(el.imageSelect.value);
+      fitImage();
+    };
+    el.partImageIndex.onchange = () => {
+      const part = selectedPart();
+      if (!part || !state.images.length) return;
+      part.imageIndex = Number(el.partImageIndex.value);
+      state.activeImageIndex = part.imageIndex;
+      fitImage();
+    };
+    el.saveProject.onclick = () => saveProject().catch(error => setProjectStatus(`保存失败：${error.message}`));
+    el.exportProjectPaths.onclick = () => exportProject("paths").catch(error => setProjectStatus(`导出失败：${error.message}`));
+    el.exportProjectEmbedded.onclick = () => exportProject("embedded").catch(error => setProjectStatus(`导出失败：${error.message}`));
+    el.loadProjectButton.onclick = () => openProject().catch(error => setProjectStatus(`打开失败：${error.message}`));
+    el.loadProject.onchange = event => loadProject(event.target.files[0]);
+    el.fitImage.onclick = fitImage;
+    el.zoom.oninput = () => { state.sheet.zoom = Number(el.zoom.value); draw(); };
+    el.showGrid.onchange = draw;
+    el.backgroundColor.onchange = () => {
+      state.background = el.backgroundColor.value;
+      draw();
+    };
+    el.addPart.onclick = () => {
+      const part = createPart("new_part", "新部件", "part_type", state.selected, "mount_path", 30);
+      part.imageIndex = state.activeImageIndex;
+      state.parts.push(part);
+      state.selected = state.parts.length - 1;
+      draw();
+    };
+    el.duplicatePart.onclick = () => {
+      const part = selectedPart();
+      if (!part) return;
+      state.parts.push(JSON.parse(JSON.stringify({ ...part, id: part.id + "_copy", name: part.name + " Copy" })));
+      state.selected = state.parts.length - 1;
+      draw();
+    };
+    el.deletePart.onclick = () => {
+      if (state.parts.length <= 1) return;
+      state.parts.splice(state.selected, 1);
+      state.parts.forEach(part => {
+        if (part.parentIndex === state.selected) part.parentIndex = null;
+        if (part.parentIndex !== null && part.parentIndex > state.selected) part.parentIndex -= 1;
+      });
+      state.selected = Math.max(0, state.selected - 1);
+      draw();
+    };
+    el.loadM4Example.onclick = loadM4Example;
+    el.applyFields.onclick = applyFields;
+    el.exportLua.onclick = exportLua;
+
+    el.sheetCanvas.addEventListener("mousedown", handleSheetDown);
+    el.sheetCanvas.addEventListener("auxclick", event => {
+      if (event.button === 1) event.preventDefault();
+    });
+    el.sheetCanvas.addEventListener("mousemove", handleSheetMove);
+    el.sheetCanvas.addEventListener("wheel", event => {
+      event.preventDefault();
+      zoomAt(state.sheet, canvasPoint(event, el.sheetCanvas), event.deltaY, 0.1, 16);
+      el.zoom.value = Math.min(Math.max(state.sheet.zoom, Number(el.zoom.min)), Number(el.zoom.max));
+      draw();
+    }, { passive: false });
+    window.addEventListener("mouseup", handleSheetUp);
+    el.previewCanvas.addEventListener("mousedown", handlePreviewDown);
+    el.previewCanvas.addEventListener("auxclick", event => {
+      if (event.button === 1) event.preventDefault();
+    });
+    el.previewCanvas.addEventListener("mousemove", handlePreviewMove);
+    el.previewCanvas.addEventListener("wheel", event => {
+      event.preventDefault();
+      state.preview.fitted = true;
+      zoomAt(state.preview, canvasPoint(event, el.previewCanvas), event.deltaY, 0.1, 16);
+      drawPreview();
+    }, { passive: false });
+    window.addEventListener("resize", () => {
+      state.preview.fitted = false;
+      resizeCanvases();
+    });
+    window.addEventListener("keydown", nudgeByKeyboard);
+
+    ["canvasW", "canvasH", "rootX", "rootY"].forEach(id => el[id].addEventListener("change", applyFields));
+    resizeCanvases();
+  </script>
+</body>
+</html>
