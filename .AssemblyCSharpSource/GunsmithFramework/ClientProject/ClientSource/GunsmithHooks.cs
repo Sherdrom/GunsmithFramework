@@ -155,7 +155,6 @@ namespace GunsmithFramework
                 float offsetX = FindFloatArg(args, 5);
                 float offsetY = FindFloatArg(args, 6);
                 float rotation = FindFloatArg(args, 7);
-                bool hide = FindIntArg(args, 8) != 0;
                 if (item != null && slotIndex >= 0)
                 {
                     GunsmithQuickSlotLayoutPatch.RegisterLayout(
@@ -163,8 +162,7 @@ namespace GunsmithFramework
                         slotIndex,
                         new Vector2(anchorX, anchorY),
                         new Vector2(offsetX, offsetY),
-                        rotation,
-                        hide);
+                        rotation);
                 }
                 return null;
             });

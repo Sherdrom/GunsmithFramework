@@ -347,8 +347,7 @@ GunsmithFramework.Config.weapons.my_rifle = {
         muzzle = {
             slot = 1,
             itemPosOffset = { x = 0, y = 0 },
-            rotation = 0,
-            hide = false
+            rotation = 0
         }
     }
 }
@@ -377,7 +376,6 @@ GunsmithFramework.Config.weapons.my_rifle = {
 | `quickSlotBindings[key].slot` | integer >= 0 | 是 | 真实容器槽位索引，从 `0` 开始。 |
 | `quickSlotBindings[key].itemPosOffset` | point | 否 | Quick Slot 附件显示点相对挂点的偏移。 |
 | `quickSlotBindings[key].rotation` | number | 否，默认 `0` | Quick Slot 附件显示旋转角度。 |
-| `quickSlotBindings[key].hide` | boolean | 否，默认 `false` | 是否隐藏该真实容器槽内的原始物品显示。 |
 | `quickSlotTags` | string array | 否 | 覆盖动态注入 Quick Slot 的 containable tags。未写时使用 package `partTags`。 |
 
 兼容字段：
@@ -396,7 +394,6 @@ quickSlots = {
         anchor = { x = 120, y = 40 },
         itemPosOffset = { x = 0, y = 0 },
         showWhenContained = { "my_suppressor_item" },
-        hide = false,
         rotation = 0
     }
 }
@@ -779,8 +776,7 @@ weapons.my_rifle.quickSlotBindings = {
     muzzle = {
         slot = 1,
         itemPosOffset = { x = 0, y = 0 },
-        rotation = 0,
-        hide = false
+        rotation = 0
     }
 }
 ```

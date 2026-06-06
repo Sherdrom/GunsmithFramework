@@ -443,7 +443,6 @@ function Core.QuickSlotsForSelection(item, selection, platform)
                             anchor = anchor,
                             itemPosOffset = binding.itemPosOffset,
                             showWhenContained = quick.showWhenContained,
-                            hide = binding.hide,
                             rotation = binding.rotation
                         })
                     end

@@ -309,8 +309,7 @@ local function registerQuickSlotLayouts(item, selection, platform, weapon)
                 0,
                 offset.x or 0,
                 offset.y or 0,
-                quickSlot.rotation or 0,
-                quickSlot.hide == true and 1 or 0)
+                quickSlot.rotation or 0)
         end
     end
 end

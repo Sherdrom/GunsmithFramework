@@ -563,6 +563,9 @@ function Validation.Run(configOverride, label)
                             if binding.itemPos ~= nil then
                                 table.insert(errors, bindingLabel .. ".itemPos is removed; use mount anchor plus optional itemPosOffset.")
                             end
+                            if binding.hide ~= nil then
+                                table.insert(errors, bindingLabel .. ".hide is removed; omit it.")
+                            end
                             if binding.itemPosOffset ~= nil and not validOptionalPoint(binding.itemPosOffset) then
                                 table.insert(errors, bindingLabel .. ".itemPosOffset must contain numeric x/y when declared.")
                             end

@@ -22,7 +22,6 @@ Framework.Owners = Framework.Owners or {
 
 local basePath = Framework.ScriptPath
     or (Framework.ModDir and (Framework.ModDir .. "/Lua/Scripts/Gunsmith"))
-    or (Deep_Lua and Deep_Lua.Path and (Deep_Lua.Path .. "/Lua/Scripts/Gunsmith"))
 
 if not basePath then
     error("[GunsmithFramework] ScriptPath is not configured.")
@@ -167,15 +166,6 @@ local function discoverLocalizationFiles(modDir)
     return files
 end
 
-local function entryUsesLegacyDeepLua(package)
-    if type(package) ~= "table" or type(package.modDir) ~= "string" or type(package.entry) ~= "string" then
-        return false
-    end
-    local content = readFile(package.modDir .. "/" .. package.entry)
-    if not content then return false end
-    return string.find(content, "Deep_Lua%.Gunsmith") ~= nil or string.find(content, "Deep_Lua%.Path") ~= nil
-end
-
 local function ensurePackage(package, callerModDir)
     if type(package) == "string" then
         package = { entry = package }
@@ -206,9 +196,6 @@ local function ensurePackage(package, callerModDir)
     package.localizationFiles = package.localizationFiles or discoverLocalizationFiles(package.modDir)
     package.localizationPrefix = package.localizationPrefix or (package.id .. ".gunsmith")
     package.name = package.name or discoverPackageName(package.modDir) or basename(package.modDir) or package.id
-    if package.legacyDeepLua == nil then
-        package.legacyDeepLua = entryUsesLegacyDeepLua(package)
-    end
     package._normalized = true
     return package
 end
@@ -501,25 +488,7 @@ local function loadPackageEntry(package)
         npcPresets = snapshotEntries(Framework.Config.npcPresets and Framework.Config.npcPresets.profiles or {})
     }
 
-    local oldDeepLua = Deep_Lua
-    local oldLegacyGunsmith = oldDeepLua and oldDeepLua.Gunsmith or nil
-    local oldLegacyPath = oldDeepLua and oldDeepLua.Path or nil
-
-    if package.legacyDeepLua then
-        Deep_Lua = Deep_Lua or {}
-        Deep_Lua.Gunsmith = Framework
-        Deep_Lua.Path = package.modDir
-    end
-
     local ok, err = pcall(dofile, package.modDir .. "/" .. package.entry)
-
-    if package.legacyDeepLua then
-        Deep_Lua = oldDeepLua
-        if Deep_Lua then
-            Deep_Lua.Gunsmith = oldLegacyGunsmith
-            Deep_Lua.Path = oldLegacyPath
-        end
-    end
 
     Framework._currentPackage = oldCurrentPackage
 

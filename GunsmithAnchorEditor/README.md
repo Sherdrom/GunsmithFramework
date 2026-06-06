@@ -226,7 +226,7 @@ mount.anchor x / y     -> 当前部件挂到父部件时，父部件上的挂点
 
 导出并粘贴配置后：
 
-- 运行 `DeepGunsmithValidate`。
+- 运行 `GunsmithFrameworkValidate`。
 - 检查 M4/HK416 默认外观没有被影响。
 - 检查新部件在 preview、inventory、world 中都没有明显裁切。
 - 替换父配件后，子挂点能正确跟随。
