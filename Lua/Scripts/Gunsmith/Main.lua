@@ -220,58 +220,6 @@ local function rememberPackage(package)
     Framework.Packages[package.id] = package
 end
 
-local function registerOwned(kind, key, value, package, override)
-    if type(key) ~= "string" or key == "" then
-        error("[GunsmithFramework] " .. kind .. " id must be a non-empty string.")
-    end
-    local bucket = Framework.Config[kind]
-    local owners = Framework.Owners[kind]
-    local previousOwner = owners[key]
-    if bucket[key] ~= nil and previousOwner ~= package.id and not override then
-        error(string.format(
-            "[GunsmithFramework] duplicate %s '%s' from package '%s'; already owned by '%s'.",
-            kind,
-            key,
-            packageLabel(package),
-            tostring(previousOwner or "<unknown>")))
-    end
-    bucket[key] = value
-    owners[key] = package.id
-end
-
-function Framework.RegisterPlatform(package, id, definition)
-    package = ensurePackage(package)
-    registerOwned("platforms", id, definition, package, package.override == true)
-end
-
-function Framework.RegisterWeapon(package, identifier, definition)
-    package = ensurePackage(package)
-    registerOwned("weapons", identifier, definition, package, package.override == true)
-end
-
-function Framework.RegisterPart(package, id, definition)
-    package = ensurePackage(package)
-    registerOwned("parts", id, definition, package, package.override == true)
-end
-
-function Framework.RegisterNpcPreset(package, id, definition)
-    package = ensurePackage(package)
-    Framework.Config.npcPresets = Framework.Config.npcPresets or { profiles = {} }
-    Framework.Config.npcPresets.profiles = Framework.Config.npcPresets.profiles or {}
-    local owners = Framework.Owners.npcPresets
-    local profiles = Framework.Config.npcPresets.profiles
-    local previousOwner = owners[id]
-    if profiles[id] ~= nil and previousOwner ~= package.id and package.override ~= true then
-        error(string.format(
-            "[GunsmithFramework] duplicate npc preset '%s' from package '%s'; already owned by '%s'.",
-            id,
-            packageLabel(package),
-            tostring(previousOwner or "<unknown>")))
-    end
-    profiles[id] = definition
-    owners[id] = package.id
-end
-
 function Framework.CurrentPackage()
     return Framework._currentPackage
 end
@@ -284,7 +232,7 @@ local function snapshotEntries(tableValue)
     return entries
 end
 
-local function claimLegacyEntry(kind, key, value, previousValue, package)
+local function claimPackageEntry(kind, key, value, previousValue, package)
     local owners = Framework.Owners[kind]
     local previousOwner = owners[key]
     if previousValue ~= nil and value ~= previousValue and previousOwner ~= package.id and package.override ~= true then
@@ -300,26 +248,26 @@ local function claimLegacyEntry(kind, key, value, previousValue, package)
     end
 end
 
-local function assignLegacyOwners(package, before)
+local function assignPackageOwners(package, before)
     for key, value in pairs(Framework.Config.platforms or {}) do
         if before.platforms[key] == nil then
             Framework.Owners.platforms[key] = package.id
         else
-            claimLegacyEntry("platforms", key, value, before.platforms[key], package)
+            claimPackageEntry("platforms", key, value, before.platforms[key], package)
         end
     end
     for key, value in pairs(Framework.Config.weapons or {}) do
         if before.weapons[key] == nil then
             Framework.Owners.weapons[key] = package.id
         else
-            claimLegacyEntry("weapons", key, value, before.weapons[key], package)
+            claimPackageEntry("weapons", key, value, before.weapons[key], package)
         end
     end
     for key, value in pairs(Framework.Config.parts or {}) do
         if before.parts[key] == nil then
             Framework.Owners.parts[key] = package.id
         else
-            claimLegacyEntry("parts", key, value, before.parts[key], package)
+            claimPackageEntry("parts", key, value, before.parts[key], package)
         end
     end
     local profiles = Framework.Config.npcPresets and Framework.Config.npcPresets.profiles or {}
@@ -327,7 +275,7 @@ local function assignLegacyOwners(package, before)
         if before.npcPresets[key] == nil then
             Framework.Owners.npcPresets[key] = package.id
         else
-            claimLegacyEntry("npcPresets", key, value, before.npcPresets[key], package)
+            claimPackageEntry("npcPresets", key, value, before.npcPresets[key], package)
         end
     end
 end
@@ -579,7 +527,7 @@ local function loadPackageEntry(package)
         error("[GunsmithFramework] failed to load package '" .. packageLabel(package) .. "': " .. tostring(err))
     end
 
-    assignLegacyOwners(package, before)
+    assignPackageOwners(package, before)
     inferPackageMetadata(package)
 end
 
