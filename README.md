@@ -245,8 +245,7 @@ GunsmithFramework.RegisterPackage({
     -- localizationPrefix = "my.gunsmith",
     weaponTags = { "my_gunsmith_weapon" },
     partTags = { "my_gunsmith_part" },
-    override = false,
-    legacyDeepLua = false
+    override = false
 })
 ```
 
@@ -264,7 +263,6 @@ GunsmithFramework.RegisterPackage({
 | `weaponTags` | string array | 尝试从 XML item tags 推断 | 注册为 Gunsmith 武器标签。 |
 | `partTags` | string array | 尝试从 XML item tags 推断 | 注入 Quick Slot 容器时用作可放入部件标签。 |
 | `override` | boolean | `false` | 为 `true` 时允许覆盖其他包已有的同 id platform/weapon/part/preset。 |
-| `legacyDeepLua` | boolean | 自动检测 | 为旧配置临时暴露 `Deep_Lua.Gunsmith` 和 `Deep_Lua.Path`。新模组不要依赖它。 |
 
 配置入口内可用：
 
@@ -283,8 +281,7 @@ GunsmithFramework.Config.platforms.my_platform = {
     -- localizationPrefix = "my.gunsmith",
     canvas = { w = 512, h = 160 },
     rootSlots = {
-        { path = "receiver" },
-        { path = "hidden_root", hidden = true }
+        { path = "receiver" , hidden = true }
     },
     requiredSlots = { "barrel", "stock" },
     pathNameKeys = {
@@ -516,6 +513,13 @@ mounts = {
 | `quick.nameKey` | string | 否 | Quick UI 显示名。 |
 | `quick.showWhenContained` | string array | 否 | 只有槽内物品 identifier 在此列表中时，显示该原生槽。 |
 
+默认部件规则：
+
+- `defaultPart` 必须存在。
+- 默认部件的 `type` 必须匹配 `mount.partType` 或 `mount.path`。
+- 默认部件的 `provides` 必须被 `mount.accepts` 接受。
+- 默认树最大深度为 32，不能形成循环。
+
 ### Quick Attachment 枪口出口偏移
 
 `quickAttachmentTransform` 不是普通视觉对齐字段。普通部件贴图仍然只用 `visual.source`、`visual.attachPoint`、`mount.anchor` 和 `visual.scale` 对齐。
@@ -574,12 +578,49 @@ Quick Attachment 枪口出口偏移目前识别两个 quick key：
 - `muzzle`：主枪口。
 - `lower_rail`：Vanilla-Components-Expanded 下挂发射器或下挂武器兼容路径；只有安装部件声明了 `quickAttachmentTransform.muzzleOutletOffset` 时才注册。不使用 Vanilla-Components-Expanded 时，普通下导轨附件不需要这个 key。
 
-默认部件规则：
+### XML StatusEffect 用法
 
-- `defaultPart` 必须存在。
-- 默认部件的 `type` 必须匹配 `mount.partType` 或 `mount.path`。
-- 默认部件的 `provides` 必须被 `mount.accepts` 接受。
-- 默认树最大深度为 32，不能形成循环。
+Lua 里的 `quickAttachmentTransform.muzzleOutletOffset` 只负责告诉框架“当前枪口出口点在 canvas 上哪里”。XML 里的粒子效果还需要给对应 `StatusEffect` 加上 Gunsmith tag，框架才会把这个 StatusEffect 的生成位置改到当前枪口出口点。
+
+需要添加的 tag 是：
+
+```xml
+statuseffecttags="Gunsmith_BarrelParticle"
+```
+
+典型写法：
+
+```xml
+<RangedWeapon barrelpos="0,0">
+  <StatusEffect type="OnUse" target="This" statuseffecttags="Gunsmith_BarrelParticle">
+    <!-- 这里保留你原本的枪口 flash / spark 粒子效果。 -->
+    <ParticleEmitter particle="muzzleflash" particleamount="1" />
+    <ParticleEmitter particle="spark" particleamount="3" />
+  </StatusEffect>
+</RangedWeapon>
+```
+
+工作方式：
+
+- 没有 `Gunsmith_BarrelParticle` tag 的 `StatusEffect` 不会被 GunsmithFramework 改写位置。
+- 带这个 tag 的 `StatusEffect` 必须由带 `RangedWeapon` 组件的武器 item 触发，否则框架会报错。
+- 框架会优先使用当前 Gunsmith Quick Attachment barrel transform；如果没有注册 transform，则回退到 XML `RangedWeapon.BarrelPos`。
+- 主枪口使用 `muzzle` quick key 注册为 `primary` barrel rule。
+- 使用 Vanilla-Components-Expanded 时，VCE 的 projectile selector 会把选择 `0` 映射到 `primary`，选择 `1` 映射到 `lower_rail`。
+- 不要再为不同枪口件写多套固定 `StatusEffect barrelpos` 或 `Distance` 来手动偏移枪口粒子；偏移应写在对应 part 的 `quickAttachmentTransform.muzzleOutletOffset`。
+
+适合加这个 tag 的效果：
+
+- 枪口 flash。
+- 枪口 spark。
+- 其他必须跟随 Gunsmith 当前枪口出口点的粒子。
+
+不建议依赖这个 tag 的效果：
+
+- 声音。
+- 爆炸。
+- 弹壳抛出。
+- 不使用 `StatusEffect` world position 的自定义逻辑。
 
 ## 兼容性模型
 
