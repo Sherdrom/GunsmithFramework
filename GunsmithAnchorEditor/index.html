@@ -299,9 +299,10 @@
           <button id="exportProjectPaths">导出(相对路径)</button>
           <button id="exportProjectEmbedded">导出(内嵌图片)</button>
           <button id="loadProjectButton">导入工程 JSON</button>
+          <button id="selectProjectRoot">项目根目录</button>
         </div>
         <input id="loadProject" type="file" accept="application/json" hidden>
-        <p id="projectStatus" class="hint">选择项目内 GunSmith 图片会自动匹配相对路径；相对路径导出不会写入图片 DataURL。</p>
+        <p id="projectStatus" class="hint">打开工程 JSON 后会按 filelist.xml 定位项目根目录；相对路径导出不会写入图片 DataURL。</p>
       </div>
 
       <div class="group">
@@ -452,6 +453,8 @@
       rootSocket: { x: 209, y: 160 },
       projectHandle: null,
       projectDirectoryHandle: null,
+      projectRootUrl: "",
+      projectRootName: "",
       projectName: "",
       saveImageMode: "paths",
       selected: 0,
@@ -463,7 +466,7 @@
 
     const el = {};
     for (const id of [
-      "imageFile", "imageSelect", "saveProject", "exportProjectPaths", "exportProjectEmbedded", "loadProjectButton", "loadProject",
+      "imageFile", "imageSelect", "saveProject", "exportProjectPaths", "exportProjectEmbedded", "loadProjectButton", "selectProjectRoot", "loadProject",
       "projectStatus", "fitImage", "zoom", "showGrid", "backgroundColor",
       "canvasW", "canvasH", "rootX", "rootY", "addPart", "duplicatePart", "deletePart", "loadM4Example",
       "sheetCanvas", "previewCanvas", "sheetHud", "previewHud", "partList", "partId", "partName", "partType",
@@ -516,7 +519,10 @@
 
     function refreshImageSelects() {
       const options = state.images
-        .map((entry, index) => `<option value="${index}">${escapeHtml(entry.path || entry.name || `image_${index + 1}`)}</option>`)
+        .map((entry, index) => {
+          const label = entry.path || entry.name || `image_${index + 1}`;
+          return `<option value="${index}">${escapeHtml(label)}${entry.image ? "" : " [未加载]"}</option>`;
+        })
         .join("");
       el.imageSelect.innerHTML = options || `<option value="">未导入图片</option>`;
       el.partImageIndex.innerHTML = options || `<option value="">未导入图片</option>`;
@@ -717,7 +723,7 @@
       ctx.fillRect(0, 0, rect.width, rect.height);
       const entry = activeImageEntry();
       if (!entry?.image) {
-        drawCenteredText(ctx, rect, "导入一张或多张精灵图后开始取点");
+        drawCenteredText(ctx, rect, entry ? "图片未加载，请选择项目根目录" : "导入一张或多张精灵图后开始取点");
         return;
       }
 
@@ -1161,14 +1167,45 @@
       }
     }
 
+    function normalizeSlashes(path) {
+      return String(path || "").replace(/\\/g, "/");
+    }
+
     function normalizePath(path) {
-      return String(path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+      return normalizeSlashes(path).replace(/^\/+/, "");
+    }
+
+    function encodeRelativePath(path) {
+      return normalizePath(path).split("/").filter(Boolean).map(encodeURIComponent).join("/");
+    }
+
+    function defaultProjectRootUrl() {
+      const url = new URL(location.href);
+      url.hash = "";
+      url.search = "";
+      const parts = url.pathname.split("/");
+      parts.pop();
+      if (decodeURIComponent(parts[parts.length - 1] || "") === "GunsmithAnchorEditor") parts.pop();
+      if (decodeURIComponent(parts[parts.length - 1] || "") === ".Tools") parts.pop();
+      url.pathname = parts.join("/") + "/";
+      return url.href;
+    }
+
+    function rootNameFromUrl(url) {
+      try {
+        const parts = decodeURIComponent(new URL(url).pathname).split("/").filter(Boolean);
+        return parts.pop() || "";
+      } catch {
+        return "";
+      }
+    }
+
+    function currentProjectRootUrl() {
+      return state.projectRootUrl || defaultProjectRootUrl();
     }
 
     function projectRootFolderName() {
-      const path = decodeURIComponent(location.pathname || "").replace(/\\/g, "/");
-      const beforeTool = path.split("/.Tools/GunsmithAnchorEditor/")[0];
-      return beforeTool.split("/").filter(Boolean).pop() || "";
+      return state.projectRootName || rootNameFromUrl(currentProjectRootUrl());
     }
 
     function projectRelativePathFromFile(file) {
@@ -1205,13 +1242,188 @@
     }
 
     function projectImageUrl(path) {
-      const normalized = normalizePath(path);
-      return "../../" + normalized.split("/").map(encodeURIComponent).join("/");
+      return new URL(encodeRelativePath(path), currentProjectRootUrl()).href;
     }
 
     function imageSource(entry) {
       if (entry?.path) return projectImageUrl(entry.path);
       return entry?.dataUrl || "";
+    }
+
+    function filePathUrl(path) {
+      const normalized = normalizeSlashes(path).replace(/\/+$/, "");
+      if (!normalized) return "";
+      const encoded = normalized
+        .split("/")
+        .map((part, index) => index === 0 && /^[A-Za-z]:$/.test(part) ? part : encodeURIComponent(part))
+        .join("/");
+      if (/^[A-Za-z]:($|\/)/.test(normalized)) return "file:///" + encoded + "/";
+      if (normalized.startsWith("/")) return "file://" + encoded + "/";
+      return "";
+    }
+
+    function jsonPathFromFile(file) {
+      return normalizeSlashes(file?.path || file?.mozFullPath || file?.webkitRelativePath || "");
+    }
+
+    function pathParts(path) {
+      return normalizeSlashes(path).split("/").filter(Boolean);
+    }
+
+    function rootUrlFromPathParts(parts, sourcePath) {
+      if (!parts.length) return defaultProjectRootUrl();
+      const joined = parts.join("/");
+      const absolute = /^[A-Za-z]:\//.test(sourcePath) || sourcePath.startsWith("/");
+      if (absolute) {
+        const localPath = sourcePath.startsWith("/") && !/^[A-Za-z]:/.test(joined) ? "/" + joined : joined;
+        return filePathUrl(localPath);
+      }
+      return new URL("../" + encodeRelativePath(joined) + "/", defaultProjectRootUrl()).href;
+    }
+
+    function projectRootCandidatesFromJsonPath(path) {
+      const parts = pathParts(path);
+      if (parts.length < 2) return [];
+      const candidates = [];
+      for (let length = parts.length - 1; length >= 1; length -= 1) {
+        const rootParts = parts.slice(0, length);
+        const url = rootUrlFromPathParts(rootParts, path);
+        if (url) candidates.push({ url, name: rootParts[rootParts.length - 1] || "" });
+      }
+      return candidates;
+    }
+
+    function knownLayoutRootFromJsonPath(path) {
+      const parts = pathParts(path);
+      const lower = parts.map(part => part.toLowerCase());
+      for (let index = 0; index <= lower.length - 3; index += 1) {
+        if (lower[index] === "lua" && lower[index + 1] === "scripts" && lower[index + 2] === "gunsmith") {
+          const rootParts = parts.slice(0, index);
+          const url = rootUrlFromPathParts(rootParts, path);
+          return { url, name: rootParts[rootParts.length - 1] || rootNameFromUrl(url), source: "layout" };
+        }
+      }
+      return null;
+    }
+
+    async function canReadFilelistUrl(rootUrl) {
+      try {
+        const response = await fetch(new URL("filelist.xml", rootUrl).href, { cache: "no-store" });
+        return response.ok;
+      } catch {
+        return false;
+      }
+    }
+
+    async function projectRootFromJsonFile(file) {
+      const path = jsonPathFromFile(file);
+      if (!path) return null;
+      for (const candidate of projectRootCandidatesFromJsonPath(path)) {
+        if (await canReadFilelistUrl(candidate.url)) return { ...candidate, source: "filelist" };
+      }
+      return knownLayoutRootFromJsonPath(path);
+    }
+
+    async function ensureDirectoryPermission(handle) {
+      if (!handle?.queryPermission) return true;
+      const options = { mode: "read" };
+      if (await handle.queryPermission(options) === "granted") return true;
+      if (!handle.requestPermission) return false;
+      return await handle.requestPermission(options) === "granted";
+    }
+
+    async function directoryHasFilelist(handle) {
+      if (!handle) return false;
+      try {
+        await handle.getFileHandle("filelist.xml");
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    async function restoreProjectRootHandle() {
+      try {
+        const handle = await loadPickerHandle("projectRoot");
+        if (!handle || !(await ensureDirectoryPermission(handle)) || !(await directoryHasFilelist(handle))) return false;
+        state.projectDirectoryHandle = handle;
+        state.projectRootName = handle.name || state.projectRootName;
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    async function applyProjectRootFromJsonFile(file) {
+      state.projectDirectoryHandle = null;
+      state.projectRootUrl = "";
+      state.projectRootName = "";
+      const detected = await projectRootFromJsonFile(file);
+      if (detected?.url) {
+        state.projectRootUrl = detected.url;
+        state.projectRootName = detected.name || rootNameFromUrl(detected.url);
+        return detected;
+      }
+      if (await restoreProjectRootHandle()) {
+        return { name: state.projectRootName, source: "stored-handle" };
+      }
+      return null;
+    }
+
+    async function showProjectRootDirectoryPicker() {
+      const options = { id: "gunsmithAnchorProjectRoot", mode: "read" };
+      const startIn = state.projectDirectoryHandle || await loadPickerHandle("projectRoot") || state.projectHandle;
+      if (startIn) options.startIn = startIn;
+      try {
+        return await window.showDirectoryPicker(options);
+      } catch (error) {
+        if (options.startIn && error instanceof TypeError) {
+          delete options.startIn;
+          return await window.showDirectoryPicker(options);
+        }
+        throw error;
+      }
+    }
+
+    async function ensureProjectDirectoryHandle(forcePicker = false) {
+      if (!forcePicker && state.projectDirectoryHandle && await directoryHasFilelist(state.projectDirectoryHandle)) return state.projectDirectoryHandle;
+      if (!window.showDirectoryPicker) throw new Error("当前浏览器不支持选择目录，无法按相对路径读取图片。");
+      const handle = await showProjectRootDirectoryPicker();
+      if (!await directoryHasFilelist(handle)) throw new Error("所选目录没有 filelist.xml，请选择 Mod 项目根目录。");
+      state.projectDirectoryHandle = handle;
+      state.projectRootName = handle.name || state.projectRootName;
+      state.projectRootUrl = "";
+      await rememberPickerHandle("projectRoot", handle);
+      return handle;
+    }
+
+    function imageLoadStatusSuffix() {
+      if (!state.images.length) return "";
+      const loaded = state.images.filter(entry => entry.image).length;
+      if (loaded === state.images.length) return `已加载 ${loaded} 张图片。`;
+      if (loaded === 0 && state.images.some(entry => entry.path)) {
+        return "图片尚未加载；请选择包含 filelist.xml 的项目根目录。";
+      }
+      return `已加载 ${loaded}/${state.images.length} 张图片。`;
+    }
+
+    function reloadProjectPathImages(statusPrefix = "已重新加载图片。") {
+      const entries = state.images.map(entry => ({
+        name: entry.name || "",
+        path: entry.path || "",
+        dataUrl: entry.dataUrl || ""
+      }));
+      loadImageEntries(entries, () => {
+        refreshImageSelects();
+        setProjectStatus(`${statusPrefix}${imageLoadStatusSuffix()}`);
+        if (state.images.some(entry => entry.image)) fitImage();
+        else draw();
+      });
+    }
+
+    async function selectProjectRootDirectory() {
+      const handle = await ensureProjectDirectoryHandle(true);
+      reloadProjectPathImages(`已设置项目根目录 ${handle.name || "当前 Mod"}。`);
     }
 
     function setProjectStatus(message) {
@@ -1319,12 +1531,9 @@
 
     async function dataUrlFromProjectDirectory(entry) {
       if (!entry.path || !window.showDirectoryPicker) return "";
-      if (!state.projectDirectoryHandle) {
-        setProjectStatus(`请选择项目根目录，用于读取 ${entry.path} 并写入内嵌图片 JSON。`);
-        state.projectDirectoryHandle = await window.showDirectoryPicker({ id: "gunsmithAnchorProjectRoot", mode: "read" });
-      }
+      if (!state.projectDirectoryHandle) setProjectStatus(`请选择包含 filelist.xml 的项目根目录，用于读取 ${entry.path}。`);
       try {
-        return await blobToDataUrl(await fileFromDirectoryHandle(state.projectDirectoryHandle, entry.path));
+        return await blobToDataUrl(await fileFromDirectoryHandle(await ensureProjectDirectoryHandle(), entry.path));
       } catch (error) {
         state.projectDirectoryHandle = null;
         throw new Error(`无法从所选项目目录读取 ${entry.path}：${error.message}`);
@@ -1380,7 +1589,14 @@
       });
     }
 
+    function revokeImageObjectUrls() {
+      state.images.forEach(entry => {
+        if (entry?.objectUrl) URL.revokeObjectURL(entry.objectUrl);
+      });
+    }
+
     function loadImageEntries(entries, onDone) {
+      revokeImageObjectUrls();
       if (!Array.isArray(entries) || !entries.length) {
         state.images = [];
         onDone?.();
@@ -1389,36 +1605,84 @@
       state.images = new Array(entries.length);
       let remaining = entries.length;
       entries.forEach((entry, index) => {
+        const sourceEntry = entry || {};
+        const inferredPath = inferProjectPathFromImageEntry(sourceEntry);
+        const imageEntry = {
+          name: sourceEntry.name || inferredPath || "",
+          path: inferredPath,
+          dataUrl: sourceEntry.dataUrl || "",
+          image: null,
+          objectUrl: ""
+        };
         const img = new Image();
-        let usingFallback = false;
-        img.onload = () => {
-          const inferredPath = inferProjectPathFromImageEntry(entry);
+        let completed = false;
+        let objectUrl = "";
+        let triedDirectory = false;
+        let triedProjectUrl = false;
+        let triedDataUrl = false;
+
+        const finish = (image) => {
+          if (completed) return;
+          completed = true;
           state.images[index] = {
-            name: entry.name || entry.path || "",
-            path: inferredPath,
-            dataUrl: entry.dataUrl || "",
-            image: img
+            ...imageEntry,
+            image,
+            objectUrl: image ? objectUrl : ""
           };
           remaining -= 1;
           if (remaining === 0) {
-            state.images = state.images.filter(Boolean);
             onDone?.();
           }
+        };
+
+        const tryProjectUrl = () => {
+          if (triedProjectUrl || !imageEntry.path) return false;
+          triedProjectUrl = true;
+          img.src = imageSource(imageEntry);
+          return true;
+        };
+
+        const tryDataUrl = () => {
+          if (triedDataUrl || !imageEntry.dataUrl) return false;
+          triedDataUrl = true;
+          img.src = imageEntry.dataUrl;
+          return true;
+        };
+
+        const tryDirectory = () => {
+          if (triedDirectory || !imageEntry.path || !state.projectDirectoryHandle) return false;
+          triedDirectory = true;
+          fileFromDirectoryHandle(state.projectDirectoryHandle, imageEntry.path)
+            .then(file => {
+              objectUrl = URL.createObjectURL(file);
+              img.src = objectUrl;
+            })
+            .catch(() => {
+              if (tryProjectUrl()) return;
+              if (tryDataUrl()) return;
+              finish(null);
+            });
+          return true;
+        };
+
+        img.onload = () => {
+          finish(img);
         };
         img.onerror = () => {
-          if (!usingFallback && entry.dataUrl && entry.path) {
-            usingFallback = true;
-            img.src = entry.dataUrl;
-            return;
+          if (objectUrl) {
+            URL.revokeObjectURL(objectUrl);
+            objectUrl = "";
           }
-          state.images[index] = null;
-          remaining -= 1;
-          if (remaining === 0) {
-            state.images = state.images.filter(Boolean);
-            onDone?.();
-          }
+          if (tryProjectUrl()) return;
+          if (tryDataUrl()) return;
+          if (tryDirectory()) return;
+          finish(null);
         };
-        img.src = imageSource(entry);
+
+        if (tryDirectory()) return;
+        if (tryProjectUrl()) return;
+        if (tryDataUrl()) return;
+        finish(null);
       });
     }
 
@@ -1432,7 +1696,7 @@
           // file:// may block fetch; fall back to canvas below.
         }
       }
-      if (!entry.image) return "";
+      if (!entry.image) return await dataUrlFromProjectDirectory(entry);
       try {
         const canvas = document.createElement("canvas");
         canvas.width = entry.image.naturalWidth || entry.image.width;
@@ -1576,25 +1840,30 @@
       state.projectHandle = options.handle || null;
       const reader = new FileReader();
       reader.onload = () => {
-        const data = JSON.parse(reader.result);
-        state.projectName = file.name || state.projectName;
-        state.background = data.background || state.background;
-        el.backgroundColor.value = state.background;
-        state.canvas = data.canvas || state.canvas;
-        state.preview.fitted = false;
-        state.rootSocket = data.rootSocket || state.rootSocket;
-        state.parts = Array.isArray(data.parts) ? data.parts : state.parts;
-        state.selected = Math.min(data.selected || 0, state.parts.length - 1);
-        state.saveImageMode = data.imageMode || (migrateProjectImages(data).some(entry => entry.dataUrl) ? "embedded" : "paths");
-        loadImageEntries(migrateProjectImages(data), () => {
-          state.activeImageIndex = Math.min(data.activeImageIndex || 0, Math.max(state.images.length - 1, 0));
-          state.parts.forEach(normalizePart);
-          refreshImageSelects();
-          setProjectStatus(`已打开 ${state.projectName || "工程 JSON"}。`);
-          if (state.images.length) fitImage();
-          else draw();
-        });
+        (async () => {
+          const data = JSON.parse(reader.result);
+          const detectedRoot = await applyProjectRootFromJsonFile(file);
+          state.projectName = file.name || state.projectName;
+          state.background = data.background || state.background;
+          el.backgroundColor.value = state.background;
+          state.canvas = data.canvas || state.canvas;
+          state.preview.fitted = false;
+          state.rootSocket = data.rootSocket || state.rootSocket;
+          state.parts = Array.isArray(data.parts) ? data.parts : state.parts;
+          state.selected = Math.min(data.selected || 0, state.parts.length - 1);
+          state.saveImageMode = data.imageMode || (migrateProjectImages(data).some(entry => entry.dataUrl) ? "embedded" : "paths");
+          loadImageEntries(migrateProjectImages(data), () => {
+            state.activeImageIndex = Math.min(data.activeImageIndex || 0, Math.max(state.images.length - 1, 0));
+            state.parts.forEach(normalizePart);
+            refreshImageSelects();
+            const rootStatus = detectedRoot ? `项目根目录：${detectedRoot.name || "已识别"}。` : "";
+            setProjectStatus(`已打开 ${state.projectName || "工程 JSON"}。${rootStatus}${imageLoadStatusSuffix()}`);
+            if (state.images.some(entry => entry.image)) fitImage();
+            else draw();
+          });
+        })().catch(error => setProjectStatus(`打开失败：${error.message}`));
       };
+      reader.onerror = () => setProjectStatus(`打开失败：${reader.error?.message || "无法读取工程 JSON"}`);
       reader.readAsText(file);
     }
 
@@ -1717,6 +1986,7 @@
     el.exportProjectPaths.onclick = () => exportProject("paths").catch(error => setProjectStatus(`导出失败：${error.message}`));
     el.exportProjectEmbedded.onclick = () => exportProject("embedded").catch(error => setProjectStatus(`导出失败：${error.message}`));
     el.loadProjectButton.onclick = () => openProject().catch(error => setProjectStatus(`打开失败：${error.message}`));
+    el.selectProjectRoot.onclick = () => selectProjectRootDirectory().catch(error => setProjectStatus(`项目根目录无效：${error.message}`));
     el.loadProject.onchange = event => loadProject(event.target.files[0]);
     el.fitImage.onclick = fitImage;
     el.zoom.oninput = () => { state.sheet.zoom = Number(el.zoom.value); draw(); };
