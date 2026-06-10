@@ -702,6 +702,50 @@ receiver/handguard/top_rail/optic_mount
 
 安装时框架按 identifier 找物品，不按 name 找。若 XML item 不存在，校验器会警告。
 
+### Fabricator 配方过滤
+
+GunsmithFramework 可以在加工台左侧分类栏中加入一个 Gunsmith 分类按钮。玩家点击该按钮后，底部会显示一个专用枪械槽；放入 Gunsmith 枪械后，配方列表只显示这把枪理论上可安装的部件物品。
+
+原版 `fabricator` 默认启用此按钮。自定义 Fabricator 需要在自己的 `<Fabricator>` 组件上加一个属性：
+
+```xml
+<Item identifier="my_gunsmith_fabricator" tags="my_gunsmith_fabricator" category="Machine">
+  <Sprite texture="%ModDir%/Items/my_fabricator.png" />
+  <Body width="160" height="96" />
+  <Fabricator canbeselected="true" gunsmithframeworkbutton="true" />
+</Item>
+```
+
+第三方作者不需要为枪械槽额外写 `ItemContainer`。框架会在加载启用的 Fabricator prefab 时自动注入一个隐藏的 1 格容器，专门用于放入 Gunsmith 枪械。这个枪械槽只在 Gunsmith 分类页显示；切回原版分类后，加工台会恢复原版输入栏和原版配方列表。
+
+可显示的配方必须已经是 Barotrauma 原版 Fabricate 配方。GunsmithFramework 只负责过滤，不会凭空生成配方：
+
+```xml
+<Item identifier="my_suppressor_item" nameidentifier="entityname.my_suppressor_item" category="Weapon" tags="smallitem,my_gunsmith_part">
+  <Sprite texture="%ModDir%/Items/my_parts.png" sourcerect="0,0,64,24" />
+  <Body width="64" height="24" />
+  <Fabricate suitablefabricators="my_gunsmith_fabricator" requiredtime="8">
+    <RequiredItem identifier="steel" />
+  </Fabricate>
+</Item>
+```
+
+匹配规则：
+
+- 目标配方的 item identifier 必须等于某个可安装 part 的 `part.item.identifier`。
+- 该配方仍必须适用于当前 Fabricator，也就是 `<Fabricate suitablefabricators="...">` 中包含当前加工台 identifier。
+- 枪械槽为空，或放入的不是 Gunsmith 武器时，Gunsmith 分类页不会显示可制造配方。
+- 放入 Gunsmith 武器后，框架从 weapon 的 root parts 出发，递归扫描这些 part 声明的 `mounts`，用候选 part 的 `provides` 和 mount 的 `accepts` 判断兼容性。
+- 第一版列出的是“这把枪理论上可安装的所有部件”，不会根据当前已安装部件动态缩窄。
+- 制造结果只产出部件物品，不会自动安装到枪上。
+- 服务端会用同一套枪械槽和兼容性结果校验客户端请求；客户端伪造不兼容 recipe 时会被拒绝。
+
+如果 Gunsmith 分类页为空，优先检查三件事：
+
+1. 枪械 XML item 是否有 `<GunsmithData />`，Lua `Config.weapons[identifier]` 是否存在。
+2. part 是否有 `item = { identifier = "..." }`，并且这个 XML item 真的存在。
+3. 该 XML item 是否有适用于当前 Fabricator 的 `<Fabricate suitablefabricators="...">`。
+
 ### NPC preset
 
 NPC 或人类预设 XML 中的武器 item 可以写：
