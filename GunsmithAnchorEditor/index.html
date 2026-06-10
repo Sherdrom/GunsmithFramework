@@ -92,6 +92,40 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .select-action {
+      position: relative;
+    }
+
+    .select-action select {
+      padding-right: 32px;
+    }
+
+    .select-action button.danger {
+      position: absolute;
+      top: calc(50% - 2px);
+      right: 15px;
+      width: 16px;
+      min-width: 0;
+      min-height: 18px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--muted);
+      transform: translateY(-50%);
+      line-height: 1;
+      font-size: 16px;
+    }
+
+    .select-action button.danger:hover {
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+    }
+
+    .select-action button.danger:disabled {
+      visibility: hidden;
+    }
+
     .field-pair {
       margin-bottom: 8px;
     }
@@ -293,7 +327,13 @@
       <div class="panel-title">项目与工具</div>
       <div class="group">
         <div class="row"><label>精灵图</label><input id="imageFile" type="file" accept="image/*" multiple></div>
-        <div class="row"><label>查看图片</label><select id="imageSelect"></select></div>
+        <div class="row">
+          <label>查看图片</label>
+          <div class="select-action">
+            <select id="imageSelect"></select>
+            <button id="deleteImage" class="danger" title="从当前工程移除选中的图片" aria-label="删除当前图片">×</button>
+          </div>
+        </div>
         <div class="buttons">
           <button id="saveProject" class="primary">保存工程</button>
           <button id="exportProjectPaths">导出(相对路径)</button>
@@ -466,7 +506,7 @@
 
     const el = {};
     for (const id of [
-      "imageFile", "imageSelect", "saveProject", "exportProjectPaths", "exportProjectEmbedded", "loadProjectButton", "selectProjectRoot", "loadProject",
+      "imageFile", "imageSelect", "deleteImage", "saveProject", "exportProjectPaths", "exportProjectEmbedded", "loadProjectButton", "selectProjectRoot", "loadProject",
       "projectStatus", "fitImage", "zoom", "showGrid", "backgroundColor",
       "canvasW", "canvasH", "rootX", "rootY", "addPart", "duplicatePart", "deletePart", "loadM4Example",
       "sheetCanvas", "previewCanvas", "sheetHud", "previewHud", "partList", "partId", "partName", "partType",
@@ -527,6 +567,7 @@
       el.imageSelect.innerHTML = options || `<option value="">未导入图片</option>`;
       el.partImageIndex.innerHTML = options || `<option value="">未导入图片</option>`;
       el.imageSelect.value = state.images.length ? String(state.activeImageIndex) : "";
+      el.deleteImage.disabled = !state.images.length;
       const part = selectedPart();
       el.partImageIndex.value = part && state.images.length ? String(part.imageIndex || 0) : "";
     }
@@ -1589,9 +1630,41 @@
       });
     }
 
+    function revokeImageObjectUrl(entry) {
+      if (entry?.objectUrl) URL.revokeObjectURL(entry.objectUrl);
+    }
+
+    function deleteActiveImage() {
+      if (!state.images.length) return;
+      const deletedIndex = Math.min(Math.max(state.activeImageIndex || 0, 0), state.images.length - 1);
+      const deletedEntry = state.images[deletedIndex];
+      const label = deletedEntry?.path || deletedEntry?.name || `image_${deletedIndex + 1}`;
+      revokeImageObjectUrl(deletedEntry);
+      state.images.splice(deletedIndex, 1);
+
+      const nextIndex = state.images.length ? Math.min(deletedIndex, state.images.length - 1) : 0;
+      state.activeImageIndex = nextIndex;
+      state.parts.forEach(part => {
+        if (!Number.isInteger(part.imageIndex)) part.imageIndex = nextIndex;
+        else if (part.imageIndex === deletedIndex) part.imageIndex = nextIndex;
+        else if (part.imageIndex > deletedIndex) part.imageIndex -= 1;
+        if (!state.images.length) part.imageIndex = 0;
+        else if (part.imageIndex < 0 || part.imageIndex >= state.images.length) part.imageIndex = nextIndex;
+      });
+
+      el.imageFile.value = "";
+      refreshImageSelects();
+      updateFields();
+      setProjectStatus(state.images.length
+        ? `已删除图片 ${label}；引用该图片的部件已切换到当前图片。`
+        : `已删除图片 ${label}；当前工程没有导入图片。`);
+      if (state.images.length) fitImage();
+      else draw();
+    }
+
     function revokeImageObjectUrls() {
       state.images.forEach(entry => {
-        if (entry?.objectUrl) URL.revokeObjectURL(entry.objectUrl);
+        revokeImageObjectUrl(entry);
       });
     }
 
@@ -1969,12 +2042,16 @@
       }
       selectPart(index);
     });
-    el.imageFile.onchange = event => loadImages(event.target.files);
+    el.imageFile.onchange = event => {
+      loadImages(event.target.files);
+      event.target.value = "";
+    };
     el.imageSelect.onchange = () => {
       if (!state.images.length) return;
       state.activeImageIndex = Number(el.imageSelect.value);
       fitImage();
     };
+    el.deleteImage.onclick = deleteActiveImage;
     el.partImageIndex.onchange = () => {
       const part = selectedPart();
       if (!part || !state.images.length) return;
