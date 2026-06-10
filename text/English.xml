@@ -13,6 +13,10 @@
   <gunsmith.framework.ui.part_detail_title>Part Details</gunsmith.framework.ui.part_detail_title>
   <gunsmith.framework.ui.empty_part>Empty</gunsmith.framework.ui.empty_part>
   <gunsmith.framework.ui.weapon_root>Weapon</gunsmith.framework.ui.weapon_root>
+  <gunsmith.framework.ui.fabricator_category>Gunsmith</gunsmith.framework.ui.fabricator_category>
+  <gunsmith.framework.ui.fabricator_weapon_slot>Weapon</gunsmith.framework.ui.fabricator_weapon_slot>
+  <gunsmith.framework.ui.fabricator_insert_weapon>Insert a Gunsmith weapon.</gunsmith.framework.ui.fabricator_insert_weapon>
+  <gunsmith.framework.ui.fabricator_no_compatible_parts>No compatible gunsmith recipes.</gunsmith.framework.ui.fabricator_no_compatible_parts>
   <gunsmith.framework.status.installed>Installed</gunsmith.framework.status.installed>
   <gunsmith.framework.status.missing>Missing</gunsmith.framework.status.missing>
   <gunsmith.framework.status.incompatible>Incompatible</gunsmith.framework.status.incompatible>

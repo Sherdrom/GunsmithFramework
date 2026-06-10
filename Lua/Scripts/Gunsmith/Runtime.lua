@@ -772,6 +772,91 @@ function Runtime.SelectedHandWeapon(character)
     return nil
 end
 
+local function fabricatorPartProvidesAccepted(part, accepts)
+    if type(part) ~= "table" or type(part.provides) ~= "table" or type(accepts) ~= "table" then return false end
+    for _, provided in ipairs(part.provides) do
+        for _, accepted in ipairs(accepts) do
+            if provided == accepted then return true end
+        end
+    end
+    return false
+end
+
+function Runtime.FabricatorPartItemIds(item)
+    local weapon = Core.WeaponConfig(item)
+    local platform = Core.PlatformConfig(item)
+    if not weapon or not platform then return "" end
+
+    local ownerId = Core.OwnerForWeapon(weapon)
+    local itemIdentifiers = {}
+    local visitedParts = {}
+
+    local collectAcceptedParts
+    local function collectPart(partId, depth)
+        if type(partId) ~= "string" or partId == "" or visitedParts[partId] or depth > 32 then return end
+        visitedParts[partId] = true
+
+        local part = Core.GetPart(partId)
+        if not part then return end
+
+        if type(part.item) == "table" and type(part.item.identifier) == "string" and part.item.identifier ~= "" then
+            itemIdentifiers[part.item.identifier] = true
+        end
+
+        if type(part.mounts) ~= "table" then return end
+        for _, mount in ipairs(part.mounts) do
+            if type(mount) == "table" then
+                collectAcceptedParts(mount.partType or mount.path, mount.accepts, depth + 1)
+            end
+        end
+    end
+
+    collectAcceptedParts = function(partType, accepts, depth)
+        if type(accepts) ~= "table" or depth > 32 then return end
+
+        if type(partType) == "string" and partType ~= "" then
+            for _, partId in ipairs(Core.GetPartsForType(partType, ownerId)) do
+                local part = Core.GetPart(partId)
+                if part and fabricatorPartProvidesAccepted(part, accepts) then
+                    collectPart(partId, depth)
+                end
+            end
+        end
+
+        for partId, part in pairs(Gunsmith.Config.parts or {}) do
+            if Core.CanUsePart(partId, ownerId) and fabricatorPartProvidesAccepted(part, accepts) then
+                collectPart(partId, depth)
+            end
+        end
+    end
+
+    local collectedRoots = {}
+    for _, root in ipairs(Core.RootSlotDefs(platform)) do
+        local partId = Core.RootPartId(weapon, root.path)
+        if type(partId) == "string" then
+            collectedRoots[partId] = true
+        end
+    end
+    if type(weapon.roots) == "table" then
+        for _, root in pairs(weapon.roots) do
+            if type(root) == "table" and type(root.part) == "string" then
+                collectedRoots[root.part] = true
+            end
+        end
+    end
+
+    for partId in pairs(collectedRoots) do
+        collectPart(partId, 0)
+    end
+
+    local result = {}
+    for identifier in pairs(itemIdentifiers) do
+        table.insert(result, identifier)
+    end
+    table.sort(result)
+    return table.concat(result, ",")
+end
+
 function Runtime.Open(item)
     if SERVER then return end
     if not item or not Core.PlatformConfig(item) then return end

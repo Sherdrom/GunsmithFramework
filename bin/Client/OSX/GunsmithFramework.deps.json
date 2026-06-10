@@ -115,7 +115,7 @@
         "runtime": {
           "lib/net8.0/MonoMod.ILHelpers.dll": {
             "assemblyVersion": "1.1.0.0",
-            "fileVersion": "1.1.0.0"
+            "fileVersion": "0.0.0.0"
           }
         }
       },

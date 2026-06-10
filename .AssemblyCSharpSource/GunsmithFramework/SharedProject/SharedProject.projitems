@@ -12,6 +12,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)SharedSource\AssemblySettings.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SharedSource\GunsmithData.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SharedSource\GunsmithErgonomicsAimPatch.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SharedSource\GunsmithFabricatorRecipeFilterPatch.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SharedSource\GunsmithHookArgs.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SharedSource\GunsmithLuaHooks.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SharedSource\GunsmithNpcPresetPatch.cs" />

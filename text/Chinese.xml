@@ -13,6 +13,10 @@
   <gunsmith.framework.ui.part_detail_title>选中配件属性</gunsmith.framework.ui.part_detail_title>
   <gunsmith.framework.ui.empty_part>[空]</gunsmith.framework.ui.empty_part>
   <gunsmith.framework.ui.weapon_root>枪械</gunsmith.framework.ui.weapon_root>
+  <gunsmith.framework.ui.fabricator_category>枪匠</gunsmith.framework.ui.fabricator_category>
+  <gunsmith.framework.ui.fabricator_weapon_slot>枪械</gunsmith.framework.ui.fabricator_weapon_slot>
+  <gunsmith.framework.ui.fabricator_insert_weapon>放入 Gunsmith 枪械。</gunsmith.framework.ui.fabricator_insert_weapon>
+  <gunsmith.framework.ui.fabricator_no_compatible_parts>没有兼容的 Gunsmith 配方。</gunsmith.framework.ui.fabricator_no_compatible_parts>
   <gunsmith.framework.status.installed>[已安装] {0}</gunsmith.framework.status.installed>
   <gunsmith.framework.status.missing>[缺少配件] {0}</gunsmith.framework.status.missing>
   <gunsmith.framework.status.incompatible>[不兼容] {0}</gunsmith.framework.status.incompatible>

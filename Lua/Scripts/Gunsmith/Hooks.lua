@@ -268,6 +268,10 @@ function Hooks.Register()
         end
     end)
 
+    Hook.Add("GunsmithFrameworkGetFabricatorPartItemIds", "GunsmithFrameworkGetFabricatorPartItemIds", function(item)
+        return Runtime.FabricatorPartItemIds(item)
+    end)
+
     Hook.Patch("Barotrauma.Item", "OnMapLoaded", function(instance, ptable)
         applyGunsmithItem(instance)
     end, Hook.HookMethodType.After)

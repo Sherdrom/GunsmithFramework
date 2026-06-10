@@ -30,6 +30,6 @@
     <Reference Include="XNATypes">
       <HintPath>$(RepoRoot).Tools/Refs/XNATypes.dll</HintPath>
     </Reference>
-    <ProjectReference Include="$(RepoRoot).AssemblyCSharpSource/GunSmith/ClientProject/$(GunSmithPlatform)Client.csproj" AdditionalProperties="$(GunSmithProjectProperties)" />
+    <ProjectReference Include="$(RepoRoot).AssemblyCSharpSource/GunsmithFramework/ClientProject/$(GunSmithPlatform)Client.csproj" AdditionalProperties="$(GunSmithProjectProperties)" />
   </ItemGroup>
 </Project>
