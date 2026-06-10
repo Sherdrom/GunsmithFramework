@@ -8,3 +8,4 @@
 .UnitTests/**/launchSettings.json
 .vs
 .codegraph
+AGENT.md
