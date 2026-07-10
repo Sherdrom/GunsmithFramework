@@ -9,7 +9,7 @@ namespace GunsmithFramework
     {
         public static void RegisterLuaHooks(Barotrauma.LuaCs.Compatibility.ILuaCsHook hook)
         {
-            hook.Add("GunsmithFrameworkRegisterQuickSlotCapacity", args =>
+            GunsmithLuaHooks.Add(hook, "GunsmithFrameworkRegisterQuickSlotCapacity", args =>
             {
                 string? itemIdentifier = FindStringArg(args, 0);
                 int maxSlot = FindIntArg(args, 0, defaultValue: -1);
@@ -21,7 +21,7 @@ namespace GunsmithFramework
                 return null;
             });
 
-            hook.Add("GunsmithFrameworkApplyRuntimeState", args =>
+            GunsmithLuaHooks.Add(hook, "GunsmithFrameworkApplyRuntimeState", args =>
             {
                 Item? item = FindArg<Item>(args);
                 string? signature = FindStringArg(args, 0);
@@ -32,7 +32,7 @@ namespace GunsmithFramework
                        GunsmithRuntimeStates.ApplyFromLua(item, signature, statsSpec ?? string.Empty, managedItemSpec ?? string.Empty);
             });
 
-            hook.Add("GunsmithFrameworkClearRuntimeState", args =>
+            GunsmithLuaHooks.Add(hook, "GunsmithFrameworkClearRuntimeState", args =>
             {
                 Item? item = FindArg<Item>(args);
                 if (item != null)
@@ -43,7 +43,7 @@ namespace GunsmithFramework
                 return null;
             });
 
-            hook.Add("GunsmithFrameworkClearQuickAttachmentBarrelTransforms", args =>
+            GunsmithLuaHooks.Add(hook, "GunsmithFrameworkClearQuickAttachmentBarrelTransforms", args =>
             {
                 Item? item = FindArg<Item>(args);
                 if (item != null)
@@ -53,7 +53,7 @@ namespace GunsmithFramework
                 return null;
             });
 
-            hook.Add("GunsmithFrameworkRegisterQuickAttachmentBarrelCanvasPoint", args =>
+            GunsmithLuaHooks.Add(hook, "GunsmithFrameworkRegisterQuickAttachmentBarrelCanvasPoint", args =>
             {
                 Item? item = FindArg<Item>(args);
                 string? key = FindStringArg(args, 0);
@@ -88,20 +88,20 @@ namespace GunsmithFramework
                 return null;
             });
 
-            hook.Add("GunsmithFrameworkGetSavedState", args =>
+            GunsmithLuaHooks.Add(hook, "GunsmithFrameworkGetSavedState", args =>
             {
                 Item? item = FindArg<Item>(args);
                 GunsmithData? data = item?.GetComponent<GunsmithData>();
                 return data?.SavedState ?? string.Empty;
             });
 
-            hook.Add("GunsmithFrameworkGetNpcPreset", args =>
+            GunsmithLuaHooks.Add(hook, "GunsmithFrameworkGetNpcPreset", args =>
             {
                 Item? item = FindArg<Item>(args);
                 return GunsmithNpcPresetPatch.GetPreset(item);
             });
 
-            hook.Add("GunsmithFrameworkSaveState", args =>
+            GunsmithLuaHooks.Add(hook, "GunsmithFrameworkSaveState", args =>
             {
                 Item? item = FindArg<Item>(args);
                 string? savedState = FindStringArg(args, 0);
@@ -114,9 +114,9 @@ namespace GunsmithFramework
                 return null;
             });
 
-            hook.Add("GunsmithFrameworkCanEnsureQuickPartItem", args => true);
+            GunsmithLuaHooks.Add(hook, "GunsmithFrameworkCanEnsureQuickPartItem", args => true);
 
-            hook.Add("GunsmithFrameworkEnsureQuickPartItem", args =>
+            GunsmithLuaHooks.Add(hook, "GunsmithFrameworkEnsureQuickPartItem", args =>
             {
                 Item? item = FindArg<Item>(args);
                 int slotIndex = FindIntArg(args, 0, defaultValue: -1);

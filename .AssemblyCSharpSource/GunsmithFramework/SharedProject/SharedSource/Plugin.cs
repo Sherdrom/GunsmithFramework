@@ -38,6 +38,7 @@ namespace GunsmithFramework
 
         public void Dispose()
         {
+            GunsmithLuaHooks.Clear();
             DisposePlatform();
             GunsmithRuntimeStates.Clear();
             harmonyInstance?.UnpatchSelf();
