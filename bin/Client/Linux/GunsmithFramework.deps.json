@@ -8,10 +8,7 @@
     ".NETCoreApp,Version=v8.0": {
       "GunsmithFramework/1.0.0": {
         "dependencies": {
-          "FluentResults": "3.16.0",
           "HarmonyX": "2.16.0",
-          "LightInject": "6.6.4",
-          "OneOf": "3.0.271",
           "Barotrauma": "1.12.7.0",
           "BarotraumaCore": "1.0.0.0",
           "Farseer.NetStandard": "3.5.0.0",
@@ -24,17 +21,6 @@
           "GunsmithFramework.dll": {}
         }
       },
-      "FluentResults/3.16.0": {
-        "dependencies": {
-          "Microsoft.Extensions.Logging.Abstractions": "2.1.1"
-        },
-        "runtime": {
-          "lib/netstandard2.1/FluentResults.dll": {
-            "assemblyVersion": "3.16.0.0",
-            "fileVersion": "3.16.0.0"
-          }
-        }
-      },
       "HarmonyX/2.16.0": {
         "dependencies": {
           "MonoMod.RuntimeDetour": "25.3.3"
@@ -43,22 +29,6 @@
           "lib/netstandard2.0/0Harmony.dll": {
             "assemblyVersion": "2.16.0.0",
             "fileVersion": "2.16.0.0"
-          }
-        }
-      },
-      "LightInject/6.6.4": {
-        "runtime": {
-          "lib/net6.0/LightInject.dll": {
-            "assemblyVersion": "6.6.4.0",
-            "fileVersion": "6.6.4.0"
-          }
-        }
-      },
-      "Microsoft.Extensions.Logging.Abstractions/2.1.1": {
-        "runtime": {
-          "lib/netstandard2.0/Microsoft.Extensions.Logging.Abstractions.dll": {
-            "assemblyVersion": "2.1.1.0",
-            "fileVersion": "2.1.1.18157"
           }
         }
       },
@@ -147,14 +117,6 @@
           }
         }
       },
-      "OneOf/3.0.271": {
-        "runtime": {
-          "lib/netstandard2.0/OneOf.dll": {
-            "assemblyVersion": "1.0.0.0",
-            "fileVersion": "1.0.0.0"
-          }
-        }
-      },
       "Barotrauma/1.12.7.0": {
         "runtime": {
           "Barotrauma.dll": {
@@ -219,33 +181,12 @@
       "serviceable": false,
       "sha512": ""
     },
-    "FluentResults/3.16.0": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-VWacGzOyN9k7LOKqiNLnFvqTDLbFvepHlINdM3pPTD0YWI+a+VW/Q9gcx4gmJDpDZ32cAsczz5vmRjLCL5UOhA==",
-      "path": "fluentresults/3.16.0",
-      "hashPath": "fluentresults.3.16.0.nupkg.sha512"
-    },
     "HarmonyX/2.16.0": {
       "type": "package",
       "serviceable": true,
       "sha512": "sha512-7BYM6qcHLbjZ3wpLbFYw5iFfGtN+Vbg5qIkuf/yEw3MEuxElPX0o9rw3hLiQCaXpONRW1oHCJQtFA+pbhALDKg==",
       "path": "harmonyx/2.16.0",
       "hashPath": "harmonyx.2.16.0.nupkg.sha512"
-    },
-    "LightInject/6.6.4": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-xId1F9OpzVvyNu3wcdPR4EcNUihcT5U9wiUJOi0tetuDOia1uAiFJzqmYGdRPsqAsgDb6o8sfoQCx5yMFFDsVw==",
-      "path": "lightinject/6.6.4",
-      "hashPath": "lightinject.6.6.4.nupkg.sha512"
-    },
-    "Microsoft.Extensions.Logging.Abstractions/2.1.1": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-XRzK7ZF+O6FzdfWrlFTi1Rgj2080ZDsd46vzOjadHUB0Cz5kOvDG8vI7caa5YFrsHQpcfn0DxtjS4E46N4FZsA==",
-      "path": "microsoft.extensions.logging.abstractions/2.1.1",
-      "hashPath": "microsoft.extensions.logging.abstractions.2.1.1.nupkg.sha512"
     },
     "Mono.Cecil/0.11.6": {
       "type": "package",
@@ -288,13 +229,6 @@
       "sha512": "sha512-RBbGIxk3fIIQIL4ERCZSIwW9BXBCG4HCCHgGJ/QIhwkTpF6Edxu0dLPJi/Efhx4qYkuWEJdhlA3q41GCNUZL5g==",
       "path": "monomod.utils/25.0.11",
       "hashPath": "monomod.utils.25.0.11.nupkg.sha512"
-    },
-    "OneOf/3.0.271": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-pqpqeK8xQGggExhr4tesVgJkjdn+9HQAO0QgrYV2hFjE3y90okzk1kQMntMiUOGfV7FrCUfKPaVvPBD4IANqKg==",
-      "path": "oneof/3.0.271",
-      "hashPath": "oneof.3.0.271.nupkg.sha512"
     },
     "Barotrauma/1.12.7.0": {
       "type": "reference",
