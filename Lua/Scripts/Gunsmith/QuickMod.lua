@@ -183,41 +183,21 @@ function QuickMod.ClearSlot(item, character, slotIndex, onReturned)
     local contained = slotItem(item, slotIndex)
     if not contained then return true end
 
-    local identifier = Core.ItemIdentifier(contained)
-    local prefab = identifier and ItemPrefab and ItemPrefab.GetItemPrefab(identifier) or nil
     local inventory = character and character.Inventory or nil
-    local returnQueued = false
-
-    local function notifyReturned(spawned)
-        if onReturned then
-            onReturned(spawned)
-        end
+    beginQuickSlotMutation(item)
+    local returned = inventory and inventory.TryPutItem(contained, character, CharacterInventory.AnySlot, true, true, false) == true
+    if not returned then
+        contained.Drop(character, true, true)
     end
+    endQuickSlotMutation(item)
 
-    if prefab and Entity and Entity.Spawner then
-        if inventory then
-            Entity.Spawner.AddItemToSpawnQueue(prefab, inventory, nil, nil, notifyReturned)
-            returnQueued = true
-        elseif character and character.WorldPosition then
-            Entity.Spawner.AddItemToSpawnQueue(prefab, character.WorldPosition, nil, nil, notifyReturned)
-            returnQueued = true
-        elseif item.WorldPosition then
-            Entity.Spawner.AddItemToSpawnQueue(prefab, item.WorldPosition, nil, nil, notifyReturned)
-            returnQueued = true
-        end
+    local function notifyReturned()
+        if onReturned then onReturned(contained) end
     end
-
-    if item.OwnInventory and item.OwnInventory.RemoveItem then
-        beginQuickSlotMutation(item)
-        item.OwnInventory.RemoveItem(contained)
-        endQuickSlotMutation(item)
-    end
-    if Entity and Entity.Spawner and Entity.Spawner.AddItemToRemoveQueue then
-        Entity.Spawner.AddItemToRemoveQueue(contained)
-    end
-
-    if not returnQueued then
-        notifyReturned(nil)
+    if Timer and Timer.Wait then
+        Timer.Wait(notifyReturned, 1)
+    else
+        notifyReturned()
     end
 
     return true
