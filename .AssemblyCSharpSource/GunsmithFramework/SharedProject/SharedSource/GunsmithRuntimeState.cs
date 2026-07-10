@@ -146,12 +146,6 @@ namespace GunsmithFramework
         public float Ergonomics { get; init; }
         public IReadOnlyDictionary<StatTypes, float> Values { get; init; } = new Dictionary<StatTypes, float>();
 
-        public float Get(StatTypes statType)
-            => Values.TryGetValue(statType, out float value) ? value : 0.0f;
-
-        public bool HasValue(StatTypes statType)
-            => Values.TryGetValue(statType, out float value) && value != 0.0f;
-
         public bool TryGet(StatTypes statType, out float value)
             => Values.TryGetValue(statType, out value) && value != 0.0f;
 

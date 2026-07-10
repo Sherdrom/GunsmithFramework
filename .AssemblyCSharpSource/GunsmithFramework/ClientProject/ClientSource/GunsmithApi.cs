@@ -174,11 +174,6 @@ namespace GunsmithFramework
             return false;
         }
 
-        internal static bool TryGetRuntimeState(Item? item, out GunsmithRuntimeState state)
-        {
-            return GunsmithRuntimeStates.TryGet(item, out state);
-        }
-
         private static void SetRuntimeState(Item item, GunsmithRuntimeState state)
             => GunsmithRuntimeStates.Set(item, state);
 
