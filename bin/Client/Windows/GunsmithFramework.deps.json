@@ -9,7 +9,6 @@
       "GunsmithFramework/1.0.0": {
         "dependencies": {
           "HarmonyX": "2.16.0",
-          "LightInject": "6.6.4",
           "Barotrauma": "1.12.7.0",
           "BarotraumaCore": "1.0.0.0",
           "Farseer.NetStandard": "3.5.0.0",
@@ -30,14 +29,6 @@
           "lib/netstandard2.0/0Harmony.dll": {
             "assemblyVersion": "2.16.0.0",
             "fileVersion": "2.16.0.0"
-          }
-        }
-      },
-      "LightInject/6.6.4": {
-        "runtime": {
-          "lib/net6.0/LightInject.dll": {
-            "assemblyVersion": "6.6.4.0",
-            "fileVersion": "6.6.4.0"
           }
         }
       },
@@ -196,13 +187,6 @@
       "sha512": "sha512-7BYM6qcHLbjZ3wpLbFYw5iFfGtN+Vbg5qIkuf/yEw3MEuxElPX0o9rw3hLiQCaXpONRW1oHCJQtFA+pbhALDKg==",
       "path": "harmonyx/2.16.0",
       "hashPath": "harmonyx.2.16.0.nupkg.sha512"
-    },
-    "LightInject/6.6.4": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-xId1F9OpzVvyNu3wcdPR4EcNUihcT5U9wiUJOi0tetuDOia1uAiFJzqmYGdRPsqAsgDb6o8sfoQCx5yMFFDsVw==",
-      "path": "lightinject/6.6.4",
-      "hashPath": "lightinject.6.6.4.nupkg.sha512"
     },
     "Mono.Cecil/0.11.6": {
       "type": "package",

@@ -22,7 +22,6 @@
 
         <!-- Luatrauuma NuGet Package References -->
         <PackageReference Include="HarmonyX" Version="2.16.0" />
-        <PackageReference Include="LightInject" Version="6.6.4" />
     </ItemGroup>
     
     <!-- User/Mod Settings -->
