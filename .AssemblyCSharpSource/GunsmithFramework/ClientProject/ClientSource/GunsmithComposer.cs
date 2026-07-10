@@ -285,55 +285,8 @@ namespace GunsmithFramework
             return settings;
         }
 
-        private static GunsmithRuntimeStats ParseRuntimeStats(string value)
-        {
-            float ergonomics = 0.0f;
-            Dictionary<StatTypes, float> values = new();
-            if (string.IsNullOrWhiteSpace(value)) { return GunsmithRuntimeStats.Empty; }
-
-            foreach (string entry in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                string[] parts = entry.Split('=', 2, StringSplitOptions.TrimEntries);
-                if (parts.Length != 2 || !float.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float parsed))
-                {
-                    continue;
-                }
-
-                if (string.Equals(parts[0], "Ergonomics", StringComparison.Ordinal))
-                {
-                    ergonomics = parsed;
-                    continue;
-                }
-
-                if (parsed != 0.0f &&
-                    Enum.TryParse(parts[0], ignoreCase: false, out StatTypes statType) &&
-                    statType != StatTypes.None)
-                {
-                    values[statType] = parsed;
-                }
-            }
-
-            return new GunsmithRuntimeStats { Ergonomics = ergonomics, Values = values };
-        }
-
         private static string BuildSpriteSignature(string layerSpec, string inventorySpec, string worldSpec, int width, int height)
             => string.Concat(layerSpec, "|inventory:", inventorySpec, "|world:", worldSpec, "|canvas:", width, "x", height);
-
-        private static IReadOnlySet<string> ParseIdentifierSet(string value)
-        {
-            HashSet<string> identifiers = new(StringComparer.OrdinalIgnoreCase);
-            if (string.IsNullOrWhiteSpace(value)) { return identifiers; }
-
-            foreach (string identifier in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                if (!string.IsNullOrWhiteSpace(identifier))
-                {
-                    identifiers.Add(identifier);
-                }
-            }
-
-            return identifiers;
-        }
 
         internal static string ResolvePath(string path)
         {
