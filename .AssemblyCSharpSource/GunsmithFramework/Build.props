@@ -23,7 +23,6 @@
         <!-- Luatrauuma NuGet Package References -->
         <PackageReference Include="HarmonyX" Version="2.16.0" />
         <PackageReference Include="LightInject" Version="6.6.4" />
-        <PackageReference Include="OneOf" Version="3.0.271" />
         <PackageReference Include="FluentResults" Version="3.16.0" />
     </ItemGroup>
     

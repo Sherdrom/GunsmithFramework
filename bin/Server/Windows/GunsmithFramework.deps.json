@@ -11,7 +11,6 @@
           "FluentResults": "3.16.0",
           "HarmonyX": "2.16.0",
           "LightInject": "6.6.4",
-          "OneOf": "3.0.271",
           "BarotraumaCore": "1.0.0.0",
           "DedicatedServer": "1.12.7.0",
           "Farseer.NetStandard": "3.5.0.0",
@@ -144,14 +143,6 @@
           "lib/net8.0/MonoMod.Utils.dll": {
             "assemblyVersion": "25.0.11.0",
             "fileVersion": "25.0.11.0"
-          }
-        }
-      },
-      "OneOf/3.0.271": {
-        "runtime": {
-          "lib/netstandard2.0/OneOf.dll": {
-            "assemblyVersion": "1.0.0.0",
-            "fileVersion": "1.0.0.0"
           }
         }
       },
@@ -288,13 +279,6 @@
       "sha512": "sha512-RBbGIxk3fIIQIL4ERCZSIwW9BXBCG4HCCHgGJ/QIhwkTpF6Edxu0dLPJi/Efhx4qYkuWEJdhlA3q41GCNUZL5g==",
       "path": "monomod.utils/25.0.11",
       "hashPath": "monomod.utils.25.0.11.nupkg.sha512"
-    },
-    "OneOf/3.0.271": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-pqpqeK8xQGggExhr4tesVgJkjdn+9HQAO0QgrYV2hFjE3y90okzk1kQMntMiUOGfV7FrCUfKPaVvPBD4IANqKg==",
-      "path": "oneof/3.0.271",
-      "hashPath": "oneof.3.0.271.nupkg.sha512"
     },
     "BarotraumaCore/1.0.0.0": {
       "type": "reference",
