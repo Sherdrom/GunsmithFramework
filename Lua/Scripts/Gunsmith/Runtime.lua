@@ -772,16 +772,6 @@ function Runtime.SelectedHandWeapon(character)
     return nil
 end
 
-local function fabricatorPartProvidesAccepted(part, accepts)
-    if type(part) ~= "table" or type(part.provides) ~= "table" or type(accepts) ~= "table" then return false end
-    for _, provided in ipairs(part.provides) do
-        for _, accepted in ipairs(accepts) do
-            if provided == accepted then return true end
-        end
-    end
-    return false
-end
-
 function Runtime.FabricatorPartItemIds(item)
     local weapon = Core.WeaponConfig(item)
     local platform = Core.PlatformConfig(item)
@@ -817,14 +807,14 @@ function Runtime.FabricatorPartItemIds(item)
         if type(partType) == "string" and partType ~= "" then
             for _, partId in ipairs(Core.GetPartsForType(partType, ownerId)) do
                 local part = Core.GetPart(partId)
-                if part and fabricatorPartProvidesAccepted(part, accepts) then
+                if part and Core.PartProvidesAccepted(part, accepts) then
                     collectPart(partId, depth)
                 end
             end
         end
 
         for partId, part in pairs(Gunsmith.Config.parts or {}) do
-            if Core.CanUsePart(partId, ownerId) and fabricatorPartProvidesAccepted(part, accepts) then
+            if Core.CanUsePart(partId, ownerId) and Core.PartProvidesAccepted(part, accepts) then
                 collectPart(partId, depth)
             end
         end

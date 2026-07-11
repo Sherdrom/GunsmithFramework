@@ -7,6 +7,20 @@ local Stats = Gunsmith.Stats
 local UiSpec = {}
 Gunsmith.UiSpec = UiSpec
 
+function UiSpec.EncodePartEntry(partId, part, status)
+    local visual = part.visual or {}
+    local source = visual.source or {}
+    return table.concat({
+        partId,
+        part.nameKey,
+        status,
+        Stats.Encode(Stats.PartStats(part), "~"),
+        Core.EncodeText(part.item and part.item.identifier or ""),
+        Core.EncodeText(visual.texture or ""),
+        (Core.EncodeText(string.format("%d,%d,%d,%d", source.x or 0, source.y or 0, source.w or 0, source.h or 0)))
+    }, ":")
+end
+
 local function appendPartEntry(entries, item, selection, platform, slotPath, partId, ownerId)
     local part = Gunsmith.Config.parts[partId]
     if part then
@@ -19,17 +33,7 @@ local function appendPartEntry(entries, item, selection, platform, slotPath, par
         elseif Inventory and not Inventory.HasPartItem(Inventory.ActorForItem(item), part, item) then
             status = "missing"
         end
-        local visual = part.visual or {}
-        local source = visual.source or {}
-        table.insert(entries, table.concat({
-            partId,
-            part.nameKey,
-            status,
-            Stats.Encode(Stats.PartStats(part), "~"),
-            Core.EncodeText(part.item and part.item.identifier or ""),
-            Core.EncodeText(visual.texture or ""),
-            Core.EncodeText(string.format("%d,%d,%d,%d", source.x or 0, source.y or 0, source.w or 0, source.h or 0))
-        }, ":"))
+        table.insert(entries, UiSpec.EncodePartEntry(partId, part, status))
     end
 end
 

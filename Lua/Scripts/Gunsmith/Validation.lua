@@ -1,6 +1,7 @@
 GunsmithFramework = GunsmithFramework or {}
 
 local Gunsmith = GunsmithFramework
+local Core = Gunsmith.Core
 local Validation = {}
 Gunsmith.Validation = Validation
 
@@ -77,16 +78,6 @@ local function hasAnyProvidedPart(parts, accepts)
                     if provided == accepted then return true end
                 end
             end
-        end
-    end
-    return false
-end
-
-local function partProvidesAccepted(part, accepts)
-    if type(part) ~= "table" or type(part.provides) ~= "table" or type(accepts) ~= "table" then return false end
-    for _, provided in ipairs(part.provides) do
-        for _, accepted in ipairs(accepts) do
-            if provided == accepted then return true end
         end
     end
     return false
@@ -371,7 +362,7 @@ function Validation.Run(configOverride, label)
         if type(part) ~= "table" or type(mount) ~= "table" then return false end
         local expectedType = mount.partType or mount.path
         return type(expectedType) == "string" and expectedType ~= "" and
-            part.type == expectedType and partProvidesAccepted(part, mount.accepts)
+            part.type == expectedType and Core.PartProvidesAccepted(part, mount.accepts)
     end
 
     local function collectQuickKeys(parentPart, quickKeys, visited, depth, includeOptional, ownerId)
@@ -442,7 +433,7 @@ function Validation.Run(configOverride, label)
                         local expectedType = mount.partType or childPathSegment
                         if childPart.type ~= expectedType then
                             table.insert(errors, "Part '" .. tostring(parentPartId) .. "' mount '" .. tostring(childPathSegment) .. "' default part '" .. tostring(childPartId) .. "' type does not match '" .. tostring(expectedType) .. "'.")
-                        elseif not partProvidesAccepted(childPart, mount.accepts) then
+                        elseif not Core.PartProvidesAccepted(childPart, mount.accepts) then
                             table.insert(errors, "Part '" .. tostring(parentPartId) .. "' mount '" .. tostring(childPathSegment) .. "' default part '" .. tostring(childPartId) .. "' is not accepted by '" .. tostring(childPath) .. "'.")
                         end
 
@@ -887,7 +878,7 @@ function Validation.Run(configOverride, label)
                     for _, root in pairs(weapon.roots) do
                         local rootPartId = type(root) == "table" and root.part or nil
                         local rootPart = parts[rootPartId]
-                        if rootPart and partProvidesAccepted(rootPart, { provided }) then
+                        if rootPart and Core.PartProvidesAccepted(rootPart, { provided }) then
                             acceptedByRoot = true
                             break
                         end

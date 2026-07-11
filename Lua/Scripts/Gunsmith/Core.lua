@@ -275,16 +275,6 @@ function Core.RootSlotDef(platform, path)
     return byPath[path]
 end
 
-local function partProvidesAccepted(part, accepts)
-    if type(part) ~= "table" or type(part.provides) ~= "table" or type(accepts) ~= "table" then return false end
-    for _, provided in ipairs(part.provides) do
-        for _, accepted in ipairs(accepts) do
-            if provided == accepted then return true end
-        end
-    end
-    return false
-end
-
 function Core.ApplyMountDefaultsForPath(selection, path, ownerId, visited, depth)
     if type(ownerId) == "table" then
         depth = visited
@@ -306,7 +296,7 @@ function Core.ApplyMountDefaultsForPath(selection, path, ownerId, visited, depth
         if type(partId) == "string" and partId ~= "" and not visited[visitKey] then
             visited[visitKey] = true
             local childPart = Core.GetPart(partId)
-            if childPart and Core.CanUsePart(partId, ownerId) and mount and childPart.type == (mount.partType or childPathSegment) and partProvidesAccepted(childPart, mount.accepts) then
+            if childPart and Core.CanUsePart(partId, ownerId) and mount and childPart.type == (mount.partType or childPathSegment) and Core.PartProvidesAccepted(childPart, mount.accepts) then
                 if not selection[childPath] then
                     selection[childPath] = partId
                 end
@@ -582,6 +572,11 @@ local function intersects(left, right)
     return false
 end
 
+function Core.PartProvidesAccepted(part, accepts)
+    if type(part) ~= "table" then return false end
+    return intersects(Core.PartProvides(part), accepts)
+end
+
 local function pathWithin(path, rootPath)
     if type(path) ~= "string" or type(rootPath) ~= "string" or rootPath == "" then return false end
     return path == rootPath or string.sub(path, 1, #rootPath + 1) == rootPath .. "/"
@@ -708,7 +703,7 @@ function Core.IsPartCompatible(selection, platform, path, partId, ownerId)
 
     local accepts = Core.AcceptsForPath(selection, platform, path)
     if type(accepts) ~= "table" then return false end
-    return intersects(accepts, Core.PartProvides(part))
+    return Core.PartProvidesAccepted(part, accepts)
 end
 
 function Core.IsHiddenRootSlot(platform, path)

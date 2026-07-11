@@ -35,17 +35,7 @@ local function appendPartEntry(entries, item, selection, platform, slotPath, par
         status = "missing"
     end
 
-    local visual = part.visual or {}
-    local source = visual.source or {}
-    table.insert(entries, table.concat({
-        partId,
-        part.nameKey,
-        status,
-        Stats.Encode(Stats.PartStats(part), "~"),
-        Core.EncodeText(part.item and part.item.identifier or ""),
-        Core.EncodeText(visual.texture or ""),
-        Core.EncodeText(string.format("%d,%d,%d,%d", source.x or 0, source.y or 0, source.w or 0, source.h or 0))
-    }, ":"))
+    table.insert(entries, Gunsmith.UiSpec.EncodePartEntry(partId, part, status))
 end
 
 local function quickSlotsForItem(item, selection, platform)
