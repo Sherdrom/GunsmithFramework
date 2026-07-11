@@ -7,23 +7,8 @@ Gunsmith.Persistence = Persistence
 
 local saveVersion = 1
 
-local function jsonEscape(value)
-    return tostring(value):gsub('[\\"]', {
-        ["\\"] = "\\\\",
-        ["\""] = "\\\""
-    })
-end
-
-local function jsonUnescape(value)
-    return tostring(value):gsub("\\(.)", function(escaped)
-        if escaped == "\\" then return "\\" end
-        if escaped == "\"" then return "\"" end
-        if escaped == "/" then return "/" end
-        if escaped == "n" then return "\n" end
-        if escaped == "r" then return "\r" end
-        if escaped == "t" then return "\t" end
-        return escaped
-    end)
+local function encodeString(value)
+    return json.serialize(tostring(value))
 end
 
 local function sortedSavedPaths(savedParts)
@@ -46,29 +31,27 @@ function Persistence.Encode(selection, platform, weapon)
     for _, root in ipairs(Core.RootSlotDefs(platform)) do
         local path = root.path
         local partId = selection[path]
-        table.insert(entries, string.format("\"%s\":\"%s\"", jsonEscape(path), jsonEscape(partId or Gunsmith.EmptyPartId)))
+        table.insert(entries, encodeString(path) .. ":" .. encodeString(partId or Gunsmith.EmptyPartId))
     end
 
     for _, path in ipairs(Core.SortedSelectionPaths(selection)) do
         if not Core.IsRootSlot(platform, path) and selection[path] then
-            table.insert(entries, string.format("\"%s\":\"%s\"", jsonEscape(path), jsonEscape(selection[path])))
+            table.insert(entries, encodeString(path) .. ":" .. encodeString(selection[path]))
         end
     end
 
     return string.format("{\"v\":%d,\"parts\":{%s}}", saveVersion, table.concat(entries, ","))
 end
 
-function Persistence.Decode(json)
-    if type(json) ~= "string" or json == "" then return nil end
+function Persistence.Decode(value)
+    if type(value) ~= "string" or value == "" then return nil end
 
-    local partsText = string.match(json, '"parts"%s*:%s*{(.-)}')
-    if not partsText then return nil end
+    local ok, data = pcall(json.parse, value)
+    if not ok or type(data) ~= "table" or data.v ~= saveVersion or type(data.parts) ~= "table" then return nil end
 
     local parts = {}
-    for rawPath, rawPartId in string.gmatch(partsText, '"([^"]*)"%s*:%s*"([^"]*)"') do
-        local path = jsonUnescape(rawPath)
-        local partId = jsonUnescape(rawPartId)
-        if path ~= "" and partId ~= "" then
+    for path, partId in pairs(data.parts) do
+        if type(path) == "string" and path ~= "" and type(partId) == "string" and partId ~= "" then
             parts[path] = partId
         end
     end

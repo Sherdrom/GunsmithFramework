@@ -909,6 +909,35 @@ function Validation.Run(configOverride, label)
     return #errors == 0
 end
 
+local function runPersistenceJsonSelfTest()
+    local Persistence = Gunsmith.Persistence
+    assert(type(Persistence) == "table")
+
+    local platform = {
+        rootSlots = {
+            { path = "receiver" },
+            { path = "stock" }
+        }
+    }
+    local selection = {
+        receiver = "receiver \"quote\" \\ slash\nline\ttab 世界",
+        ["receiver/barrel"] = "barrel \"quote\" \\ slash\nline\ttab 世界"
+    }
+    local encoded = Persistence.Encode(selection, platform, {})
+    local decoded = Persistence.Decode(encoded)
+    local legacy = Persistence.Decode("{\"v\":1,\"parts\":{\"receiver\":\"legacy-receiver\",\"receiver/barrel\":\"legacy-barrel\"}}")
+
+    assert(encoded == Persistence.Encode(selection, platform, {}))
+    assert(type(decoded) == "table")
+    assert(decoded.receiver == selection.receiver)
+    assert(decoded.stock == Gunsmith.EmptyPartId)
+    assert(decoded["receiver/barrel"] == selection["receiver/barrel"])
+    assert(legacy.receiver == "legacy-receiver")
+    assert(legacy["receiver/barrel"] == "legacy-barrel")
+    assert(Persistence.Decode("{\"v\":1,\"parts\":") == nil)
+    assert(Persistence.Decode("{\"v\":2,\"parts\":{}}") == nil)
+end
+
 function Validation.RunSelfTest()
     local badConfig = {
         platforms = {
@@ -1130,6 +1159,8 @@ function Validation.RunSelfTest()
         parts = ownerIsolationBadConfig.parts
     }
 
+    print("[GunsmithFramework][Validation][SelfTest] Running persistence JSON round-trip test.")
+    runPersistenceJsonSelfTest()
     print("[GunsmithFramework][Validation][SelfTest] Running intentional broken-config validation test.")
     local result = Validation.Run(badConfig, "SelfTest")
     print("[GunsmithFramework][Validation][SelfTest] Running owner-isolation rejection test.")
