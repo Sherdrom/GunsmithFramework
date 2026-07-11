@@ -372,6 +372,7 @@ namespace GunsmithFramework
             }
 
             bool[] hiddenStates = layoutCache.HiddenStates;
+            int visibleCount = 0;
             int hiddenCount = 0;
             int layoutHash = 17;
             for (int i = 0; i < visualSlots.Length; i++)
@@ -379,7 +380,11 @@ namespace GunsmithFramework
                 bool shouldHide = (hiddenSlots?.Contains(i) == true || IsInjectedQuickSlot(__instance, i)) && !ShouldShowManagedSlot(__instance, i);
                 hiddenStates[i] = shouldHide;
                 layoutHash = (layoutHash * 31) + (shouldHide ? 1 : 0);
-                if (shouldHide)
+                if (!shouldHide)
+                {
+                    visibleCount++;
+                }
+                else
                 {
                     hiddenCount++;
                 }
@@ -400,6 +405,11 @@ namespace GunsmithFramework
                 return true;
             }
 
+            if (visibleCount == 0)
+            {
+                return false;
+            }
+
             if (layoutCache.LastPackHash == layoutHash &&
                 IsPackedLayoutCurrent(layoutCache, hiddenStates))
             {
@@ -407,20 +417,27 @@ namespace GunsmithFramework
             }
 
             SlotLayout[] originalLayouts = layoutCache.Layouts;
-            ApplyPackedLayouts(visualSlots, originalLayouts, hiddenStates);
-
-            layoutCache.LastPackHash = layoutHash;
-            return true;
-        }
-
-        private static void ApplyPackedLayouts(VisualSlot[] visualSlots, SlotLayout[] originalLayouts, bool[] hiddenStates)
-        {
             int displayIndex = 0;
             for (int i = 0; i < visualSlots.Length; i++)
             {
-                SlotLayout layout = hiddenStates[i] ? default : originalLayouts[displayIndex++];
-                layout.ApplyTo(visualSlots[i]);
+                if (!hiddenStates[i])
+                {
+                    originalLayouts[displayIndex].ApplyTo(visualSlots[i]);
+                    displayIndex++;
+                }
             }
+
+            SlotLayout hiddenLayout = originalLayouts[0];
+            for (int i = 0; i < visualSlots.Length; i++)
+            {
+                if (hiddenStates[i])
+                {
+                    hiddenLayout.ApplyTo(visualSlots[i]);
+                }
+            }
+
+            layoutCache.LastPackHash = layoutHash;
+            return true;
         }
 
         private static bool IsOriginalLayoutCurrent(LayoutCache layoutCache)
@@ -481,7 +498,7 @@ namespace GunsmithFramework
         {
             VisualSlot[] visualSlots = layoutCache.VisualSlots;
             SlotLayout[] originalLayouts = layoutCache.Layouts;
-            SlotLayout hiddenLayout = default;
+            SlotLayout hiddenLayout = originalLayouts[0];
             int displayIndex = 0;
             for (int i = 0; i < visualSlots.Length; i++)
             {
