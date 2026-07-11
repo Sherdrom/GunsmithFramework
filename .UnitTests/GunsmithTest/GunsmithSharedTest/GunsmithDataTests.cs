@@ -38,16 +38,39 @@ public sealed class GunsmithDataTests
     [InlineData("")]
     [InlineData("{\"v\":1,\"parts\":{}}")]
     [InlineData("{\"v\":1,\"parts\":{\"barrel\":\"short\"}}")]
+    [InlineData(""" { "parts" : { "receiver/barrel" : "short" }, "v" : 1 } """)]
+    [InlineData("""{"v":1,"parts":{"receiver/\"\\\n\t你好":"part-\"\\\n\t世界"}}""")]
     public void IsValidSavedState_AcceptsValidState(string state)
     {
         Assert.True(GunsmithData.IsValidSavedState(state));
     }
 
     [Theory]
+    [InlineData("{\"v\":1,\"parts\":{not-json}}")]
     [InlineData("{\"v\":2,\"parts\":{}}")]
-    [InlineData("{\"v\":1,\"items\":{}}")]
-    [InlineData("{\"v\":1,\"parts\":{}")]
-    public void IsValidSavedState_RejectsInvalidShape(string state)
+    [InlineData("{\"v\":\"1\",\"parts\":{}}")]
+    [InlineData("{\"parts\":{}}")]
+    [InlineData("{\"v\":1}")]
+    [InlineData("{\"v\":1,\"v\":1,\"parts\":{}}")]
+    [InlineData("{\"v\":1,\"parts\":{},\"parts\":{}}")]
+    [InlineData("{\"v\":1,\"parts\":{},\"extra\":true}")]
+    [InlineData("{\"v\":1,\"parts\":[]}")]
+    [InlineData("{\"v\":1,\"parts\":null}")]
+    [InlineData("{\"v\":1,\"parts\":\"x\"}")]
+    [InlineData("{\"v\":1,\"parts\":{\"receiver\":1}}")]
+    [InlineData("{\"v\":1,\"parts\":{\"receiver\":true}}")]
+    [InlineData("{\"v\":1,\"parts\":{\"receiver\":{}}}")]
+    [InlineData("{\"v\":1,\"parts\":{\"receiver\":[]}}")]
+    [InlineData("{\"v\":1,\"parts\":{\"receiver\":null}}")]
+    [InlineData("{\"v\":1,\"parts\":{\"\":\"part\"}}")]
+    [InlineData("{\"v\":1,\"parts\":{\" \":\"part\"}}")]
+    [InlineData("{\"v\":1,\"parts\":{\"receiver\":\"\"}}")]
+    [InlineData("{\"v\":1,\"parts\":{\"receiver\":\" \"}}")]
+    [InlineData("{\"v\":1,\"parts\":{},}")]
+    [InlineData("{\"v\":1/* comment */,\"parts\":{}}")]
+    [InlineData("[]")]
+    [InlineData("null")]
+    public void IsValidSavedState_RejectsInvalidState(string state)
     {
         Assert.False(GunsmithData.IsValidSavedState(state));
     }

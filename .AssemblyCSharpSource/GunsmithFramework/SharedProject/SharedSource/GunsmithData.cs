@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Barotrauma.Networking;
 
 namespace Barotrauma.Items.Components
@@ -130,8 +131,58 @@ namespace Barotrauma.Items.Components
                 return true;
             }
 
-            return value.StartsWith("{\"v\":1,\"parts\":{", StringComparison.Ordinal) &&
-                   value.EndsWith("}}", StringComparison.Ordinal);
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(value);
+                JsonElement root = document.RootElement;
+                if (root.ValueKind != JsonValueKind.Object)
+                {
+                    return false;
+                }
+
+                bool hasVersion = false;
+                bool hasParts = false;
+                foreach (JsonProperty property in root.EnumerateObject())
+                {
+                    switch (property.Name)
+                    {
+                        case "v":
+                            if (hasVersion ||
+                                property.Value.ValueKind != JsonValueKind.Number ||
+                                !property.Value.TryGetInt32(out int version) ||
+                                version != 1)
+                            {
+                                return false;
+                            }
+                            hasVersion = true;
+                            break;
+                        case "parts":
+                            if (hasParts || property.Value.ValueKind != JsonValueKind.Object)
+                            {
+                                return false;
+                            }
+                            hasParts = true;
+                            foreach (JsonProperty part in property.Value.EnumerateObject())
+                            {
+                                if (string.IsNullOrWhiteSpace(part.Name) ||
+                                    part.Value.ValueKind != JsonValueKind.String ||
+                                    string.IsNullOrWhiteSpace(part.Value.GetString()))
+                                {
+                                    return false;
+                                }
+                            }
+                            break;
+                        default:
+                            return false;
+                    }
+                }
+
+                return hasVersion && hasParts;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
         }
     }
 }
