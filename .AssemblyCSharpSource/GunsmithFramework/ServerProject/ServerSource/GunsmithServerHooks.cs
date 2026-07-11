@@ -91,8 +91,7 @@ namespace GunsmithFramework
             GunsmithLuaHooks.Add(hook, "GunsmithFrameworkGetSavedState", args =>
             {
                 Item? item = FindArg<Item>(args);
-                GunsmithData? data = item?.GetComponent<GunsmithData>();
-                return data?.SavedState ?? string.Empty;
+                return GunsmithDataAccess.GetSavedState(item);
             });
 
             GunsmithLuaHooks.Add(hook, "GunsmithFrameworkGetNpcPreset", args =>
@@ -105,11 +104,9 @@ namespace GunsmithFramework
             {
                 Item? item = FindArg<Item>(args);
                 string? savedState = FindStringArg(args, 0);
-                GunsmithData? data = item?.GetComponent<GunsmithData>();
-                if (data != null && savedState != null)
+                if (item != null && savedState != null && GunsmithDataAccess.SetSavedState(item, savedState))
                 {
-                    data.SavedState = GunsmithData.NormalizeSavedState(savedState);
-                    data.BroadcastState();
+                    GunsmithDataAccess.BroadcastState(item);
                 }
                 return null;
             });

@@ -2,6 +2,8 @@ namespace GunsmithFramework
 {
     public static partial class GunsmithApi
     {
+        internal const string ReloadDepthBridgeHookName = "GunsmithFrameworkResolveAttachmentDepth";
+
         private static readonly ConcurrentDictionary<Item, GunsmithSpriteState> spriteStates = new();
         private static readonly ConcurrentDictionary<string, Texture2D> textureCache = new(StringComparer.OrdinalIgnoreCase);
         private static readonly HashSet<string> WeaponTags = new(StringComparer.OrdinalIgnoreCase);
@@ -181,6 +183,18 @@ namespace GunsmithFramework
                 return false;
             }
 
+            if (TryGetAttachmentDepthLocal(weaponItem, attachmentItem, out depth))
+            {
+                return true;
+            }
+
+            return !GunsmithLuaHooks.HasRegisteredHooks &&
+                   TryGetReloadedAttachmentDepth(weaponItem, attachmentItem, out depth);
+        }
+
+        private static bool TryGetAttachmentDepthLocal(Item weaponItem, Item attachmentItem, out float depth)
+        {
+            depth = 0.0f;
             if (!TryGetValidState(weaponItem, out GunsmithSpriteState state) || state.Layers.Count == 0)
             {
                 return false;
@@ -204,6 +218,35 @@ namespace GunsmithFramework
             const float maxDepthOffset = 0.0025f;
             float depthOffset = MathHelper.Lerp(maxDepthOffset, -maxDepthOffset, normalizedOrder);
             depth = MathHelper.Clamp(baseDepth + depthOffset, 0.0f, 0.999f);
+            return true;
+        }
+
+        internal static object? ResolveReloadDepthBridge(object?[] args)
+        {
+            if (args.Length != 3 ||
+                args[0] is not Item weaponItem ||
+                args[1] is not Item attachmentItem ||
+                !TryGetAttachmentDepth(weaponItem, attachmentItem, out float depth))
+            {
+                return false;
+            }
+
+            args[2] = depth;
+            return true;
+        }
+
+        private static bool TryGetReloadedAttachmentDepth(Item weaponItem, Item attachmentItem, out float depth)
+        {
+            depth = 0.0f;
+            object[] payload = { weaponItem, attachmentItem, 0.0f };
+            if (GunsmithLuaHooks.Call(ReloadDepthBridgeHookName, payload) is not true ||
+                payload[2] is not float resolvedDepth ||
+                !float.IsFinite(resolvedDepth))
+            {
+                return false;
+            }
+
+            depth = resolvedDepth;
             return true;
         }
 
@@ -297,28 +340,24 @@ namespace GunsmithFramework
 
         public static void Dispose()
         {
+            SpriteBatch? disposingSpriteBatch = spriteBatch;
+            spriteBatch = null;
+            graphicsDevice = null;
+
             GunsmithGui.CloseWindow();
 
-            GunsmithRuntimeStates.Clear();
             foreach (KeyValuePair<Item, GunsmithSpriteState> pair in spriteStates.ToArray())
             {
-                if (spriteStates.TryRemove(pair.Key, out GunsmithSpriteState? state))
-                {
-                    if (!state.Texture.IsDisposed)
-                    {
-                        state.Texture.Dispose();
-                    }
-                    if (!state.InventoryTexture.IsDisposed)
-                    {
-                        state.InventoryTexture.Dispose();
-                    }
-                    if (!state.WorldTexture.IsDisposed)
-                    {
-                        state.WorldTexture.Dispose();
-                    }
-                }
                 RestoreVanillaSprite(pair.Key);
+                RemoveState(pair.Key);
             }
+
+            GunsmithQuickSlotLightPatch.ClearAllState();
+            GunsmithHiddenQuickSlotsPatch.Reset();
+            GunsmithQuickSlotLayoutPatch.ClearAllLayouts();
+            GunsmithQuickAttachmentTransformService.ClearAllState();
+            GunsmithRuntimeStates.Clear();
+            WeaponTags.Clear();
 
             foreach (Texture2D texture in textureCache.Values)
             {
@@ -329,9 +368,7 @@ namespace GunsmithFramework
             }
             textureCache.Clear();
 
-            spriteBatch?.Dispose();
-            spriteBatch = null;
-            graphicsDevice = null;
+            disposingSpriteBatch?.Dispose();
         }
     }
 }

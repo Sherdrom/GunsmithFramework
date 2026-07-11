@@ -15,13 +15,22 @@ namespace GunsmithFramework
             List<LightComponent> matchingLights = new();
             foreach (LightComponent lightComponent in ManagedLights)
             {
-                if (ReferenceEquals(lightComponent.Item, item))
+                if (ReferenceEquals(lightComponent.Item, item) ||
+                    ReferenceEquals(lightComponent.Item?.ParentInventory?.Owner, item))
                 {
                     matchingLights.Add(lightComponent);
                 }
             }
 
             foreach (LightComponent lightComponent in matchingLights)
+            {
+                RestoreNativeLightTransform(lightComponent);
+            }
+        }
+
+        internal static void ClearAllState()
+        {
+            foreach (LightComponent lightComponent in ManagedLights.ToArray())
             {
                 RestoreNativeLightTransform(lightComponent);
             }

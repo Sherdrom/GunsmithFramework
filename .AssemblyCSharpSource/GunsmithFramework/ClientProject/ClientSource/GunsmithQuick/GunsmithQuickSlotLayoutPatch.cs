@@ -11,6 +11,9 @@ namespace GunsmithFramework
             RulesByItem.TryRemove(item, out _);
         }
 
+        internal static void ClearAllLayouts()
+            => RulesByItem.Clear();
+
         public static void RegisterLayout(Item item, int slotIndex, Vector2 canvasAnchor, Vector2 itemPosOffset, float rotation)
         {
             if (item == null || item.Removed || slotIndex < 0)

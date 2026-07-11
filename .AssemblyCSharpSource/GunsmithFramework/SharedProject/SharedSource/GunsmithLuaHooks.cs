@@ -6,6 +6,8 @@ namespace GunsmithFramework
         private static object? registeredOwner;
         private static Action<string>? unregister;
 
+        internal static bool HasRegisteredHooks => registeredOwner != null;
+
         internal static void Add(
             Barotrauma.LuaCs.Compatibility.ILuaCsHook hook,
             string hookName,
@@ -43,19 +45,21 @@ namespace GunsmithFramework
             unregister = null;
         }
 
-        internal static void Call(string hookName, params object[] args)
+        internal static object? Call(string hookName, params object[] args)
         {
             try
             {
                 if (LuaCsSetup.Instance?.Hook is Barotrauma.LuaCs.Compatibility.ILuaCsHook hook)
                 {
-                    hook.Call(hookName, args);
+                    return hook.Call(hookName, args);
                 }
             }
             catch (Exception ex)
             {
                 LuaCsSetup.PrintCsMessage($"[GunsmithFramework] Failed to call Lua hook '{hookName}': {ex.Message}");
             }
+
+            return null;
         }
     }
 }

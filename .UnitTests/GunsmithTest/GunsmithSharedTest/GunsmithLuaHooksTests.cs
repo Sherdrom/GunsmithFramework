@@ -12,9 +12,11 @@ public sealed class GunsmithLuaHooksTests
         object secondOwner = new();
 
         GunsmithLuaHooks.Track(firstOwner, "First", removed.Add);
+        Assert.True(GunsmithLuaHooks.HasRegisteredHooks);
         GunsmithLuaHooks.Track(secondOwner, "Second", removed.Add);
         GunsmithLuaHooks.Clear();
 
         Assert.Equal(["First", "Second"], removed);
+        Assert.False(GunsmithLuaHooks.HasRegisteredHooks);
     }
 }

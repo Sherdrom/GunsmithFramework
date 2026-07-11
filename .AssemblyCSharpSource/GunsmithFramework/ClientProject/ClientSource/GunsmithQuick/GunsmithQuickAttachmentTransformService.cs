@@ -15,6 +15,9 @@ namespace GunsmithFramework
 
     public static class GunsmithQuickAttachmentTransformService
     {
+        // Live ItemComponents can keep an unloaded generation discoverable by reflection.
+        internal const string ReloadBridgeHookName = "GunsmithFrameworkResolveQuickAttachmentTransform";
+
         private static readonly ConditionalWeakTable<Item, QuickSlotIndexCacheBox> QuickSlotIndexCacheByAttachment = new();
         private static readonly ConditionalWeakTable<Item, Dictionary<int, ItemLocalPositionCache>> ItemLocalPositionCacheByWeapon = new();
 
@@ -41,6 +44,12 @@ namespace GunsmithFramework
             }
         }
 
+        internal static void ClearAllState()
+        {
+            QuickSlotIndexCacheByAttachment.Clear();
+            ItemLocalPositionCacheByWeapon.Clear();
+        }
+
         public static bool TryGetTransform(Item attachmentItem, out GunsmithQuickAttachmentTransform transform)
         {
             transform = default;
@@ -60,23 +69,115 @@ namespace GunsmithFramework
         public static bool TryGetTransform(Item weaponItem, Item attachmentItem, out GunsmithQuickAttachmentTransform transform)
         {
             transform = default;
-            if (!TryGetDirectQuickSlotIndex(weaponItem, attachmentItem, out int quickSlotIndex))
+            if (TryGetDirectQuickSlotIndex(weaponItem, attachmentItem, out int quickSlotIndex) &&
+                TryGetTransformForSlot(weaponItem, attachmentItem, quickSlotIndex, out transform))
             {
-                return false;
+                return true;
             }
 
-            return TryGetTransformForSlot(weaponItem, attachmentItem, quickSlotIndex, out transform);
+            return !GunsmithLuaHooks.HasRegisteredHooks &&
+                   TryGetReloadedTransform(weaponItem, attachmentItem, requestedSlotIndex: -1, out transform);
         }
 
         public static bool TryGetTransform(Item weaponItem, Item attachmentItem, int quickSlotIndex, out GunsmithQuickAttachmentTransform transform)
         {
             transform = default;
-            if (!IsValidQuickSlotAttachment(weaponItem, attachmentItem, quickSlotIndex))
+            if (IsValidQuickSlotAttachment(weaponItem, attachmentItem, quickSlotIndex) &&
+                TryGetTransformForSlot(weaponItem, attachmentItem, quickSlotIndex, out transform))
+            {
+                return true;
+            }
+
+            return !GunsmithLuaHooks.HasRegisteredHooks &&
+                   TryGetReloadedTransform(weaponItem, attachmentItem, quickSlotIndex, out transform);
+        }
+
+        internal static object? ResolveReloadBridge(object?[] args)
+        {
+            if (args.Length != 10 ||
+                args[0] is not Item weaponItem ||
+                args[1] is not Item attachmentItem ||
+                args[2] is not int requestedSlotIndex)
             {
                 return false;
             }
 
-            return TryGetTransformForSlot(weaponItem, attachmentItem, quickSlotIndex, out transform);
+            GunsmithQuickAttachmentTransform transform;
+            bool resolved = requestedSlotIndex >= 0
+                ? TryGetTransform(weaponItem, attachmentItem, requestedSlotIndex, out transform)
+                : TryGetTransform(weaponItem, attachmentItem, out transform);
+            if (!resolved)
+            {
+                return false;
+            }
+
+            args[3] = transform.QuickSlotIndex;
+            args[4] = transform.WorldPosition;
+            args[5] = transform.DrawPosition;
+            args[6] = transform.WorldRotation;
+            args[7] = transform.DrawRotation;
+            args[8] = transform.Direction;
+            args[9] = transform.FacingDirection;
+            return true;
+        }
+
+        private static bool TryGetReloadedTransform(
+            Item weaponItem,
+            Item attachmentItem,
+            int requestedSlotIndex,
+            out GunsmithQuickAttachmentTransform transform)
+        {
+            transform = default;
+            object[] payload =
+            {
+                weaponItem,
+                attachmentItem,
+                requestedSlotIndex,
+                -1,
+                Vector2.Zero,
+                Vector2.Zero,
+                0.0f,
+                0.0f,
+                Vector2.Zero,
+                0.0f
+            };
+            if (GunsmithLuaHooks.Call(ReloadBridgeHookName, payload) is not true ||
+                payload[3] is not int quickSlotIndex ||
+                payload[4] is not Vector2 worldPosition ||
+                payload[5] is not Vector2 drawPosition ||
+                payload[6] is not float worldRotation ||
+                payload[7] is not float drawRotation ||
+                payload[8] is not Vector2 direction ||
+                payload[9] is not float facingDirection)
+            {
+                return false;
+            }
+
+            if (!GunsmithQuickTransformMath.IsFinite(worldPosition) ||
+                !GunsmithQuickTransformMath.IsFinite(drawPosition) ||
+                !float.IsFinite(worldRotation) ||
+                !float.IsFinite(drawRotation) ||
+                !GunsmithQuickTransformMath.IsFinite(direction) ||
+                direction.LengthSquared() < 0.0001f ||
+                !float.IsFinite(facingDirection))
+            {
+                return false;
+            }
+
+            direction.Normalize();
+            transform = new GunsmithQuickAttachmentTransform(
+                weaponItem,
+                attachmentItem,
+                quickSlotIndex,
+                worldPosition,
+                drawPosition,
+                worldRotation,
+                drawRotation,
+                direction,
+                facingDirection,
+                weaponItem.Submarine,
+                weaponItem.CurrentHull);
+            return true;
         }
 
         private static bool TryGetTransformForSlot(Item weaponItem, Item attachmentItem, int quickSlotIndex, out GunsmithQuickAttachmentTransform transform)

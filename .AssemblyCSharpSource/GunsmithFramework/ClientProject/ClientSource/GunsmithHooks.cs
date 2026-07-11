@@ -9,6 +9,15 @@ namespace GunsmithFramework
             GunsmithQuickPartItemSpawner.BeginQuickSlotMutation = GunsmithHiddenQuickSlotsPatch.BeginQuickSlotMutation;
             GunsmithQuickPartItemSpawner.EndQuickSlotMutation = GunsmithHiddenQuickSlotsPatch.EndQuickSlotMutation;
 
+            GunsmithLuaHooks.Add(
+                hook,
+                GunsmithQuickAttachmentTransformService.ReloadBridgeHookName,
+                args => GunsmithQuickAttachmentTransformService.ResolveReloadBridge(args));
+            GunsmithLuaHooks.Add(
+                hook,
+                ReloadDepthBridgeHookName,
+                args => ResolveReloadDepthBridge(args));
+
             GunsmithLuaHooks.Add(hook, "GunsmithFrameworkApply", args =>
             {
                 Item? item = FindArg<Item>(args);
@@ -235,8 +244,7 @@ namespace GunsmithFramework
             GunsmithLuaHooks.Add(hook, "GunsmithFrameworkGetSavedState", args =>
             {
                 Item? item = FindArg<Item>(args);
-                Barotrauma.Items.Components.GunsmithData? data = item?.GetComponent<Barotrauma.Items.Components.GunsmithData>();
-                return data?.SavedState ?? string.Empty;
+                return GunsmithDataAccess.GetSavedState(item);
             });
 
             GunsmithLuaHooks.Add(hook, "GunsmithFrameworkGetNpcPreset", args =>
@@ -250,18 +258,16 @@ namespace GunsmithFramework
                 Item? item = FindArg<Item>(args);
                 if (item != null)
                 {
-                    Barotrauma.Items.Components.GunsmithData? data = item.GetComponent<Barotrauma.Items.Components.GunsmithData>();
-                    if (data == null)
+                    if (GameMain.Client != null)
                     {
-                        CallLuaHook("GunsmithFrameworkReceiveState", item, string.Empty);
-                    }
-                    else if (GameMain.Client != null)
-                    {
-                        data.RequestStateFromServer();
+                        if (!GunsmithDataAccess.RequestStateFromServer(item))
+                        {
+                            CallLuaHook("GunsmithFrameworkReceiveState", item, string.Empty);
+                        }
                     }
                     else
                     {
-                        CallLuaHook("GunsmithFrameworkReceiveState", item, data.SavedState);
+                        CallLuaHook("GunsmithFrameworkReceiveState", item, GunsmithDataAccess.GetSavedState(item));
                     }
                 }
                 return null;
@@ -271,16 +277,15 @@ namespace GunsmithFramework
             {
                 Item? item = FindArg<Item>(args);
                 string? savedState = FindStringArg(args, 0);
-                Barotrauma.Items.Components.GunsmithData? data = item?.GetComponent<Barotrauma.Items.Components.GunsmithData>();
-                if (data != null && savedState != null)
+                if (item != null && savedState != null)
                 {
                     if (GameMain.Client != null)
                     {
-                        data.SubmitStateToServer(savedState);
+                        GunsmithDataAccess.SubmitStateToServer(item, savedState);
                     }
                     else
                     {
-                        data.SavedState = savedState;
+                        GunsmithDataAccess.SetSavedState(item, savedState);
                     }
                 }
                 return null;

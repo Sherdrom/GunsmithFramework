@@ -1,4 +1,8 @@
 using Barotrauma.Items.Components;
+using GunsmithFramework;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.Loader;
 using Xunit;
 
 namespace GunsmithSharedTest;
@@ -52,5 +56,27 @@ public sealed class GunsmithDataTests
     public void IsValidSavedState_RejectsLongState()
     {
         Assert.False(GunsmithData.IsValidSavedState(new string('x', 8193)));
+    }
+
+    [Fact]
+    public void DataAccess_ReadsAndWritesComponentFromOlderAssemblyGeneration()
+    {
+        AssemblyLoadContext oldGeneration = new("GunsmithDataTests.OldGeneration", isCollectible: true);
+        try
+        {
+            Assembly oldAssembly = oldGeneration.LoadFromAssemblyPath(typeof(GunsmithData).Assembly.Location);
+            Type oldDataType = oldAssembly.GetType(typeof(GunsmithData).FullName!, throwOnError: true)!;
+            ItemComponent oldData = (ItemComponent)RuntimeHelpers.GetUninitializedObject(oldDataType);
+            oldDataType.GetProperty(nameof(GunsmithData.SavedState))!.SetValue(oldData, "old-state");
+
+            Assert.Same(oldData, GunsmithDataAccess.Find(new[] { oldData }));
+            Assert.Equal("old-state", GunsmithDataAccess.GetSavedState(oldData));
+            Assert.True(GunsmithDataAccess.SetSavedState(oldData, "new-state"));
+            Assert.Equal("new-state", oldDataType.GetProperty(nameof(GunsmithData.SavedState))!.GetValue(oldData));
+        }
+        finally
+        {
+            oldGeneration.Unload();
+        }
     }
 }
