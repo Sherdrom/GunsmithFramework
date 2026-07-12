@@ -9,9 +9,9 @@ local serialized = {}
 local quoted = {
     ["receiver"] = "\"receiver\"",
     ["stock"] = "\"stock\"",
-    ["receiver/barrel"] = "\"receiver/barrel\"",
-    ["receiver/barrel/muzzle"] = "\"receiver/barrel/muzzle\"",
-    ["receiver/optic"] = "\"receiver/optic\"",
+    ["receiver/barrel"] = "\"receiver\\/barrel\"",
+    ["receiver/barrel/muzzle"] = "\"receiver\\/barrel\\/muzzle\"",
+    ["receiver/optic"] = "\"receiver\\/optic\"",
     ["receiver-id"] = "\"receiver-id\"",
     ["barrel-id"] = "\"barrel-id\"",
     ["muzzle-id"] = "\"muzzle-id\"",
@@ -39,10 +39,12 @@ local parseCalls = {}
 
 json = {
     serialize = function(value)
-        assert(type(value) == "string")
-        table.insert(serialized, value)
-        assert(quoted[value] ~= nil)
-        return quoted[value]
+        assert(type(value) == "table" and value[2] == nil)
+        local stringValue = value[1]
+        assert(type(stringValue) == "string")
+        table.insert(serialized, stringValue)
+        assert(quoted[stringValue] ~= nil)
+        return "[" .. quoted[stringValue] .. "]"
     end,
     parse = function(value)
         table.insert(parseCalls, value)
@@ -68,7 +70,7 @@ local encoded = Persistence.Encode({
     ["receiver/optic"] = "optic-id"
 }, platform)
 
-assert(encoded == "{\"v\":1,\"parts\":{\"receiver\":\"receiver-id\",\"stock\":\"__empty\",\"receiver/barrel\":\"barrel-id\",\"receiver/barrel/muzzle\":\"muzzle-id\",\"receiver/optic\":\"optic-id\"}}")
+assert(encoded == "{\"v\":1,\"parts\":{\"receiver\":\"receiver-id\",\"stock\":\"__empty\",\"receiver\\/barrel\":\"barrel-id\",\"receiver\\/barrel\\/muzzle\":\"muzzle-id\",\"receiver\\/optic\":\"optic-id\"}}")
 
 local expectedSerialized = {
     "receiver", "receiver-id",

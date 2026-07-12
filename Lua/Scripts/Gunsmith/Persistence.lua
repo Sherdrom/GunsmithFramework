@@ -8,7 +8,8 @@ Gunsmith.Persistence = Persistence
 local saveVersion = 1
 
 local function encodeString(value)
-    return json.serialize(tostring(value))
+    local encoded = json.serialize({ tostring(value) })
+    return string.sub(encoded, 2, -2)
 end
 
 local function sortedSavedPaths(savedParts)

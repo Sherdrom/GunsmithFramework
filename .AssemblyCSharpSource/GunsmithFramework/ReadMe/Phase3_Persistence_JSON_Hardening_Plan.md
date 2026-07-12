@@ -75,8 +75,8 @@ Use plain `assert`. Inject a small fake `json` table before loading `Persistence
 
 The fake should:
 
-- record values passed to `json.serialize`
-- return predetermined quoted strings for the test values
+- record the string in each one-element table passed to `json.serialize`
+- return predetermined one-element JSON arrays for the test values
 - return a version 1 table from `json.parse`
 - throw for a malformed-input case so `pcall` behavior is exercised
 
@@ -100,14 +100,15 @@ In `Lua/Scripts/Gunsmith/Persistence.lua`:
 
 1. Delete `jsonEscape` and `jsonUnescape`.
 2. Keep the existing deterministic entry ordering.
-3. Encode each path and part id with `json.serialize(tostring(value))`.
+3. Encode each path and part id by serializing a one-element table, then use its already-quoted array element.
 4. Continue assembling the small version 1 envelope manually so property ordering remains deterministic.
 
 The resulting entry should be assembled from already-quoted JSON strings:
 
 ```lua
 local function encodeString(value)
-    return json.serialize(tostring(value))
+    local encoded = json.serialize({ tostring(value) })
+    return string.sub(encoded, 2, -2)
 end
 ```
 
