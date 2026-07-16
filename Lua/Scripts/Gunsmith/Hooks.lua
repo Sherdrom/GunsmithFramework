@@ -40,6 +40,24 @@ local function readItemsAndStrings(args)
     return items, strings
 end
 
+local function readItemCharacterAndStrings(args)
+    local item = nil
+    local character = nil
+    local strings = {}
+
+    for _, value in ipairs(args) do
+        if LuaUserData.IsTargetType(value, "Barotrauma.Item") then
+            item = value
+        elseif LuaUserData.IsTargetType(value, "Barotrauma.Character") then
+            character = value
+        elseif type(value) == "string" then
+            table.insert(strings, value)
+        end
+    end
+
+    return item, character, strings
+end
+
 local function applyGunsmithItem(item, diagnoseNpcPreset, npcPresetName)
     if NpcPresets and NpcPresets.TryApply and NpcPresets.TryApply(item, diagnoseNpcPreset, npcPresetName) then
         return
@@ -295,6 +313,13 @@ function Hooks.Register()
     end)
 
     if not CLIENT then
+        Hook.Add("GunsmithFrameworkSetPartFromClient", "GunsmithFrameworkSetPartFromClient", function(...)
+            local item, character, strings = readItemCharacterAndStrings({ ... })
+            if item and character and strings[1] and strings[2] then
+                return Runtime.SetPartFromClient(item, character, strings[1], strings[2])
+            end
+            return false
+        end)
         scheduleExistingItemApply()
         return
     end

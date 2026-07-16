@@ -63,28 +63,24 @@ local function isInSourceItemInventory(item, sourceItem)
 end
 
 local function findItemInInventory(inventory, identifier, sourceItem, visited)
-    if not inventory or not inventory.slots then return nil end
+    if not inventory then return nil end
     visited = visited or {}
 
     local stack = { inventory }
     while #stack > 0 do
         local inv = table.remove(stack)
-        if inv and inv.slots and not visited[inv] then
+        if inv and not visited[inv] then
             visited[inv] = true
 
             if not isSourceInventory(inv, sourceItem) then
-                for _, slot in pairs(inv.slots) do
-                    if slot and slot.items then
-                        for _, item in pairs(slot.items) do
-                            if item and not item.removed and item ~= sourceItem and not isInSourceItemInventory(item, sourceItem) then
-                                if Core.ItemIdentifier(item) == identifier then
-                                    return item
-                                end
+                for item in inv.AllItemsMod do
+                    if item and not item.removed and item ~= sourceItem and not isInSourceItemInventory(item, sourceItem) then
+                        if Core.ItemIdentifier(item) == identifier then
+                            return item
+                        end
 
-                                if item.OwnInventory then
-                                    table.insert(stack, item.OwnInventory)
-                                end
-                            end
+                        if item.OwnInventory then
+                            table.insert(stack, item.OwnInventory)
                         end
                     end
                 end
@@ -178,20 +174,16 @@ function Inventory.CollectAvailableItemIds(character, sourceItem)
     local stack = { character.Inventory }
     while #stack > 0 do
         local inv = table.remove(stack)
-        if inv and inv.slots and not visited[inv] then
+        if inv and not visited[inv] then
             visited[inv] = true
 
             if not isSourceInventory(inv, sourceItem) then
-                for _, slot in pairs(inv.slots) do
-                    if slot and slot.items then
-                        for _, slotItem in pairs(slot.items) do
-                            if slotItem and not slotItem.removed and slotItem ~= sourceItem and not isInSourceItemInventory(slotItem, sourceItem) then
-                                local id = Core.ItemIdentifier(slotItem)
-                                if id then ids[id] = true end
-                                if slotItem.OwnInventory then
-                                    table.insert(stack, slotItem.OwnInventory)
-                                end
-                            end
+                for slotItem in inv.AllItemsMod do
+                    if slotItem and not slotItem.removed and slotItem ~= sourceItem and not isInSourceItemInventory(slotItem, sourceItem) then
+                        local id = Core.ItemIdentifier(slotItem)
+                        if id then ids[id] = true end
+                        if slotItem.OwnInventory then
+                            table.insert(stack, slotItem.OwnInventory)
                         end
                     end
                 end

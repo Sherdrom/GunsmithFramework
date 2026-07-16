@@ -11,6 +11,7 @@ local quoted = {
     ["stock"] = "\"stock\"",
     ["receiver/barrel"] = "\"receiver\\/barrel\"",
     ["receiver/barrel/muzzle"] = "\"receiver\\/barrel\\/muzzle\"",
+    ["receiver/handguard"] = "\"receiver\\/handguard\"",
     ["receiver/optic"] = "\"receiver\\/optic\"",
     ["receiver-id"] = "\"receiver-id\"",
     ["barrel-id"] = "\"barrel-id\"",
@@ -63,6 +64,17 @@ local platform = {
     }
 }
 
+local originalBuildDefaultSelection = GunsmithFramework.Core.BuildDefaultSelection
+local originalIsRequiredSlot = GunsmithFramework.Core.IsRequiredSlot
+local originalIsValidPath = GunsmithFramework.Core.IsValidPath
+GunsmithFramework.Core.BuildDefaultSelection = function()
+    return { ["receiver/handguard"] = "default-handguard" }
+end
+GunsmithFramework.Core.IsRequiredSlot = function() return false end
+GunsmithFramework.Core.IsValidPath = function(_, _, path)
+    return path == "receiver/handguard"
+end
+
 local encoded = Persistence.Encode({
     receiver = "receiver-id",
     ["receiver/barrel"] = "barrel-id",
@@ -70,13 +82,18 @@ local encoded = Persistence.Encode({
     ["receiver/optic"] = "optic-id"
 }, platform)
 
-assert(encoded == "{\"v\":1,\"parts\":{\"receiver\":\"receiver-id\",\"stock\":\"__empty\",\"receiver\\/barrel\":\"barrel-id\",\"receiver\\/barrel\\/muzzle\":\"muzzle-id\",\"receiver\\/optic\":\"optic-id\"}}")
+GunsmithFramework.Core.BuildDefaultSelection = originalBuildDefaultSelection
+GunsmithFramework.Core.IsRequiredSlot = originalIsRequiredSlot
+GunsmithFramework.Core.IsValidPath = originalIsValidPath
+
+assert(encoded == "{\"v\":1,\"parts\":{\"receiver\":\"receiver-id\",\"stock\":\"__empty\",\"receiver\\/barrel\":\"barrel-id\",\"receiver\\/barrel\\/muzzle\":\"muzzle-id\",\"receiver\\/handguard\":\"__empty\",\"receiver\\/optic\":\"optic-id\"}}")
 
 local expectedSerialized = {
     "receiver", "receiver-id",
     "stock", "__empty",
     "receiver/barrel", "barrel-id",
     "receiver/barrel/muzzle", "muzzle-id",
+    "receiver/handguard", "__empty",
     "receiver/optic", "optic-id"
 }
 assert(#serialized == #expectedSerialized)

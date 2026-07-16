@@ -639,14 +639,14 @@ local function returnSelectionSubtree(character, sourceItem, selection, platform
     return pending
 end
 
-function Runtime.SetPart(item, slotPath, partId, refreshMode)
+function Runtime.SetPart(item, slotPath, partId, refreshMode, character)
     local selection = Runtime.GetSelection(item)
     local platform = Core.PlatformConfig(item)
     local weapon = Core.WeaponConfig(item)
     local ownerId = Core.OwnerForWeapon(weapon)
     if not selection or not platform or not Core.IsValidPath(selection, platform, slotPath) then return end
 
-    local character = Inventory and Inventory.ActorForItem(item) or nil
+    character = character or (Inventory and Inventory.ActorForItem(item) or nil)
 
     local quickSlotIndex = QuickMod and QuickMod.SlotForPath(item, slotPath) or nil
     if quickSlotIndex ~= nil then
@@ -691,7 +691,10 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode)
 
     local returnedParts = 0
     local refreshWhenReturned = function()
-        if item and not item.removed then
+        if not item or item.removed then return end
+        if SERVER then
+            Persistence.Save(item)
+        else
             Runtime.Open(item)
         end
     end
@@ -725,6 +728,20 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode)
         return false
     end
     return true
+end
+
+function Runtime.SetPartFromClient(item, character, slotPath, partId)
+    if not SERVER or not item or not character or type(slotPath) ~= "string" or type(partId) ~= "string" then return false end
+    if QuickMod and QuickMod.SlotForPath(item, slotPath) ~= nil then return false end
+
+    local selection = Runtime.GetSelection(item)
+    local platform = Core.PlatformConfig(item)
+    if not selection or not platform then return false end
+
+    local before = buildSignature(item, selection, platform, true)
+    Runtime.SetPart(item, slotPath, partId, nil, character)
+    if before == buildSignature(item, selection, platform, true) then return false end
+    return Persistence.Encode(selection, platform, Core.WeaponConfig(item))
 end
 
 function Runtime.InstallQuickItem(item, slotPath, draggedItem)

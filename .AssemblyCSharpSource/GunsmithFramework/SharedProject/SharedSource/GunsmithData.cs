@@ -10,18 +10,23 @@ namespace Barotrauma.Items.Components
         private enum ClientEventType : byte
         {
             RequestState = 0,
-            SaveState = 1
+            SaveState = 1,
+            SetPart = 2
         }
 
         private readonly struct ClientEventData : IEventData
         {
             public readonly ClientEventType EventType;
             public readonly string SavedState;
+            public readonly string SlotPath;
+            public readonly string PartId;
 
-            public ClientEventData(ClientEventType eventType, string savedState = "")
+            public ClientEventData(ClientEventType eventType, string savedState = "", string slotPath = "", string partId = "")
             {
                 EventType = eventType;
                 SavedState = savedState ?? string.Empty;
+                SlotPath = slotPath ?? string.Empty;
+                PartId = partId ?? string.Empty;
             }
         }
 
@@ -53,6 +58,16 @@ namespace Barotrauma.Items.Components
 #endif
         }
 
+        public void SubmitPartChangeToServer(string slotPath, string partId)
+        {
+#if CLIENT
+            if (IsValidPartChange(slotPath, partId))
+            {
+                item.CreateClientEvent(this, new ClientEventData(ClientEventType.SetPart, slotPath: slotPath, partId: partId));
+            }
+#endif
+        }
+
         public void BroadcastState()
         {
 #if SERVER
@@ -68,9 +83,15 @@ namespace Barotrauma.Items.Components
             }
 
             msg.WriteByte((byte)eventData.EventType);
-            if (eventData.EventType == ClientEventType.SaveState)
+            switch (eventData.EventType)
             {
-                msg.WriteString(NormalizeSavedState(eventData.SavedState));
+                case ClientEventType.SaveState:
+                    msg.WriteString(NormalizeSavedState(eventData.SavedState));
+                    break;
+                case ClientEventType.SetPart:
+                    msg.WriteString(eventData.SlotPath);
+                    msg.WriteString(eventData.PartId);
+                    break;
             }
         }
 
@@ -102,6 +123,31 @@ namespace Barotrauma.Items.Components
 #if SERVER
                     global::GunsmithFramework.GunsmithLuaHooks.Call("GunsmithFrameworkReceiveState", item, SavedState);
 #endif
+                    BroadcastState();
+                    break;
+                case ClientEventType.SetPart:
+                    string slotPath = msg.ReadString();
+                    string partId = msg.ReadString();
+                    if (!IsValidPartChange(slotPath, partId) || !item.CanClientAccess(c))
+                    {
+                        BroadcastState();
+                        return;
+                    }
+
+#if SERVER
+                    var character = c.Character;
+                    if (character != null)
+                    {
+                        object? result = global::GunsmithFramework.GunsmithLuaHooks.Call("GunsmithFrameworkSetPartFromClient", item, character, slotPath, partId);
+                        if (result is string updatedState && IsValidSavedState(updatedState))
+                        {
+                            SavedState = updatedState;
+                        }
+                    }
+#endif
+                    BroadcastState();
+                    break;
+                default:
                     BroadcastState();
                     break;
             }
@@ -184,5 +230,8 @@ namespace Barotrauma.Items.Components
                 return false;
             }
         }
+
+        internal static bool IsValidPartChange(string? slotPath, string? partId)
+            => !string.IsNullOrWhiteSpace(slotPath) && !string.IsNullOrWhiteSpace(partId);
     }
 }

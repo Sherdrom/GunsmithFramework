@@ -39,10 +39,9 @@ local function partIdsForItemIdentifier(identifier)
 end
 
 local function slotItem(item, slotIndex)
-    if not item or not item.OwnInventory or not item.OwnInventory.slots then return nil end
-    local slot = item.OwnInventory.slots[slotIndex + 1]
-    if not slot or not slot.items then return nil end
-    for _, contained in pairs(slot.items) do
+    local inventory = item and item.OwnInventory or nil
+    if not inventory or slotIndex == nil then return nil end
+    for contained in inventory.GetItemsAt(slotIndex) do
         if contained and not contained.removed then
             return contained
         end
@@ -179,7 +178,6 @@ function QuickMod.InstallSpecificPartItem(item, character, partItem, slotIndex)
 end
 
 function QuickMod.ClearSlot(item, character, slotIndex, onReturned)
-    if SERVER then return false end
     local contained = slotItem(item, slotIndex)
     if not contained then return true end
 

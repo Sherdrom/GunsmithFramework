@@ -35,10 +35,25 @@ function Persistence.Encode(selection, platform, weapon)
         table.insert(entries, encodeString(path) .. ":" .. encodeString(partId or Gunsmith.EmptyPartId))
     end
 
-    for _, path in ipairs(Core.SortedSelectionPaths(selection)) do
-        if not Core.IsRootSlot(platform, path) and selection[path] then
-            table.insert(entries, encodeString(path) .. ":" .. encodeString(selection[path]))
+    local nestedParts = {}
+    for path, partId in pairs(selection) do
+        if not Core.IsRootSlot(platform, path) and partId then
+            nestedParts[path] = partId
         end
+    end
+
+    local defaults = Core.BuildDefaultSelection(platform, weapon, Core.OwnerForWeapon(weapon))
+    for path, _ in pairs(defaults) do
+        if not Core.IsRootSlot(platform, path)
+            and selection[path] == nil
+            and not Core.IsRequiredSlot(platform, path)
+            and Core.IsValidPath(selection, platform, path) then
+            nestedParts[path] = Gunsmith.EmptyPartId
+        end
+    end
+
+    for _, path in ipairs(Core.SortedSelectionPaths(nestedParts)) do
+        table.insert(entries, encodeString(path) .. ":" .. encodeString(nestedParts[path]))
     end
 
     return string.format("{\"v\":%d,\"parts\":{%s}}", saveVersion, table.concat(entries, ","))
@@ -99,9 +114,11 @@ function Persistence.Receive(item, json)
     State.loadedStates[key] = true
     State.appliedSignatures[item] = nil
     State.appliedConfigSignatures[item] = nil
+    if State.lastQuickSignatures then State.lastQuickSignatures[item] = nil end
 
     if Gunsmith.Runtime then
         Gunsmith.Runtime.Apply(item, hasSavedState)
+        Gunsmith.Runtime.RefreshParts(item, true)
     end
 end
 

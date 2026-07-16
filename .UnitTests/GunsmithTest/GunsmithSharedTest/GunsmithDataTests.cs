@@ -81,6 +81,17 @@ public sealed class GunsmithDataTests
         Assert.False(GunsmithData.IsValidSavedState(new string('x', 8193)));
     }
 
+    [Theory]
+    [InlineData("receiver/handguard", "hk416_handguard", true)]
+    [InlineData("", "hk416_handguard", false)]
+    [InlineData("receiver/handguard", "", false)]
+    [InlineData(" ", "hk416_handguard", false)]
+    [InlineData("receiver/handguard", " ", false)]
+    public void IsValidPartChange_RequiresSlotAndPart(string slotPath, string partId, bool expected)
+    {
+        Assert.Equal(expected, GunsmithData.IsValidPartChange(slotPath, partId));
+    }
+
     [Fact]
     public void DataAccess_ReadsAndWritesComponentFromOlderAssemblyGeneration()
     {

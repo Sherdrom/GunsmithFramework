@@ -39,6 +39,9 @@ namespace GunsmithFramework
         internal static bool SubmitStateToServer(Item? item, string state)
             => Invoke(item, nameof(GunsmithData.SubmitStateToServer), state);
 
+        internal static bool SubmitPartChangeToServer(Item? item, string slotPath, string partId)
+            => Invoke(item, nameof(GunsmithData.SubmitPartChangeToServer), slotPath, partId);
+
         internal static bool BroadcastState(Item? item)
             => Invoke(item, nameof(GunsmithData.BroadcastState));
 

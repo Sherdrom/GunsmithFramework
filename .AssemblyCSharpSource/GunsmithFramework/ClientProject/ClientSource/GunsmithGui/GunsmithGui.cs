@@ -100,7 +100,7 @@ namespace GunsmithFramework
 
             try
             {
-                activeWindow.AddToGUIUpdateList();
+                activeWindow.AddToGUIUpdateList(order: 1);
             }
             catch (Exception ex)
             {
@@ -205,7 +205,7 @@ namespace GunsmithFramework
         {
             if (!activeQuickMode || activeWindow == null) { return; }
             BuildQuickOverlay(title);
-            activeWindow.AddToGUIUpdateList();
+            activeWindow.AddToGUIUpdateList(order: 1);
         }
 
         private static void BuildSlotPanel(GUIFrame body)
@@ -575,7 +575,22 @@ namespace GunsmithFramework
             {
                 if (!installed && part.IsActionable && activeItem != null && !activeItem.Removed)
                 {
-                    GunsmithApi.CallLuaHook(activeQuickMode ? "GunsmithFrameworkSetQuickPart" : "GunsmithFrameworkSetPart", activeItem, slot.Path, part.Id);
+                    if (activeQuickMode)
+                    {
+                        GunsmithApi.CallLuaHook("GunsmithFrameworkSetQuickPart", activeItem, slot.Path, part.Id);
+                    }
+                    else if (slot.QuickMeta.SlotIndex >= 0)
+                    {
+                        GunsmithApi.CallLuaHook("GunsmithFrameworkSetPart", activeItem, slot.Path, part.Id);
+                    }
+                    else if (GameMain.Client != null)
+                    {
+                        GunsmithDataAccess.SubmitPartChangeToServer(activeItem, slot.Path, part.Id);
+                    }
+                    else
+                    {
+                        GunsmithApi.CallLuaHook("GunsmithFrameworkSetPart", activeItem, slot.Path, part.Id);
+                    }
                 }
                 return true;
             };
@@ -679,7 +694,7 @@ namespace GunsmithFramework
             if (activeWindow == null) { return; }
             try
             {
-                activeWindow.AddToGUIUpdateList();
+                activeWindow.AddToGUIUpdateList(order: 1);
             }
             catch (Exception ex)
             {

@@ -4,6 +4,7 @@ local Gunsmith = GunsmithFramework
 local Core = Gunsmith.Core
 local Inventory = Gunsmith.Inventory
 local Stats = Gunsmith.Stats
+local QuickMod = Gunsmith.QuickMod
 local UiSpec = {}
 Gunsmith.UiSpec = UiSpec
 
@@ -55,15 +56,18 @@ function UiSpec.Build(item, selection, platform, currentPath)
         end
 
         local slotPath = slot.path
-        local currentPartId = tostring(selection[slotPath] or "")
-        local canEnter = Core.HasChildSlots(selection, platform, slotPath) and "1" or "0"
-        table.insert(entries, table.concat({
+        local entry = {
             slotPath,
             slot.nameKey,
-            currentPartId,
-            canEnter,
+            tostring(selection[slotPath] or ""),
+            Core.HasChildSlots(selection, platform, slotPath) and "1" or "0",
             table.concat(partEntries, ",")
-        }, "|"))
+        }
+        local quickSlotIndex = QuickMod and QuickMod.SlotForPath(item, slotPath) or nil
+        if quickSlotIndex ~= nil then
+            table.insert(entry, "slot=" .. tostring(quickSlotIndex))
+        end
+        table.insert(entries, table.concat(entry, "|"))
     end
 
     return table.concat({
