@@ -92,6 +92,18 @@ public sealed class GunsmithDataTests
         Assert.Equal(expected, GunsmithData.IsValidPartChange(slotPath, partId));
     }
 
+    [Theory]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, true)]
+    [InlineData(false, false, false)]
+    public void CanClientSubmitPartChange_AllowsOwnedOrAccessibleItem(
+        bool isOwnedByCharacter,
+        bool canClientAccess,
+        bool expected)
+    {
+        Assert.Equal(expected, GunsmithData.CanClientSubmitPartChange(isOwnedByCharacter, canClientAccess));
+    }
+
     [Fact]
     public void DataAccess_ReadsAndWritesComponentFromOlderAssemblyGeneration()
     {

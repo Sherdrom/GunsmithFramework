@@ -128,7 +128,9 @@ namespace Barotrauma.Items.Components
                 case ClientEventType.SetPart:
                     string slotPath = msg.ReadString();
                     string partId = msg.ReadString();
-                    if (!IsValidPartChange(slotPath, partId) || !item.CanClientAccess(c))
+                    bool isOwnedByCharacter = c.Character is { } owner && item.IsOwnedBy(owner);
+                    if (!IsValidPartChange(slotPath, partId) ||
+                        !CanClientSubmitPartChange(isOwnedByCharacter, item.CanClientAccess(c)))
                     {
                         BroadcastState();
                         return;
@@ -233,5 +235,8 @@ namespace Barotrauma.Items.Components
 
         internal static bool IsValidPartChange(string? slotPath, string? partId)
             => !string.IsNullOrWhiteSpace(slotPath) && !string.IsNullOrWhiteSpace(partId);
+
+        internal static bool CanClientSubmitPartChange(bool isOwnedByCharacter, bool canClientAccess)
+            => isOwnedByCharacter || canClientAccess;
     }
 }

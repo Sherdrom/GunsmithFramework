@@ -119,6 +119,7 @@ function Persistence.Receive(item, json)
     if Gunsmith.Runtime then
         Gunsmith.Runtime.Apply(item, hasSavedState)
         Gunsmith.Runtime.RefreshParts(item, true)
+        Gunsmith.Runtime.SchedulePartsRefresh(item, 100, true)
     end
 end
 

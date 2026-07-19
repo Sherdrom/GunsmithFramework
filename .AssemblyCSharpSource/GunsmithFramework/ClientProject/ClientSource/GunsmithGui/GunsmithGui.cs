@@ -585,7 +585,7 @@ namespace GunsmithFramework
                     }
                     else if (GameMain.Client != null)
                     {
-                        GunsmithDataAccess.SubmitPartChangeToServer(activeItem, slot.Path, part.Id);
+                        GunsmithPartChangeClient.Submit(activeItem, slot.Path, part.Id);
                     }
                     else
                     {

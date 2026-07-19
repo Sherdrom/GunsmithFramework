@@ -121,4 +121,30 @@ assert(Persistence.Decode("wrong-version") == nil)
 assert(Persistence.Decode("missing-parts") == nil)
 assert(Persistence.Decode("non-table-parts") == nil)
 
+local refreshed = 0
+local scheduled
+local item = {}
+GunsmithFramework.State = {
+    selections = {},
+    loadedStates = {},
+    appliedSignatures = {},
+    appliedConfigSignatures = {},
+    lastQuickSignatures = {}
+}
+GunsmithFramework.Core.PlatformConfig = function() return platform end
+GunsmithFramework.Core.WeaponConfig = function() return {} end
+GunsmithFramework.Core.ItemKey = function() return "weapon" end
+GunsmithFramework.Core.BuildDefaultSelection = function() return {} end
+GunsmithFramework.Core.PruneInvalidSelections = function() end
+GunsmithFramework.Runtime = {
+    Apply = function() end,
+    RefreshParts = function() refreshed = refreshed + 1 end,
+    SchedulePartsRefresh = function(receivedItem, delay, alreadySynced)
+        scheduled = { item = receivedItem, delay = delay, alreadySynced = alreadySynced }
+    end
+}
+Persistence.Receive(item, "empty-parts")
+assert(refreshed == 1)
+assert(scheduled.item == item and scheduled.delay == 100 and scheduled.alreadySynced == true)
+
 print("Persistence JSON uses native serialization and validates decoded version 1 state")

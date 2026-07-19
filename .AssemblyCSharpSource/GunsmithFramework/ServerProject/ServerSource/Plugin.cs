@@ -11,6 +11,7 @@ namespace GunsmithFramework
             if (LuaCsSetup.Instance?.Hook is Barotrauma.LuaCs.Compatibility.ILuaCsHook hook)
             {
                 GunsmithServerHooks.RegisterLuaHooks(hook);
+                GunsmithPartChangeServer.Register();
             }
             else
             {

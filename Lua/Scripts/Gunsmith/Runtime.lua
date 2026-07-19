@@ -716,9 +716,6 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode, character)
     end
 
     Core.ClearDescendants(selection, slotPath)
-    if partId ~= Gunsmith.EmptyPartId then
-        Core.ApplyMountDefaultsForPath(selection, slotPath, ownerId, {}, 0)
-    end
     Core.PruneInvalidSelections(selection, platform, weapon, ownerId)
     Core.InvalidateQuickSlotsCache(item)
     if Gunsmith.QuickUiSpec then Gunsmith.QuickUiSpec.InvalidateCache(item) end
