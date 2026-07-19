@@ -3,9 +3,18 @@ namespace GunsmithFramework
     internal static class GunsmithQuickPartItemSpawner
     {
         private static readonly HashSet<string> PendingQuickPartSpawns = new(StringComparer.OrdinalIgnoreCase);
+        private static int generation;
 
         internal static Action<Item>? BeginQuickSlotMutation { get; set; }
         internal static Action<Item>? EndQuickSlotMutation { get; set; }
+
+        internal static void Reset()
+        {
+            generation++;
+            PendingQuickPartSpawns.Clear();
+            BeginQuickSlotMutation = null;
+            EndQuickSlotMutation = null;
+        }
 
         internal static bool Ensure(Item weaponItem, int slotIndex, string itemIdentifier, bool createNetworkEvent)
         {
@@ -43,11 +52,15 @@ namespace GunsmithFramework
                 return true;
             }
 
+            int queuedGeneration = generation;
             Entity.Spawner.AddItemToSpawnQueue(prefab, weaponItem.WorldPosition, null, null, spawned =>
             {
                 try
                 {
-                    if (spawned == null || weaponItem.Removed || weaponItem.OwnInventory == null)
+                    if (queuedGeneration != generation ||
+                        spawned == null ||
+                        weaponItem.Removed ||
+                        weaponItem.OwnInventory == null)
                     {
                         RemoveSpawnedItem(spawned);
                         return;
@@ -63,7 +76,10 @@ namespace GunsmithFramework
                 }
                 finally
                 {
-                    PendingQuickPartSpawns.Remove(pendingKey);
+                    if (queuedGeneration == generation)
+                    {
+                        PendingQuickPartSpawns.Remove(pendingKey);
+                    }
                 }
             });
 

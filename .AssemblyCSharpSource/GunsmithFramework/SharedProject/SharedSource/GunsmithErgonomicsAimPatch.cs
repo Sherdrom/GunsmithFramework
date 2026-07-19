@@ -22,6 +22,9 @@ namespace GunsmithFramework
         private static readonly Dictionary<Character, AimRaiseRuntime> runtimes = new();
         private static readonly AccessTools.FieldRef<Pickable, Character> pickerRef = AccessTools.FieldRefAccess<Pickable, Character>("picker");
 
+        internal static void Reset()
+            => runtimes.Clear();
+
         private static MethodBase TargetMethod()
         {
             MethodInfo? method = AccessTools.GetDeclaredMethods(typeof(Holdable))

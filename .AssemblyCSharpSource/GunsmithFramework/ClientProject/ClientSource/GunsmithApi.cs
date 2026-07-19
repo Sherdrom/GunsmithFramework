@@ -344,19 +344,37 @@ namespace GunsmithFramework
             spriteBatch = null;
             graphicsDevice = null;
 
-            GunsmithGui.CloseWindow();
+            GunsmithGui.Reset();
+            GunsmithFabricatorClientPatch.Reset();
 
             foreach (KeyValuePair<Item, GunsmithSpriteState> pair in spriteStates.ToArray())
             {
-                RestoreVanillaSprite(pair.Key);
-                RemoveState(pair.Key);
+                try
+                {
+                    if (!pair.Key.Removed)
+                    {
+                        RestoreVanillaSprite(pair.Key);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LuaCsSetup.PrintCsMessage($"[GunsmithFramework] Failed to restore a vanilla sprite during cleanup: {ex.Message}");
+                }
+
+                try
+                {
+                    RemoveState(pair.Key);
+                }
+                catch (Exception ex)
+                {
+                    LuaCsSetup.PrintCsMessage($"[GunsmithFramework] Failed to dispose a generated sprite during cleanup: {ex.Message}");
+                }
             }
 
             GunsmithQuickSlotLightPatch.ClearAllState();
             GunsmithHiddenQuickSlotsPatch.Reset();
             GunsmithQuickSlotLayoutPatch.ClearAllLayouts();
             GunsmithQuickAttachmentTransformService.ClearAllState();
-            GunsmithRuntimeStates.Clear();
             WeaponTags.Clear();
 
             foreach (Texture2D texture in textureCache.Values)

@@ -24,7 +24,6 @@ namespace GunsmithFramework
         public void OnLoadCompleted()
         {
             harmonyInstance?.PatchAll();
-            GunsmithNpcPresetPatch.ReportReady();
             if (harmonyInstance != null)
             {
                 GunsmithQuickAttachmentBarrelSelectorPatch.PatchOptionalVce(harmonyInstance);
@@ -41,7 +40,14 @@ namespace GunsmithFramework
             GunsmithLuaHooks.Clear();
             harmonyInstance?.UnpatchSelf();
             DisposePlatform();
+            GunsmithQuickAttachmentBarrelSelectorPatch.Reset();
+            GunsmithQuickSlotCapacityPatch.Reset();
+            GunsmithQuickAttachmentBarrelTransforms.ClearAllTransforms();
+            GunsmithErgonomicsAimPatch.Reset();
+            GunsmithNpcPresetPatch.Reset();
+            GunsmithQuickPartItemSpawner.Reset();
             GunsmithRuntimeStates.Clear();
+            Package = null;
             harmonyInstance = null;
         }
 

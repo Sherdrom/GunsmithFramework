@@ -1024,6 +1024,15 @@ namespace GunsmithFramework
                 return lineTexture;
             }
 
+            public static void DisposeLineTexture()
+            {
+                if (lineTexture != null && !lineTexture.IsDisposed)
+                {
+                    lineTexture.Dispose();
+                }
+                lineTexture = null;
+            }
+
             private readonly record struct QuickGeometry(Rectangle SourceRect, Rectangle Destination, float Scale);
 
             private readonly record struct QuickSlotLayout(GunsmithGuiSlot Slot, Vector2 Anchor, Rectangle Rect, bool AnchorValid);

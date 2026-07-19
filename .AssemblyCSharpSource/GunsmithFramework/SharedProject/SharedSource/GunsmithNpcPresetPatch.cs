@@ -10,6 +10,19 @@ namespace GunsmithFramework
         private static readonly object PresetsLock = new();
         private static readonly object PendingItemPresetsLock = new();
 
+        internal static void Reset()
+        {
+            lock (PendingItemPresetsLock)
+            {
+                PendingItemPresets.Clear();
+            }
+
+            lock (PresetsLock)
+            {
+                Presets.Clear();
+            }
+        }
+
         private sealed class PresetName
         {
             public PresetName(string value)
@@ -144,8 +157,5 @@ namespace GunsmithFramework
             }
         }
 
-        internal static void ReportReady()
-        {
-        }
     }
 }

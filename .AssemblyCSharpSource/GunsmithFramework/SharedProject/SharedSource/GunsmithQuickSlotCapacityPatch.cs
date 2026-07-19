@@ -7,6 +7,13 @@ namespace GunsmithFramework
         private static readonly Dictionary<string, string> QuickSlotTagsByItemIdentifier = new(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, HashSet<int>> InjectedSlotsByItemIdentifier = new(StringComparer.OrdinalIgnoreCase);
 
+        internal static void Reset()
+        {
+            MaxQuickSlotByItemIdentifier.Clear();
+            QuickSlotTagsByItemIdentifier.Clear();
+            InjectedSlotsByItemIdentifier.Clear();
+        }
+
         public static void RegisterQuickSlotCapacity(string itemIdentifier, int maxSlot, string quickSlotTags)
         {
             if (string.IsNullOrWhiteSpace(itemIdentifier) || maxSlot < 0)

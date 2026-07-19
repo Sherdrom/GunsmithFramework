@@ -18,6 +18,15 @@ namespace GunsmithFramework
         private static readonly ConcurrentDictionary<Item, CachedLocalPosition> CachedLocalPositions = new();
         private static readonly ConcurrentDictionary<Item, string> ReportedMissingRuleSignatureByItem = new();
 
+        internal static void ClearAllTransforms()
+        {
+            RulesByItem.Clear();
+            ActiveRuleKeyByItem.Clear();
+            ActiveProjectileSelectionByItem.Clear();
+            CachedLocalPositions.Clear();
+            ReportedMissingRuleSignatureByItem.Clear();
+        }
+
         public static void ClearTransforms(Item item)
         {
             if (item == null) { return; }

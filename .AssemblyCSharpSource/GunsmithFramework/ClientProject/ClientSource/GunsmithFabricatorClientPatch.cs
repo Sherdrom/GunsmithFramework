@@ -31,12 +31,54 @@ namespace GunsmithFramework
         private sealed class ClientState
         {
             public GUIButton? GunsmithCategoryButton { get; set; }
+            public Dictionary<GUIButton, (GUIButton.OnClickedHandler? OnClicked, Point Size)> OriginalCategoryButtons { get; } = new();
             public bool GunsmithCategorySelected { get; set; }
             public bool RefreshingGunsmithList { get; set; }
             public GUIComponent? InputInventoryHolder { get; set; }
+            public Vector2? OriginalInputInventoryHolderSize { get; set; }
             public GUIComponent? WeaponArea { get; set; }
             public GUIComponent? WeaponInventoryHolder { get; set; }
+            public ItemContainer? WeaponContainer { get; set; }
+            public (bool AllowUIOverlap, bool DrawInventory, bool HideItems, string? UILabel, bool DrawWhenEquipped, RectTransform? InventoryRectTransform)? OriginalWeaponContainerState { get; set; }
             public string LastWeaponKey { get; set; } = "\0";
+        }
+
+        internal static void Reset()
+        {
+            foreach (KeyValuePair<Fabricator, ClientState> pair in States)
+            {
+                ClientState state = pair.Value;
+                foreach (KeyValuePair<GUIButton, (GUIButton.OnClickedHandler? OnClicked, Point Size)> original in state.OriginalCategoryButtons)
+                {
+                    original.Key.OnClicked = original.Value.OnClicked;
+                    original.Key.RectTransform.NonScaledSize = original.Value.Size;
+                }
+
+                if (state.GunsmithCategoryButton != null)
+                {
+                    state.GunsmithCategoryButton.RectTransform.Parent = null;
+                }
+                if (state.WeaponInventoryHolder != null)
+                {
+                    state.WeaponInventoryHolder.RectTransform.Parent = null;
+                }
+                if (state.WeaponArea != null)
+                {
+                    state.WeaponArea.RectTransform.Parent = null;
+                }
+                if (state.InputInventoryHolder != null && state.OriginalInputInventoryHolderSize is Vector2 originalInputSize)
+                {
+                    state.InputInventoryHolder.RectTransform.RelativeSize = originalInputSize;
+                }
+
+                RestoreWeaponContainer(state);
+                if (state.InputInventoryHolder?.Parent is GUILayoutGroup inputLayout)
+                {
+                    inputLayout.Recalculate();
+                }
+            }
+
+            States.Clear();
         }
 
         [HarmonyPatch(typeof(Fabricator), "CreateGUI")]
@@ -63,6 +105,8 @@ namespace GunsmithFramework
                 return;
             }
 
+            state.InputInventoryHolder = inputInventoryHolder;
+            state.OriginalInputInventoryHolderSize = inputInventoryHolder.RectTransform.RelativeSize;
             inputInventoryHolder.RectTransform.RelativeSize = new Vector2(0.55f, 1f);
 
             var weaponArea = new GUILayoutGroup(
@@ -80,11 +124,11 @@ namespace GunsmithFramework
             weaponArea.SetAsFirstChild();
             inputInventoryHolder.SetAsFirstChild();
 
-            state.InputInventoryHolder = inputInventoryHolder;
             state.WeaponArea = weaponArea;
             state.WeaponInventoryHolder = weaponInventoryHolder;
             state.LastWeaponKey = GetWeaponKey(__instance);
 
+            CaptureWeaponContainer(state, weaponContainer);
             AttachWeaponContainerToGui(weaponContainer, weaponInventoryHolder);
             UpdateWeaponSlotVisibility(__instance);
         }
@@ -101,6 +145,7 @@ namespace GunsmithFramework
                 return;
             }
 
+            CaptureWeaponContainer(state, weaponContainer);
             AttachWeaponContainerToGui(weaponContainer, state.WeaponInventoryHolder);
             UpdateWeaponSlotVisibility(__instance);
         }
@@ -178,7 +223,7 @@ namespace GunsmithFramework
                 return;
             }
 
-            WrapOriginalCategoryButtons(fabricator, categoryButtons);
+            WrapOriginalCategoryButtons(fabricator, state, categoryButtons);
 
             GUIButton firstButton = categoryButtons[0];
             GUIComponent? categoryButtonContainer = firstButton.Parent;
@@ -221,11 +266,17 @@ namespace GunsmithFramework
             UpdateCategoryButtonSelection(fabricator);
         }
 
-        private static void WrapOriginalCategoryButtons(Fabricator fabricator, IEnumerable<GUIButton> categoryButtons)
+        private static void WrapOriginalCategoryButtons(Fabricator fabricator, ClientState state, IEnumerable<GUIButton> categoryButtons)
         {
             foreach (GUIButton categoryButton in categoryButtons)
             {
+                if (state.OriginalCategoryButtons.ContainsKey(categoryButton))
+                {
+                    continue;
+                }
+
                 GUIButton.OnClickedHandler? originalOnClicked = categoryButton.OnClicked;
+                state.OriginalCategoryButtons[categoryButton] = (originalOnClicked, categoryButton.RectTransform.NonScaledSize);
                 if (originalOnClicked == null)
                 {
                     continue;
@@ -301,6 +352,42 @@ namespace GunsmithFramework
             weaponContainer.UILabel = string.Empty;
             weaponContainer.Inventory.DrawWhenEquipped = true;
             weaponContainer.Inventory.RectTransform = holder.RectTransform;
+        }
+
+        private static void CaptureWeaponContainer(ClientState state, ItemContainer weaponContainer)
+        {
+            if (ReferenceEquals(state.WeaponContainer, weaponContainer) && state.OriginalWeaponContainerState != null)
+            {
+                return;
+            }
+
+            RestoreWeaponContainer(state);
+            state.WeaponContainer = weaponContainer;
+            state.OriginalWeaponContainerState = (
+                weaponContainer.AllowUIOverlap,
+                weaponContainer.DrawInventory,
+                weaponContainer.HideItems,
+                weaponContainer.UILabel,
+                weaponContainer.Inventory.DrawWhenEquipped,
+                weaponContainer.Inventory.RectTransform);
+        }
+
+        private static void RestoreWeaponContainer(ClientState state)
+        {
+            if (state.WeaponContainer is not ItemContainer weaponContainer ||
+                state.OriginalWeaponContainerState is not { } original)
+            {
+                return;
+            }
+
+            weaponContainer.AllowUIOverlap = original.AllowUIOverlap;
+            weaponContainer.DrawInventory = original.DrawInventory;
+            weaponContainer.HideItems = original.HideItems;
+            weaponContainer.UILabel = original.UILabel!;
+            weaponContainer.Inventory.DrawWhenEquipped = original.DrawWhenEquipped;
+            weaponContainer.Inventory.RectTransform = original.InventoryRectTransform!;
+            state.WeaponContainer = null;
+            state.OriginalWeaponContainerState = null;
         }
 
         private static void ApplyGunsmithFilter(Fabricator fabricator)

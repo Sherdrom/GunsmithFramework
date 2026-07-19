@@ -609,6 +609,49 @@ namespace GunsmithFramework
 
 
 
+        internal static void Reset()
+        {
+            quickOverlayFrame?.RestoreBuffersToWeapon();
+            if (pendingNativeQuickDragDropClearItem != null)
+            {
+                Inventory.DraggingItems.Remove(pendingNativeQuickDragDropClearItem);
+                Inventory.DraggingSlot = null;
+            }
+            if (activeWindow != null)
+            {
+                activeWindow.RectTransform.Parent = null;
+            }
+
+            activeWindow = null;
+            activeItem = null;
+            activeLocalizationPrefix = DefaultLocalizationPrefix;
+            selectedSlot = null;
+            activeContext = GunsmithGuiContext.Empty;
+            activeSlots = new List<GunsmithGuiSlot>();
+            slotList = null;
+            previewPanel = null;
+            detailPanel = null;
+            partList = null;
+            partDetailPanel = null;
+            partListTitle = null;
+            partRows.Clear();
+            partDetailActionButton = null;
+            partListSlotPath = null;
+            partDetailSlotPath = null;
+            selectedPartId = null;
+            activePreviewSettings = GunsmithPreviewSettings.Default;
+            activeWeaponStats = GunsmithStats.Empty;
+            activeQuickMode = false;
+            quickOverlayFrame = null;
+            suppressQuickUninstallRelease = false;
+            pendingQuickDrag = null;
+            handlingNativeQuickDragDrop = false;
+            pendingNativeQuickDragDropClearItem = null;
+            warnedQuickAnchorPaths.Clear();
+            partIconSourceCache.Clear();
+            QuickOverlayFrame.DisposeLineTexture();
+        }
+
         internal static void CloseWindow()
         {
             if (activeWindow == null) { return; }

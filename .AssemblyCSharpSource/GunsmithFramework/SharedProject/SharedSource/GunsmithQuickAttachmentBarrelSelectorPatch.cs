@@ -17,6 +17,17 @@ namespace GunsmithFramework
         private static MethodInfo? selectorGetter;
         private static MethodInfo? patchedSelectorSetter;
 
+        internal static void Reset()
+        {
+            lock (PatchLock)
+            {
+                harmonyInstance = null;
+                switchableRangedWeaponType = null;
+                selectorGetter = null;
+                patchedSelectorSetter = null;
+            }
+        }
+
         public static void PatchOptionalVce(Harmony harmony)
         {
             harmonyInstance = harmony;
