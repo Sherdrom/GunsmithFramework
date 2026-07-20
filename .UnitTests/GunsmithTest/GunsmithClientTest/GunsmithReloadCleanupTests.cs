@@ -69,6 +69,7 @@ public sealed class GunsmithReloadCleanupTests
     private static void RunClientDisposeTest()
     {
         SetStaticField(typeof(GunsmithGui), "activeWindow", null);
+        SetStaticField(typeof(GunsmithQuickDrag), "handlingNativeQuickDragDrop", true);
         AddToSet(typeof(GunsmithGui), "warnedQuickAnchorPaths", "receiver/optic");
         ((IDictionary)GetStaticField(typeof(GunsmithGui), "partIconSourceCache")!).Add("part", new Rectangle(1, 2, 3, 4));
 
@@ -89,7 +90,9 @@ public sealed class GunsmithReloadCleanupTests
         AssertRegistryEmpty(typeof(GunsmithGui), "partRows");
         Assert.Null(GetStaticField(typeof(GunsmithGui), "activeWindow"));
         Assert.Null(GetStaticField(typeof(GunsmithGui), "selectedSlot"));
-        Assert.False((bool)GetStaticField(typeof(GunsmithGui), "handlingNativeQuickDragDrop")!);
+        Assert.False((bool)GetStaticField(typeof(GunsmithQuickDrag), "handlingNativeQuickDragDrop")!);
+        Assert.Null(GetStaticField(typeof(GunsmithQuickDrag), "pendingQuickDrag"));
+        Assert.Null(GetStaticField(typeof(GunsmithQuickDrag), "pendingNativeQuickDragDropClearItem"));
 
         Type quickOverlayType = typeof(GunsmithGui).GetNestedType("QuickOverlayFrame", BindingFlags.NonPublic)!;
         Assert.Null(GetStaticField(quickOverlayType, "lineTexture"));

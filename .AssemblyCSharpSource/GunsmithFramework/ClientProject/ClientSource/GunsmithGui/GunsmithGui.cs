@@ -27,9 +27,6 @@ namespace GunsmithFramework
         private static bool activeQuickMode;
         private static QuickOverlayFrame? quickOverlayFrame;
         private static bool suppressQuickUninstallRelease;
-        private static PendingQuickDrag? pendingQuickDrag;
-        private static bool handlingNativeQuickDragDrop;
-        private static Item? pendingNativeQuickDragDropClearItem;
         private static readonly HashSet<string> warnedQuickAnchorPaths = new(StringComparer.Ordinal);
         private static readonly Dictionary<string, Rectangle> partIconSourceCache = new(StringComparer.Ordinal);
 
@@ -182,7 +179,7 @@ namespace GunsmithFramework
         private static void BuildQuickOverlay(string title)
         {
             if (activeWindow == null) { return; }
-            quickOverlayFrame?.RestoreBuffersToWeapon();
+            GunsmithQuickDrag.Restore(syncLua: false);
             activeWindow.ClearChildren();
 
             GUIFrame header = new(new RectTransform(new Vector2(0.48f, 0.09f), activeWindow.RectTransform, Anchor.TopCenter), color: Color.Black * 0.35f);
@@ -611,12 +608,7 @@ namespace GunsmithFramework
 
         internal static void Reset()
         {
-            quickOverlayFrame?.RestoreBuffersToWeapon();
-            if (pendingNativeQuickDragDropClearItem != null)
-            {
-                Inventory.DraggingItems.Remove(pendingNativeQuickDragDropClearItem);
-                Inventory.DraggingSlot = null;
-            }
+            GunsmithQuickDrag.Reset();
             if (activeWindow != null)
             {
                 activeWindow.RectTransform.Parent = null;
@@ -644,9 +636,6 @@ namespace GunsmithFramework
             activeQuickMode = false;
             quickOverlayFrame = null;
             suppressQuickUninstallRelease = false;
-            pendingQuickDrag = null;
-            handlingNativeQuickDragDrop = false;
-            pendingNativeQuickDragDropClearItem = null;
             warnedQuickAnchorPaths.Clear();
             partIconSourceCache.Clear();
             QuickOverlayFrame.DisposeLineTexture();
@@ -655,7 +644,7 @@ namespace GunsmithFramework
         internal static void CloseWindow()
         {
             if (activeWindow == null) { return; }
-            quickOverlayFrame?.RestoreBuffersToWeapon();
+            GunsmithQuickDrag.Reset();
             activeWindow.RectTransform.Parent = null;
             activeWindow = null;
             activeItem = null;
@@ -675,8 +664,6 @@ namespace GunsmithFramework
             activeQuickMode = false;
             quickOverlayFrame = null;
             suppressQuickUninstallRelease = false;
-            pendingQuickDrag = null;
-            pendingNativeQuickDragDropClearItem = null;
             warnedQuickAnchorPaths.Clear();
         }
 
@@ -705,32 +692,6 @@ namespace GunsmithFramework
 
             return quickOverlayFrame.TryHandleDraggingRelease();
         }
-
-        internal static bool TryHandlePendingQuickDragNativeSlotDrop(
-            Inventory targetInventory,
-            Item draggedItem,
-            int targetSlotIndex,
-            bool allowSwapping,
-            bool allowCombine,
-            Character user,
-            bool createNetworkEvent,
-            bool ignoreCondition,
-            bool triggerOnInsertedEffects,
-            ref bool result)
-            => QuickOverlayFrame.TryHandlePendingQuickDragNativeSlotDrop(
-                targetInventory,
-                draggedItem,
-                targetSlotIndex,
-                allowSwapping,
-                allowCombine,
-                user,
-                createNetworkEvent,
-                ignoreCondition,
-                triggerOnInsertedEffects,
-                ref result);
-
-        internal static void ReconcilePendingQuickDragAfterNativeDragging()
-            => QuickOverlayFrame.ReconcilePendingQuickDragAfterNativeDragging();
 
         internal static void RefreshWindow()
         {

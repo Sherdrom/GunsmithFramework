@@ -56,7 +56,14 @@ namespace GunsmithFramework
             }
             catch (Exception ex)
             {
-                LuaCsSetup.PrintCsMessage($"[GunsmithFramework] Failed to call Lua hook '{hookName}': {ex.Message}");
+                try
+                {
+                    LuaCsSetup.PrintCsMessage($"[GunsmithFramework] Failed to call Lua hook '{hookName}': {ex.Message}");
+                }
+                catch
+                {
+                    // LuaCs logging can be unavailable for the same reason as the hook.
+                }
             }
 
             return null;

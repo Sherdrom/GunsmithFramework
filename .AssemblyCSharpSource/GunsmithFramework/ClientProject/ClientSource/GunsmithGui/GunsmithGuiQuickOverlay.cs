@@ -2,24 +2,6 @@ namespace GunsmithFramework
 {
     public static partial class GunsmithGui
     {
-        private sealed class PendingQuickDrag
-        {
-            public readonly Item WeaponItem;
-            public readonly string SlotPath;
-            public readonly int SlotIndex;
-            public readonly Item DraggedItem;
-            public readonly string? OriginalPartId;
-
-            public PendingQuickDrag(Item weaponItem, string slotPath, int slotIndex, Item draggedItem, string? originalPartId)
-            {
-                WeaponItem = weaponItem;
-                SlotPath = slotPath;
-                SlotIndex = slotIndex;
-                DraggedItem = draggedItem;
-                OriginalPartId = originalPartId;
-            }
-        }
-
         private sealed class QuickOverlayFrame : GUIFrame
         {
             private const int QuickSlotSize = 54;
@@ -103,16 +85,6 @@ namespace GunsmithFramework
                 return BuildSlotLayouts(geometry).Any(layout => layout.Rect.Contains(PlayerInput.MousePosition));
             }
 
-            public void RestoreBuffersToWeapon()
-            {
-                Item? restoredItem = pendingQuickDrag?.DraggedItem;
-                if (RestorePendingQuickDragToSource(syncLua: false) && restoredItem != null)
-                {
-                    Inventory.DraggingItems.Remove(restoredItem);
-                    Inventory.DraggingSlot = null;
-                }
-            }
-
             public bool TryHandleDraggingRelease()
             {
                 if (!Visible || item == null || item.Removed || !Inventory.DraggingItems.Any() || !PlayerInput.PrimaryMouseButtonReleased() || !TryCreateQuickGeometry(out QuickGeometry geometry))
@@ -141,23 +113,19 @@ namespace GunsmithFramework
                     Item? draggedItem = Inventory.DraggingItems.FirstOrDefault();
                     if (draggedItem != null)
                     {
-                        if (TryPlaceQuickDraggedItem(weaponItem, layout.Slot, draggedItem))
+                        if (GunsmithQuickDrag.TryPlace(
+                                weaponItem,
+                                layout.Slot.Path,
+                                layout.Slot.QuickMeta.SlotIndex,
+                                layout.Slot.QuickMeta.AllowedItemIdentifiers,
+                                draggedItem))
                         {
                             suppressQuickUninstallRelease = true;
-                            Inventory.DraggingItems.Clear();
                             SoundPlayer.PlayUISound(GUISoundType.PickItem);
                         }
                         else
                         {
-                            if (RestorePendingQuickDragToSource(syncLua: true))
-                            {
-                                Inventory.DraggingItems.Remove(draggedItem);
-                                Inventory.DraggingSlot = null;
-                            }
-                            else if (!Inventory.DraggingItems.Contains(draggedItem))
-                            {
-                                Inventory.DraggingItems.Add(draggedItem);
-                            }
+                            GunsmithQuickDrag.RestoreOrKeepDragging(draggedItem, syncLua: true);
                             suppressQuickUninstallRelease = true;
                             failedDropTimers[layout.Slot.Path] = 0.45f;
                             SoundPlayer.PlayUISound(GUISoundType.PickItemFail);
@@ -405,9 +373,10 @@ namespace GunsmithFramework
             private void DrawQuickSlot(SpriteBatch spriteBatch, QuickSlotLayout layout)
             {
                 VisualSlot visualSlot = new(layout.Rect);
-                bool pendingDragFromThisSlot = pendingQuickDrag != null &&
-                    ReferenceEquals(pendingQuickDrag.WeaponItem, item) &&
-                    string.Equals(pendingQuickDrag.SlotPath, layout.Slot.Path, StringComparison.Ordinal);
+                bool pendingDragFromThisSlot = item != null && GunsmithQuickDrag.IsPendingSource(
+                    item,
+                    layout.Slot.Path,
+                    layout.Slot.QuickMeta.SlotIndex);
                 GunsmithGuiPart? installedPart = pendingDragFromThisSlot
                     ? null
                     : layout.Slot.Parts.FirstOrDefault(part => part.Id == layout.Slot.CurrentPartId);
@@ -463,10 +432,11 @@ namespace GunsmithFramework
                     return false;
                 }
 
-                if (pendingQuickDrag != null &&
-                    ReferenceEquals(pendingQuickDrag.WeaponItem, item) &&
-                    ReferenceEquals(pendingQuickDrag.DraggedItem, draggedItem) &&
-                    string.Equals(pendingQuickDrag.SlotPath, slot.Path, StringComparison.Ordinal))
+                if (GunsmithQuickDrag.MatchesPendingSource(
+                        item,
+                        draggedItem,
+                        slot.Path,
+                        slot.QuickMeta.SlotIndex))
                 {
                     return true;
                 }
@@ -511,479 +481,13 @@ namespace GunsmithFramework
                     return;
                 }
 
-                GunsmithHiddenQuickSlotsPatch.BeginQuickSlotMutation(item);
-                try
+                if (!GunsmithQuickDrag.Begin(item, slot.Path, slot.QuickMeta.SlotIndex, containedItem))
                 {
-                    item.OwnInventory.RemoveItem(containedItem);
-                }
-                finally
-                {
-                    GunsmithHiddenQuickSlotsPatch.EndQuickSlotMutation(item);
+                    return;
                 }
 
-                Inventory.DraggingItems.Clear();
-                Inventory.DraggingItems.Add(containedItem);
-                Inventory.DraggingSlot = null;
                 suppressQuickUninstallRelease = true;
-                pendingQuickDrag = new PendingQuickDrag(item, slot.Path, slot.QuickMeta.SlotIndex, containedItem, slot.CurrentPartId);
                 SoundPlayer.PlayUISound(GUISoundType.PickItem);
-            }
-
-            private static bool TryPlaceQuickDraggedItem(Item weaponItem, GunsmithGuiSlot slot, Item draggedItem)
-            {
-                if (weaponItem.OwnInventory == null || slot.QuickMeta.SlotIndex < 0 || draggedItem.Removed)
-                {
-                    return false;
-                }
-
-                if (pendingQuickDrag != null &&
-                    ReferenceEquals(pendingQuickDrag.WeaponItem, weaponItem) &&
-                    ReferenceEquals(pendingQuickDrag.DraggedItem, draggedItem) &&
-                    string.Equals(pendingQuickDrag.SlotPath, slot.Path, StringComparison.Ordinal))
-                {
-                    bool restored = PutItemInWeaponSlot(weaponItem, draggedItem, slot.QuickMeta.SlotIndex);
-                    if (restored)
-                    {
-                        pendingQuickDrag = null;
-                    }
-                    return restored;
-                }
-
-                if (!IsDraggedItemAllowedByQuickSlot(slot, draggedItem))
-                {
-                    return false;
-                }
-
-                Item? existingItem = GetContainedQuickItem(weaponItem, slot.QuickMeta.SlotIndex);
-                if (existingItem != null)
-                {
-                    if (ReferenceEquals(existingItem, draggedItem))
-                    {
-                        pendingQuickDrag = null;
-                        GunsmithApi.CallLuaHook("GunsmithFrameworkSyncQuickContainer", weaponItem);
-                        return true;
-                    }
-
-                    if (pendingQuickDrag != null && ReferenceEquals(pendingQuickDrag.DraggedItem, draggedItem))
-                    {
-                        return TrySwapPendingQuickDraggedItemIntoQuickSlot(weaponItem, slot.QuickMeta.SlotIndex, draggedItem, existingItem);
-                    }
-
-                    return TryReplaceExternalDraggedItemIntoQuickSlot(weaponItem, slot.QuickMeta.SlotIndex, draggedItem, existingItem);
-                }
-
-                if (!PutItemInWeaponSlot(weaponItem, draggedItem, slot.QuickMeta.SlotIndex))
-                    return false;
-
-                if (pendingQuickDrag != null && ReferenceEquals(pendingQuickDrag.DraggedItem, draggedItem))
-                {
-                    pendingQuickDrag = null;
-                }
-                GunsmithApi.CallLuaHook("GunsmithFrameworkSyncQuickContainer", weaponItem);
-                return true;
-            }
-
-            internal static bool TryHandlePendingQuickDragNativeSlotDrop(
-                Inventory targetInventory,
-                Item draggedItem,
-                int targetSlotIndex,
-                bool allowSwapping,
-                bool allowCombine,
-                Character user,
-                bool createNetworkEvent,
-                bool ignoreCondition,
-                bool triggerOnInsertedEffects,
-                ref bool result)
-            {
-                result = false;
-                if (handlingNativeQuickDragDrop ||
-                    pendingQuickDrag == null ||
-                    draggedItem == null ||
-                    draggedItem.Removed ||
-                    !allowSwapping ||
-                    !ReferenceEquals(pendingQuickDrag.DraggedItem, draggedItem) ||
-                    targetInventory == null ||
-                    targetSlotIndex < 0 ||
-                    targetSlotIndex >= targetInventory.slots.Length)
-                {
-                    return false;
-                }
-
-                PendingQuickDrag drag = pendingQuickDrag;
-                if (drag.WeaponItem.Removed ||
-                    drag.WeaponItem.OwnInventory == null ||
-                    ReferenceEquals(targetInventory, drag.WeaponItem.OwnInventory))
-                {
-                    return false;
-                }
-
-                Item? existingItem = null;
-                foreach (Item contained in targetInventory.slots[targetSlotIndex].Items)
-                {
-                    if (contained != null &&
-                        !contained.Removed &&
-                        !ReferenceEquals(contained, draggedItem))
-                    {
-                        existingItem = contained;
-                        break;
-                    }
-                }
-                if (existingItem == null)
-                {
-                    return false;
-                }
-
-                if (CanNativeInventoryCombine(draggedItem, existingItem, allowCombine))
-                {
-                    return false;
-                }
-
-                handlingNativeQuickDragDrop = true;
-                try
-                {
-                    if (!PutItemInWeaponSlot(drag.WeaponItem, existingItem, drag.SlotIndex, allowSwapping: false))
-                    {
-                        return false;
-                    }
-
-                    if (!targetInventory.TryPutItem(
-                            draggedItem,
-                            targetSlotIndex,
-                            allowSwapping: false,
-                            allowCombine: false,
-                            user,
-                            createNetworkEvent,
-                            ignoreCondition,
-                            triggerOnInsertedEffects))
-                    {
-                        RemoveItemFromWeaponInventory(drag.WeaponItem, existingItem);
-                        targetInventory.TryPutItem(
-                            existingItem,
-                            targetSlotIndex,
-                            allowSwapping: false,
-                            allowCombine: false,
-                            user,
-                            createNetworkEvent,
-                            ignoreCondition: true,
-                            triggerOnInsertedEffects: false);
-                        result = false;
-                        return true;
-                    }
-
-                    pendingQuickDrag = null;
-                    pendingNativeQuickDragDropClearItem = draggedItem;
-                    GunsmithApi.CallLuaHook("GunsmithFrameworkSyncQuickContainer", drag.WeaponItem);
-                    result = true;
-                    return true;
-                }
-                finally
-                {
-                    handlingNativeQuickDragDrop = false;
-                }
-            }
-
-            private static bool CanNativeInventoryCombine(Item draggedItem, Item existingItem, bool allowCombine)
-            {
-                if (!allowCombine || draggedItem.Removed || existingItem.Removed)
-                {
-                    return false;
-                }
-
-                string draggedIdentifier = draggedItem.Prefab?.Identifier.Value ?? string.Empty;
-                string existingIdentifier = existingItem.Prefab?.Identifier.Value ?? string.Empty;
-                return !string.IsNullOrWhiteSpace(draggedIdentifier) &&
-                    string.Equals(draggedIdentifier, existingIdentifier, StringComparison.OrdinalIgnoreCase);
-            }
-
-            internal static void ReconcilePendingQuickDragAfterNativeDragging()
-            {
-                if (pendingNativeQuickDragDropClearItem != null)
-                {
-                    Inventory.DraggingItems.Remove(pendingNativeQuickDragDropClearItem);
-                    Inventory.DraggingSlot = null;
-                    pendingNativeQuickDragDropClearItem = null;
-                }
-
-                if (pendingQuickDrag == null || handlingNativeQuickDragDrop)
-                {
-                    return;
-                }
-
-                PendingQuickDrag drag = pendingQuickDrag;
-                if (drag.WeaponItem.Removed || drag.DraggedItem.Removed)
-                {
-                    pendingQuickDrag = null;
-                    if (!drag.WeaponItem.Removed)
-                    {
-                        GunsmithApi.CallLuaHook("GunsmithFrameworkSyncQuickContainer", drag.WeaponItem);
-                    }
-                    return;
-                }
-
-                bool stillDragging = Inventory.DraggingItems.Contains(drag.DraggedItem);
-                Inventory? currentInventory = drag.DraggedItem.ParentInventory;
-                if (currentInventory != null)
-                {
-                    pendingQuickDrag = null;
-                    GunsmithApi.CallLuaHook("GunsmithFrameworkSyncQuickContainer", drag.WeaponItem);
-                    return;
-                }
-
-                if (stillDragging && PlayerInput.PrimaryMouseButtonHeld())
-                {
-                    return;
-                }
-
-                if (Inventory.IsMouseOnInventory)
-                {
-                    if (RestorePendingQuickDragToSource(syncLua: true))
-                    {
-                        Inventory.DraggingItems.Remove(drag.DraggedItem);
-                        Inventory.DraggingSlot = null;
-                        SoundPlayer.PlayUISound(GUISoundType.PickItemFail);
-                    }
-                    else if (!Inventory.DraggingItems.Contains(drag.DraggedItem))
-                    {
-                        Inventory.DraggingItems.Add(drag.DraggedItem);
-                    }
-                    return;
-                }
-
-                pendingQuickDrag = null;
-                GunsmithApi.CallLuaHook("GunsmithFrameworkSyncQuickContainer", drag.WeaponItem);
-            }
-
-            private static bool IsDraggedItemAllowedByQuickSlot(GunsmithGuiSlot slot, Item draggedItem)
-            {
-                string identifier = draggedItem.Prefab?.Identifier.Value ?? string.Empty;
-                return !string.IsNullOrWhiteSpace(identifier) &&
-                    slot.QuickMeta.AllowedItemIdentifiers.Contains(identifier);
-            }
-
-            private static bool PutItemInWeaponSlot(Item weaponItem, Item itemToPut, int slotIndex, bool allowSwapping = true)
-            {
-                if (weaponItem.OwnInventory == null || slotIndex < 0 || slotIndex >= weaponItem.OwnInventory.slots.Length)
-                {
-                    return false;
-                }
-
-                GunsmithHiddenQuickSlotsPatch.BeginQuickSlotMutation(weaponItem);
-                try
-                {
-                    return weaponItem.OwnInventory.TryPutItem(itemToPut, slotIndex, allowSwapping, allowCombine: false, Character.Controlled, createNetworkEvent: false, ignoreCondition: false, triggerOnInsertedEffects: false);
-                }
-                finally
-                {
-                    GunsmithHiddenQuickSlotsPatch.EndQuickSlotMutation(weaponItem);
-                }
-            }
-
-            private static bool TryReplaceExternalDraggedItemIntoQuickSlot(Item weaponItem, int targetSlotIndex, Item draggedItem, Item existingItem)
-            {
-                if (weaponItem.OwnInventory == null ||
-                    targetSlotIndex < 0 ||
-                    targetSlotIndex >= weaponItem.OwnInventory.slots.Length ||
-                    existingItem.Removed ||
-                    draggedItem.Removed)
-                {
-                    return false;
-                }
-
-                Inventory? sourceInventory = draggedItem.ParentInventory ?? Inventory.DraggingInventory;
-                int sourceSlotIndex = sourceInventory?.FindIndex(draggedItem) ?? -1;
-                bool canRestoreToExactSourceSlot = sourceInventory != null &&
-                    !ReferenceEquals(sourceInventory, weaponItem.OwnInventory) &&
-                    sourceSlotIndex >= 0 &&
-                    sourceSlotIndex < sourceInventory.slots.Length;
-
-                if (!RemoveItemFromWeaponInventory(weaponItem, existingItem))
-                {
-                    return false;
-                }
-
-                if (!PutItemInWeaponSlot(weaponItem, draggedItem, targetSlotIndex, allowSwapping: false))
-                {
-                    PutItemInWeaponSlot(weaponItem, existingItem, targetSlotIndex, allowSwapping: false);
-                    return false;
-                }
-
-                if (canRestoreToExactSourceSlot &&
-                    TryPutItemInInventorySlot(sourceInventory!, existingItem, sourceSlotIndex, Character.Controlled, createNetworkEvent: false, ignoreCondition: true, triggerOnInsertedEffects: false))
-                {
-                    GunsmithApi.CallLuaHook("GunsmithFrameworkSyncQuickContainer", weaponItem);
-                    return true;
-                }
-
-                if (TryReturnItemToControlledInventory(existingItem))
-                {
-                    GunsmithApi.CallLuaHook("GunsmithFrameworkSyncQuickContainer", weaponItem);
-                    return true;
-                }
-
-                RemoveItemFromWeaponInventory(weaponItem, draggedItem);
-                PutItemInWeaponSlot(weaponItem, existingItem, targetSlotIndex, allowSwapping: false);
-                if (canRestoreToExactSourceSlot)
-                {
-                    TryPutItemInInventorySlot(sourceInventory!, draggedItem, sourceSlotIndex, Character.Controlled, createNetworkEvent: false, ignoreCondition: true, triggerOnInsertedEffects: false);
-                }
-                else
-                {
-                    TryReturnItemToControlledInventory(draggedItem);
-                }
-                return false;
-            }
-
-            private static bool TrySwapPendingQuickDraggedItemIntoQuickSlot(Item weaponItem, int targetSlotIndex, Item draggedItem, Item existingItem)
-            {
-                if (pendingQuickDrag == null ||
-                    weaponItem.OwnInventory == null ||
-                    targetSlotIndex < 0 ||
-                    targetSlotIndex >= weaponItem.OwnInventory.slots.Length ||
-                    existingItem.Removed ||
-                    draggedItem.Removed)
-                {
-                    return false;
-                }
-
-                PendingQuickDrag drag = pendingQuickDrag;
-                if (!ReferenceEquals(drag.WeaponItem, weaponItem) ||
-                    !ReferenceEquals(drag.DraggedItem, draggedItem) ||
-                    drag.SlotIndex < 0 ||
-                    drag.SlotIndex >= weaponItem.OwnInventory.slots.Length ||
-                    drag.SlotIndex == targetSlotIndex)
-                {
-                    return false;
-                }
-
-                if (!RemoveItemFromWeaponInventory(weaponItem, existingItem))
-                {
-                    return false;
-                }
-
-                if (!PutItemInWeaponSlot(weaponItem, draggedItem, targetSlotIndex, allowSwapping: false))
-                {
-                    PutItemInWeaponSlot(weaponItem, existingItem, targetSlotIndex, allowSwapping: false);
-                    return false;
-                }
-
-                if (!PutItemInWeaponSlot(weaponItem, existingItem, drag.SlotIndex, allowSwapping: false))
-                {
-                    RemoveItemFromWeaponInventory(weaponItem, draggedItem);
-                    PutItemInWeaponSlot(weaponItem, existingItem, targetSlotIndex, allowSwapping: false);
-                    PutItemInWeaponSlot(weaponItem, draggedItem, drag.SlotIndex, allowSwapping: false);
-                    return false;
-                }
-
-                pendingQuickDrag = null;
-                GunsmithApi.CallLuaHook("GunsmithFrameworkSyncQuickContainer", weaponItem);
-                return true;
-            }
-
-            private static bool TryPutItemInInventorySlot(
-                Inventory inventory,
-                Item itemToPut,
-                int slotIndex,
-                Character user,
-                bool createNetworkEvent,
-                bool ignoreCondition,
-                bool triggerOnInsertedEffects)
-            {
-                if (itemToPut.Removed || slotIndex < 0 || slotIndex >= inventory.slots.Length)
-                {
-                    return false;
-                }
-
-                return inventory.TryPutItem(
-                    itemToPut,
-                    slotIndex,
-                    allowSwapping: false,
-                    allowCombine: false,
-                    user,
-                    createNetworkEvent,
-                    ignoreCondition,
-                    triggerOnInsertedEffects);
-            }
-
-            private static bool TryReturnItemToControlledInventory(Item itemToReturn)
-            {
-                if (itemToReturn.Removed || Character.Controlled?.Inventory == null)
-                {
-                    return false;
-                }
-
-                return Character.Controlled.Inventory.TryPutItem(
-                    itemToReturn,
-                    Character.Controlled,
-                    CharacterInventory.AnySlot,
-                    createNetworkEvent: false,
-                    ignoreCondition: true,
-                    triggerOnInsertedEffects: false);
-            }
-
-            private static bool RemoveItemFromWeaponInventory(Item weaponItem, Item itemToRemove)
-            {
-                if (weaponItem.OwnInventory == null || itemToRemove.Removed || !weaponItem.OwnInventory.Contains(itemToRemove))
-                {
-                    return false;
-                }
-
-                GunsmithHiddenQuickSlotsPatch.BeginQuickSlotMutation(weaponItem);
-                try
-                {
-                    weaponItem.OwnInventory.RemoveItem(itemToRemove);
-                    return true;
-                }
-                finally
-                {
-                    GunsmithHiddenQuickSlotsPatch.EndQuickSlotMutation(weaponItem);
-                }
-            }
-
-            private static Item? GetContainedQuickItem(Item weaponItem, int slotIndex)
-            {
-                if (weaponItem.OwnInventory == null || slotIndex < 0 || slotIndex >= weaponItem.OwnInventory.slots.Length)
-                {
-                    return null;
-                }
-
-                foreach (Item contained in weaponItem.OwnInventory.slots[slotIndex].Items)
-                {
-                    if (contained != null && !contained.Removed)
-                    {
-                        return contained;
-                    }
-                }
-                return null;
-            }
-
-            private static bool RestorePendingQuickDragToSource(bool syncLua)
-            {
-                if (pendingQuickDrag == null)
-                {
-                    return false;
-                }
-
-                PendingQuickDrag drag = pendingQuickDrag;
-                bool restored = false;
-                if (!drag.WeaponItem.Removed && !drag.DraggedItem.Removed)
-                {
-                    restored = PutItemInWeaponSlot(drag.WeaponItem, drag.DraggedItem, drag.SlotIndex) ||
-                        TryReturnItemToControlledInventory(drag.DraggedItem);
-                }
-
-                if (!restored && !drag.WeaponItem.Removed && !drag.DraggedItem.Removed)
-                {
-                    return false;
-                }
-
-                pendingQuickDrag = null;
-
-                if (syncLua && !drag.WeaponItem.Removed)
-                {
-                    GunsmithApi.CallLuaHook("GunsmithFrameworkSyncQuickContainer", drag.WeaponItem);
-                }
-
-                return restored;
             }
 
             private static void DrawSlotOutline(SpriteBatch spriteBatch, Texture2D texture, Rectangle rect, Color color)
@@ -1039,5 +543,3 @@ namespace GunsmithFramework
         }
     }
 }
-
-
