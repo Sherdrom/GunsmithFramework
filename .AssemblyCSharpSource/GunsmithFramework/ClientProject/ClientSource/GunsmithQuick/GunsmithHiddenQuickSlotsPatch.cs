@@ -336,7 +336,7 @@ namespace GunsmithFramework
             }
 
             SlotLayout[] originalLayouts = layoutCache.Layouts;
-            int packedOffsetX = (originalLayouts[^1].Right - originalLayouts[visibleCount - 1].Right) / 2;
+            int packedOffsetX = GetPackedOffsetX(layoutCache, visibleCount);
             int displayIndex = 0;
             for (int i = 0; i < visualSlots.Length; i++)
             {
@@ -352,13 +352,25 @@ namespace GunsmithFramework
             {
                 if (hiddenStates[i])
                 {
-                    hiddenLayout.ApplyTo(visualSlots[i]);
+                    hiddenLayout.ApplyTo(visualSlots[i], packedOffsetX);
                 }
             }
 
             layoutCache.LastPackHash = layoutHash;
             return true;
         }
+
+        private static int GetPackedOffsetX(LayoutCache layoutCache, int visibleCount)
+        {
+            SlotLayout[] layouts = layoutCache.Layouts;
+            Rectangle parentSlotRect = layoutCache.OwnerPlacement.ParentSlotRect;
+            return parentSlotRect.Width > 0
+                ? GetCenteredOffsetX(parentSlotRect.Center.X, layouts[0].Left, layouts[visibleCount - 1].Right)
+                : (layouts[^1].Right - layouts[visibleCount - 1].Right) / 2;
+        }
+
+        internal static int GetCenteredOffsetX(int targetCenterX, int left, int right)
+            => targetCenterX - ((left + right) / 2);
 
         private static bool IsOriginalLayoutCurrent(LayoutCache layoutCache)
         {
@@ -420,13 +432,13 @@ namespace GunsmithFramework
             SlotLayout[] originalLayouts = layoutCache.Layouts;
             SlotLayout hiddenLayout = originalLayouts[0];
             int visibleCount = hiddenStates.Count(hidden => !hidden);
-            int packedOffsetX = (originalLayouts[^1].Right - originalLayouts[visibleCount - 1].Right) / 2;
+            int packedOffsetX = GetPackedOffsetX(layoutCache, visibleCount);
             int displayIndex = 0;
             for (int i = 0; i < visualSlots.Length; i++)
             {
                 if (hiddenStates[i])
                 {
-                    if (!hiddenLayout.Matches(visualSlots[i]))
+                    if (!hiddenLayout.Matches(visualSlots[i], packedOffsetX))
                     {
                         return false;
                     }
@@ -562,17 +574,36 @@ namespace GunsmithFramework
             }
 
             Inventory? parentInventory = ownerItem.ParentInventory;
-            int parentSlotIndex = parentInventory?.FindIndex(ownerItem) ?? -1;
-            Rectangle parentSlotRect = default;
             VisualSlot[]? parentVisualSlots = parentInventory?.visualSlots;
+            InvSlotType[]? slotTypes = (parentInventory as CharacterInventory)?.SlotTypes;
+            int parentSlotIndex = parentInventory != null && parentVisualSlots != null
+                ? SelectOwnerSlotIndex(parentInventory.FindIndices(ownerItem), slotTypes, parentVisualSlots.Length)
+                : -1;
+            Rectangle parentSlotRect = default;
             if (parentVisualSlots != null &&
-                parentSlotIndex >= 0 &&
-                parentSlotIndex < parentVisualSlots.Length)
+                parentSlotIndex >= 0)
             {
                 parentSlotRect = parentVisualSlots[parentSlotIndex].Rect;
             }
 
             return new OwnerPlacement(ownerItem, parentInventory, parentSlotIndex, parentSlotRect);
+        }
+
+        internal static int SelectOwnerSlotIndex(IEnumerable<int> indices, InvSlotType[]? slotTypes, int visualSlotCount)
+        {
+            foreach (int index in indices)
+            {
+                if (index >= 0 &&
+                    index < visualSlotCount &&
+                    (slotTypes == null ||
+                     index >= slotTypes.Length ||
+                     !CharacterInventory.IsHandSlotType(slotTypes[index])))
+                {
+                    return index;
+                }
+            }
+
+            return -1;
         }
 
         private readonly record struct OwnerPlacement(Item? OwnerItem, Inventory? ParentInventory, int ParentSlotIndex, Rectangle ParentSlotRect);
@@ -618,6 +649,7 @@ namespace GunsmithFramework
                 return new SlotLayout(slot.Rect, slot.InteractRect, slot.SubInventoryDir);
             }
 
+            public int Left => rect.Left;
             public int Right => rect.Right;
 
             public void ApplyTo(VisualSlot slot, int offsetX = 0)

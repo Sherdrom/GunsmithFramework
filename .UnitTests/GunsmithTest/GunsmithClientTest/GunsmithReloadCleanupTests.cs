@@ -13,7 +13,7 @@ namespace GunsmithClientTest;
 public sealed class GunsmithReloadCleanupTests
 {
     [Fact]
-    public void Reset_RestoresTrackedVisualSlotLayouts()
+    public void PackedHiddenSlotsShareVisibleBoundsAndResetRestoresLayouts()
     {
         VisualSlot first = new(new Rectangle(10, 20, 30, 40))
         {
@@ -34,6 +34,19 @@ public sealed class GunsmithReloadCleanupTests
         Type ownerPlacementType = capture.GetParameters()[1].ParameterType;
         capture.Invoke(null, new[] { inventory, Activator.CreateInstance(ownerPlacementType)! });
 
+        first.Rect = new Rectangle(30, 20, 30, 40);
+        first.InteractRect = new Rectangle(31, 21, 28, 38);
+        second.Rect = first.Rect;
+        second.InteractRect = first.InteractRect;
+        second.SubInventoryDir = first.SubInventoryDir;
+        object layoutCaches = GetStaticField(typeof(GunsmithHiddenQuickSlotsPatch), "OriginalLayoutsByInventory")!;
+        object[] cacheLookup = [inventory, null!];
+        Assert.True((bool)layoutCaches.GetType().GetMethod("TryGetValue")!.Invoke(layoutCaches, cacheLookup)!);
+        MethodInfo isPacked = typeof(GunsmithHiddenQuickSlotsPatch).GetMethod(
+            "IsPackedLayoutCurrent",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+        Assert.True((bool)isPacked.Invoke(null, [cacheLookup[1], new[] { false, true }])!);
+
         first.Rect = new Rectangle(100, 200, 1, 1);
         first.InteractRect = new Rectangle(101, 201, 1, 1);
         first.SubInventoryDir = 0;
@@ -49,6 +62,28 @@ public sealed class GunsmithReloadCleanupTests
         Assert.Equal(new Rectangle(50, 60, 30, 40), second.Rect);
         Assert.Equal(new Rectangle(51, 61, 28, 38), second.InteractRect);
         Assert.Equal(1, second.SubInventoryDir);
+    }
+
+    [Theory]
+    [InlineData(100, 20, 120, 30)]
+    [InlineData(100, 20, 70, 55)]
+    public void HiddenQuickSlotsCenterOneOrTwoVisibleSlots(int targetCenterX, int left, int right, int expectedOffset)
+        => Assert.Equal(expectedOffset, GunsmithHiddenQuickSlotsPatch.GetCenteredOffsetX(targetCenterX, left, right));
+
+    [Fact]
+    public void EquippedTwoHandOwnerUsesItsNonHandQuickbarSlot()
+    {
+        InvSlotType[] slotTypes =
+        [
+            InvSlotType.RightHand,
+            InvSlotType.LeftHand,
+            InvSlotType.Any,
+            InvSlotType.Any,
+            InvSlotType.Any
+        ];
+
+        Assert.Equal(4, GunsmithHiddenQuickSlotsPatch.SelectOwnerSlotIndex([0, 1, 4], slotTypes, slotTypes.Length));
+        Assert.Equal(-1, GunsmithHiddenQuickSlotsPatch.SelectOwnerSlotIndex([0, 1], slotTypes, slotTypes.Length));
     }
 
     [Fact]
