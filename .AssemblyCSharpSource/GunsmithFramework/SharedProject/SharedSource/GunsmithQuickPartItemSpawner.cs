@@ -18,6 +18,8 @@ namespace GunsmithFramework
 
         internal static bool Ensure(Item weaponItem, int slotIndex, string itemIdentifier, bool createNetworkEvent)
         {
+            if (Entity.Spawner == null) { return false; }
+
             if (weaponItem.OwnInventory == null ||
                 slotIndex < 0 ||
                 slotIndex >= weaponItem.OwnInventory.slots.Length)
