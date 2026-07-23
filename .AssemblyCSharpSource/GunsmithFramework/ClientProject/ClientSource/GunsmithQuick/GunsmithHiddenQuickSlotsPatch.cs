@@ -294,7 +294,9 @@ namespace GunsmithFramework
             int layoutHash = 17;
             for (int i = 0; i < visualSlots.Length; i++)
             {
-                bool shouldHide = (hiddenSlots?.Contains(i) == true || IsInjectedQuickSlot(__instance, i)) && !ShouldShowManagedSlot(__instance, i);
+                bool shouldHide = visualSlots[i].Disabled ||
+                                  (__instance.slots[i].HideIfEmpty && __instance.slots[i].Empty()) ||
+                                  ((hiddenSlots?.Contains(i) == true || IsInjectedQuickSlot(__instance, i)) && !ShouldShowManagedSlot(__instance, i));
                 hiddenStates[i] = shouldHide;
                 layoutHash = (layoutHash * 31) + (shouldHide ? 1 : 0);
                 if (!shouldHide)
@@ -334,12 +336,13 @@ namespace GunsmithFramework
             }
 
             SlotLayout[] originalLayouts = layoutCache.Layouts;
+            int packedOffsetX = (originalLayouts[^1].Right - originalLayouts[visibleCount - 1].Right) / 2;
             int displayIndex = 0;
             for (int i = 0; i < visualSlots.Length; i++)
             {
                 if (!hiddenStates[i])
                 {
-                    originalLayouts[displayIndex].ApplyTo(visualSlots[i]);
+                    originalLayouts[displayIndex].ApplyTo(visualSlots[i], packedOffsetX);
                     displayIndex++;
                 }
             }
@@ -416,6 +419,8 @@ namespace GunsmithFramework
             VisualSlot[] visualSlots = layoutCache.VisualSlots;
             SlotLayout[] originalLayouts = layoutCache.Layouts;
             SlotLayout hiddenLayout = originalLayouts[0];
+            int visibleCount = hiddenStates.Count(hidden => !hidden);
+            int packedOffsetX = (originalLayouts[^1].Right - originalLayouts[visibleCount - 1].Right) / 2;
             int displayIndex = 0;
             for (int i = 0; i < visualSlots.Length; i++)
             {
@@ -428,7 +433,7 @@ namespace GunsmithFramework
                     continue;
                 }
 
-                if (displayIndex >= originalLayouts.Length || !originalLayouts[displayIndex].Matches(visualSlots[i]))
+                if (displayIndex >= originalLayouts.Length || !originalLayouts[displayIndex].Matches(visualSlots[i], packedOffsetX))
                 {
                     return false;
                 }
@@ -613,17 +618,19 @@ namespace GunsmithFramework
                 return new SlotLayout(slot.Rect, slot.InteractRect, slot.SubInventoryDir);
             }
 
-            public void ApplyTo(VisualSlot slot)
+            public int Right => rect.Right;
+
+            public void ApplyTo(VisualSlot slot, int offsetX = 0)
             {
-                slot.Rect = rect;
-                slot.InteractRect = interactRect;
+                slot.Rect = new Rectangle(rect.X + offsetX, rect.Y, rect.Width, rect.Height);
+                slot.InteractRect = new Rectangle(interactRect.X + offsetX, interactRect.Y, interactRect.Width, interactRect.Height);
                 slot.SubInventoryDir = subInventoryDir;
             }
 
-            public bool Matches(VisualSlot slot)
+            public bool Matches(VisualSlot slot, int offsetX = 0)
             {
-                return slot.Rect == rect &&
-                       slot.InteractRect == interactRect &&
+                return slot.Rect == new Rectangle(rect.X + offsetX, rect.Y, rect.Width, rect.Height) &&
+                       slot.InteractRect == new Rectangle(interactRect.X + offsetX, interactRect.Y, interactRect.Width, interactRect.Height) &&
                        slot.SubInventoryDir == subInventoryDir;
             }
         }

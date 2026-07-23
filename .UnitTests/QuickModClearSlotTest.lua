@@ -53,4 +53,40 @@ assert(table.concat(calls, ",") == "GunsmithFrameworkBeginQuickSlotMutation,move
 assert(returnedItem == nil)
 calls.callback()
 assert(returnedItem == movedItem)
-print("QuickMod.ClearSlot preserves the original item on client and server")
+
+local stockPath = "receiver/stock"
+local selection = { [stockPath] = "default_stock" }
+local weapon = { OwnInventory = weaponInventory }
+weaponInventory.items = {}
+GunsmithFramework.Core.WeaponConfig = function() return { quickSlots = { { path = stockPath, slot = 0 } } } end
+GunsmithFramework.Core.PlatformConfig = function() return {} end
+GunsmithFramework.Core.ItemIdentifier = function() return "weapon" end
+GunsmithFramework.Core.OwnerForWeaponId = function() return "owner" end
+GunsmithFramework.Core.IsRequiredSlot = function() return false end
+GunsmithFramework.Core.InvalidateQuickSlotsCache = function() end
+GunsmithFramework.Runtime = { GetSelection = function() return selection end }
+
+assert(not GunsmithFramework.QuickMod.SyncFromContainer(weapon, selection, {}))
+assert(selection[stockPath] == "default_stock")
+
+assert(GunsmithFramework.QuickMod.SyncFromContainer(weapon, selection, {}, true))
+assert(selection[stockPath] == nil)
+
+selection[stockPath] = "default_stock"
+GunsmithFramework.Config.parts.default_stock = { item = { identifier = "stock_item" } }
+local ensuredSlot
+Hook.Call = function(name, item, slotIndex, identifier)
+    assert(name == "GunsmithFrameworkEnsureQuickPartItem")
+    assert(item == weapon)
+    assert(identifier == "stock_item")
+    ensuredSlot = slotIndex
+    return true
+end
+assert(GunsmithFramework.QuickMod.EnsureSelectionItems(weapon, selection))
+assert(ensuredSlot == 0)
+
+weaponInventory.items = { movedItem }
+ensuredSlot = nil
+assert(GunsmithFramework.QuickMod.EnsureSelectionItems(weapon, selection))
+assert(ensuredSlot == nil)
+print("QuickMod materializes default quick parts and preserves explicit removal")

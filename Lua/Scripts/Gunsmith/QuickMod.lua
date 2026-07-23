@@ -120,7 +120,7 @@ function QuickMod.CanSlotAcceptItem(item, slotIndex, partItem)
     return item.OwnInventory.CanBePutInSlot(partItem, slotIndex) == true
 end
 
-function QuickMod.SyncFromContainer(item, selection, platform)
+function QuickMod.SyncFromContainer(item, selection, platform, clearEmpty)
     local quickSlots = quickSlotsForItem(item)
     if not quickSlots or not selection or not platform then return false end
     local ownerId = Core.OwnerForWeaponId(Core.ItemIdentifier(item))
@@ -139,7 +139,7 @@ function QuickMod.SyncFromContainer(item, selection, platform)
                 selection[path] = newPartId
                 changed = true
             end
-        elseif selection[path] ~= nil and not Core.IsRequiredSlot(platform, path) then
+        elseif clearEmpty and selection[path] ~= nil and not Core.IsRequiredSlot(platform, path) then
             selection[path] = nil
             changed = true
         end
@@ -150,6 +150,23 @@ function QuickMod.SyncFromContainer(item, selection, platform)
         if Gunsmith.QuickUiSpec then Gunsmith.QuickUiSpec.InvalidateCache(item) end
     end
     return changed
+end
+
+function QuickMod.EnsureSelectionItems(item, selection)
+    local quickSlots = quickSlotsForItem(item)
+    if not quickSlots or not selection or not Hook or not Hook.Call then return false end
+    if not SERVER and Hook.Call("GunsmithFrameworkCanEnsureQuickPartItem") ~= true then return true end
+
+    local complete = true
+    for _, quickSlot in ipairs(quickSlots) do
+        local part = Gunsmith.Config.parts[selection[quickSlot.path]]
+        local identifier = part and part.item and part.item.identifier or nil
+        if identifier and identifier ~= "" and not slotItem(item, quickSlot.slot)
+            and Hook.Call("GunsmithFrameworkEnsureQuickPartItem", item, quickSlot.slot, identifier) ~= true then
+            complete = false
+        end
+    end
+    return complete
 end
 
 function QuickMod.InstallPartItem(item, character, part, slotIndex)

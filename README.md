@@ -795,7 +795,21 @@ profiles.guard_rifle = {
 
 ## Quick Slot 完整示例
 
-部件 mount 提供 Quick Slot：
+Quick Slot 把 Gunsmith 挂点连接到武器自己的真实 `ItemContainer` 槽位。它由三部分组成：
+
+```text
+part.mounts[].quick.key
+            ↓ 按 key 查找
+weapon.quickSlotBindings[key]
+            ↓ 使用 slot
+武器 ItemContainer 中从 0 开始的真实槽位
+```
+
+`quickSlotBindings` 的键不是部件路径。完整路径由框架根据当前已安装的部件树自动生成；配置者只需要让 `mount.quick.key` 和 `quickSlotBindings[key]` 完全一致。
+
+### 1. 在 mount 上声明 Quick Slot
+
+Quick Slot 应写在“提供目标挂点”的父部件上。下面的枪管提供 `muzzle` 挂点：
 
 ```lua
 parts.my_barrel = {
@@ -825,9 +839,15 @@ parts.my_barrel = {
 }
 ```
 
-武器绑定 Quick Slot 到容器槽：
+`path = "muzzle"` 决定挂点路径段；`quick.key = "muzzle"` 是武器绑定时使用的稳定键。两者可以同名，但含义不同。
+
+### 2. 在 weapon 上绑定真实容器槽
+
+武器使用同一个 key 把挂点绑定到真实槽位：
 
 ```lua
+weapons.my_rifle.quickSlotTags = { "my_gunsmith_part" }
+
 weapons.my_rifle.quickSlotBindings = {
     muzzle = {
         slot = 1,
@@ -837,7 +857,18 @@ weapons.my_rifle.quickSlotBindings = {
 }
 ```
 
-部件 item 映射到可安装 part：
+字段含义：
+
+- `slot`：必填，非负整数，表示武器 `ItemContainer` 中从 `0` 开始的槽位索引。同一武器的多个绑定不能使用同一个槽位。
+- `itemPosOffset`：可选，Quick Slot 附件显示点相对 mount `anchor` 的偏移，默认 `{ x = 0, y = 0 }`。
+- `rotation`：可选，Quick Slot 附件的显示旋转角度，默认 `0`。
+- `quickSlotTags`：可选，动态注入槽位允许放入的 XML item tags；省略时使用所属 package 的 `partTags`。
+
+如果武器的 slot `0` 已用于弹匣，通常让 Quick Slot 从 `1` 开始。框架会根据绑定中的最大 slot 自动补充缺少的隐藏 `SubContainer`，因此不需要仅为 Quick Slot 手写一组 XML 槽位。自定义容器注入时可参考前文的 `GunsmithData.quickslotstart`、`quickslotmax`、`quickslotitems` 和 `quickslottags`。
+
+### 3. 让真实 item 对应可安装 part
+
+Quick Slot 中放入的 XML item 必须能映射回一个兼容 part：
 
 ```lua
 parts.my_suppressor = {
@@ -856,12 +887,80 @@ parts.my_suppressor = {
 }
 ```
 
-工作方式：
+对应的 XML item 至少需要使用同一个 identifier，并带有 `quickSlotTags` 或 package `partTags` 允许的 tag：
+
+```xml
+<Item identifier="my_suppressor_item" tags="smallitem,my_gunsmith_part">
+  <!-- Sprite、Body 等普通 item 组件 -->
+</Item>
+```
+
+这里的三个值必须互相兼容：
+
+```text
+mount.partType / mount.path = "muzzle"
+part.type                  = "muzzle"
+mount.accepts              = { "my_muzzle" }
+part.provides              = { "my_muzzle" }
+```
+
+### 多层路径示例
+
+假设枪托的实际路径是 `receiver/stock_mount/stock`：
+
+```lua
+parts.my_receiver.mounts = {
+    {
+        path = "stock_mount",
+        accepts = { "my_buffer_tube" },
+        defaultPart = "my_buffer_tube",
+        anchor = { x = -60, y = 0 }
+    }
+}
+
+parts.my_buffer_tube = {
+    type = "stock_mount",
+    provides = { "my_buffer_tube" },
+    item = { virtual = true },
+    mounts = {
+        {
+            path = "stock",
+            accepts = { "my_stock" },
+            anchor = { x = -16, y = 0 },
+            quick = { key = "stock" }
+        }
+    }
+}
+
+weapons.my_rifle.quickSlotBindings = {
+    stock = { slot = 2 }
+}
+```
+
+注意：
+
+- `quick = { key = "stock" }` 写在 buffer tube 提供的 `stock` mount 上，不是写在 receiver 的 `stock_mount` mount 上。
+- 绑定仍然写成 `stock = { slot = 2 }`，不要写成 `["receiver/stock_mount/stock"]`。
+- 如果多个可替换的 buffer tube 都应该支持快速更换枪托，每个 buffer tube 都必须提供带相同 `quick.key = "stock"` 的 `stock` mount。
+- 运行时只会为当前已安装部件树中实际存在的 Quick mount 生成槽位信息。
+- `quick.showWhenContained = { "item_identifier" }` 只控制原生容器槽在装入指定物品时是否显示，不决定 part 兼容性。
+
+### 运行时行为
 
 - Quick UI 会列出 `type = "muzzle"` 且兼容此 mount 的部件。
 - 安装 `my_suppressor` 时，框架从角色物品栏找 `my_suppressor_item`，再放入武器 slot `1`。
 - 如果玩家直接把 `my_suppressor_item` 拖进 slot `1`，框架会反向同步选择为 `my_suppressor`。
-- 若 slot 内已有其他物品，替换时会先清槽并返还/移除旧物品。
+- 若 slot 内已有其他物品，替换时会先清槽并返还角色物品栏；物品栏放不下时会掉落。
+
+### 常见校验错误
+
+运行 `GunsmithFrameworkValidate` 后：
+
+- `does not match a quick mount reachable from this weapon`：没有任何该武器可达的 mount 声明同名 `quick.key`。检查 key 拼写、mount 所在 part 是否能从 weapon root 到达，以及跨 package 引用权限。
+- `.slot duplicates slot N`：两个绑定使用了同一个真实容器槽位；为其中一个分配其他 slot。
+- `.slot must be a non-negative integer`：slot 必须是 `0`、`1`、`2` 这样的整数。
+- Quick UI 中没有某个嵌套挂点：检查当前安装的父部件是否真的提供该 mount。完整路径存在并不等于 mount 已声明 `quick`。
+- 能显示但不能安装真实物品：检查 part 是否有 `item.identifier`、XML item identifier 是否一致，以及 `part.type`/`provides` 是否满足 mount 的 `partType`/`accepts`。
 
 ## 本地化
 
