@@ -1,8 +1,10 @@
+using System.Runtime.CompilerServices;
+
 namespace GunsmithFramework
 {
     internal static class GunsmithQuickPartItemSpawner
     {
-        private static readonly HashSet<string> PendingQuickPartSpawns = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly ConditionalWeakTable<Item, HashSet<string>> PendingQuickPartSpawns = new();
         private static int generation;
 
         internal static Action<Item>? BeginQuickSlotMutation { get; set; }
@@ -18,8 +20,6 @@ namespace GunsmithFramework
 
         internal static bool Ensure(Item weaponItem, int slotIndex, string itemIdentifier, bool createNetworkEvent)
         {
-            if (Entity.Spawner == null) { return false; }
-
             if (weaponItem.OwnInventory == null ||
                 slotIndex < 0 ||
                 slotIndex >= weaponItem.OwnInventory.slots.Length)
@@ -48,8 +48,25 @@ namespace GunsmithFramework
                 return false;
             }
 
-            string pendingKey = $"{weaponItem.ID}:{slotIndex}:{identifier.Value}";
-            if (!PendingQuickPartSpawns.Add(pendingKey))
+            if (Entity.Spawner == null || Entity.Spawner.Removed)
+            {
+                if (GameMain.NetworkMember != null) { return false; }
+
+                Item spawned = new(prefab, weaponItem.WorldPosition, null);
+                if (TryPutQuickPartItem(weaponItem, spawned, slotIndex, identifier, createNetworkEvent: false))
+                {
+                    return true;
+                }
+
+                DebugConsole.ThrowError(
+                    $"[GunsmithFramework] Failed to put '{itemIdentifier}' into '{weaponItem.Prefab.Identifier.Value}' slot {slotIndex} during map loading.");
+                spawned.Remove();
+                return false;
+            }
+
+            HashSet<string> pendingSpawns = PendingQuickPartSpawns.GetOrCreateValue(weaponItem);
+            string pendingKey = $"{slotIndex}:{identifier.Value}";
+            if (!pendingSpawns.Add(pendingKey))
             {
                 return true;
             }
@@ -80,7 +97,7 @@ namespace GunsmithFramework
                 {
                     if (queuedGeneration == generation)
                     {
-                        PendingQuickPartSpawns.Remove(pendingKey);
+                        pendingSpawns.Remove(pendingKey);
                     }
                 }
             });

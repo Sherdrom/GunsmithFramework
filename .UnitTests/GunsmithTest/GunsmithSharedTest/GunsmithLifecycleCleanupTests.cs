@@ -54,7 +54,13 @@ public sealed class GunsmithLifecycleCleanupTests
     [Fact]
     public void SpawnerAndOptionalSelectorResetReleaseGenerationState()
     {
-        AddToSet(typeof(GunsmithQuickPartItemSpawner), "PendingQuickPartSpawns", "1:2:part");
+        var pendingSpawns = (ConditionalWeakTable<Item, HashSet<string>>)GetStaticField(
+            typeof(GunsmithQuickPartItemSpawner),
+            "PendingQuickPartSpawns")!;
+        Item firstWeapon = Uninitialized<Item>();
+        Item reloadedWeapon = Uninitialized<Item>();
+        Assert.True(pendingSpawns.GetOrCreateValue(firstWeapon).Add("2:part"));
+        Assert.True(pendingSpawns.GetOrCreateValue(reloadedWeapon).Add("2:part"));
         GunsmithQuickPartItemSpawner.BeginQuickSlotMutation = _ => { };
         GunsmithQuickPartItemSpawner.EndQuickSlotMutation = _ => { };
 
@@ -69,7 +75,8 @@ public sealed class GunsmithLifecycleCleanupTests
         GunsmithQuickPartItemSpawner.Reset();
         GunsmithQuickAttachmentBarrelSelectorPatch.Reset();
 
-        AssertRegistryEmpty(typeof(GunsmithQuickPartItemSpawner), "PendingQuickPartSpawns");
+        Assert.False(pendingSpawns.TryGetValue(firstWeapon, out _));
+        Assert.False(pendingSpawns.TryGetValue(reloadedWeapon, out _));
         Assert.Null(GunsmithQuickPartItemSpawner.BeginQuickSlotMutation);
         Assert.Null(GunsmithQuickPartItemSpawner.EndQuickSlotMutation);
         Assert.Null(GetStaticField(typeof(GunsmithQuickAttachmentBarrelSelectorPatch), "harmonyInstance"));
@@ -150,12 +157,6 @@ public sealed class GunsmithLifecycleCleanupTests
                 ? "seed"
                 : Activator.CreateInstance(valueType, nonPublic: true)!;
         registry.GetType().GetProperty("Item")!.SetValue(registry, value, new[] { key });
-    }
-
-    private static void AddToSet(Type owner, string fieldName, object value)
-    {
-        object set = GetStaticField(owner, fieldName)!;
-        set.GetType().GetMethod("Add")!.Invoke(set, new[] { value });
     }
 
     private static void AssertRegistryEmpty(Type owner, string fieldName)

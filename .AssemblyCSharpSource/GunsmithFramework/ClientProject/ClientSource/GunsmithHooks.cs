@@ -291,7 +291,10 @@ namespace GunsmithFramework
                 return null;
             });
 
-            GunsmithLuaHooks.Add(hook, "GunsmithFrameworkCanEnsureQuickPartItem", args => GameMain.Client == null);
+            GunsmithLuaHooks.Add(
+                hook,
+                "GunsmithFrameworkCanEnsureQuickPartItem",
+                args => GameMain.Client == null && Screen.Selected?.IsEditor != true);
 
             GunsmithLuaHooks.Add(hook, "GunsmithFrameworkEnsureQuickPartItem", args =>
             {
@@ -299,6 +302,7 @@ namespace GunsmithFramework
                 int slotIndex = FindIntArg(args, 0, defaultValue: -1);
                 string? itemIdentifier = FindStringArg(args, 0);
                 return GameMain.Client == null &&
+                       Screen.Selected?.IsEditor != true &&
                        item != null &&
                        slotIndex >= 0 &&
                        !string.IsNullOrWhiteSpace(itemIdentifier) &&

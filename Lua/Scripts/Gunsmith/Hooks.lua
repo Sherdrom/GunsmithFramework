@@ -305,7 +305,14 @@ function Hooks.Register()
     end, Hook.HookMethodType.After)
 
     Hook.Patch("Barotrauma.Item", ".ctor", { "Microsoft.Xna.Framework.Rectangle", "Barotrauma.ItemPrefab", "Barotrauma.Submarine", "System.Boolean", "System.UInt16" }, function(instance, ptable)
-        applyGunsmithItem(instance)
+        if not Core.WeaponConfig(instance) then return end
+        if Timer and Timer.Wait then
+            Timer.Wait(function()
+                if not instance.removed then applyGunsmithItem(instance) end
+            end, 1)
+        else
+            applyGunsmithItem(instance)
+        end
     end, Hook.HookMethodType.After)
 
     Hook.Patch("Barotrauma.Items.Components.ItemContainer", "OnItemContained", { "Barotrauma.Item", "System.Boolean" }, function(instance, ptable)

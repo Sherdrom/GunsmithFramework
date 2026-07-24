@@ -25,12 +25,10 @@ State.appliedSignatures = State.appliedSignatures or {}
 State.appliedConfigSignatures = State.appliedConfigSignatures or {}
 State.savedSignatures = State.savedSignatures or {}
 State.pendingPartsRefresh = State.pendingPartsRefresh or {}
-State.initialQuickItemsEnsured = State.initialQuickItemsEnsured or {}
 setmetatable(State.appliedSignatures, { __mode = "k" })
 setmetatable(State.appliedConfigSignatures, { __mode = "k" })
 setmetatable(State.savedSignatures, { __mode = "k" })
 setmetatable(State.pendingPartsRefresh, { __mode = "k" })
-setmetatable(State.initialQuickItemsEnsured, { __mode = "k" })
 local finishQuickModChange
 local saveSelectionIfChanged
 
@@ -449,8 +447,8 @@ function Runtime.Apply(item, alreadySynced)
 
     local selection = Runtime.GetSelection(item)
     if not selection then return end
-    if QuickMod and QuickMod.EnsureSelectionItems and not State.initialQuickItemsEnsured[item] then
-        State.initialQuickItemsEnsured[item] = QuickMod.EnsureSelectionItems(item, selection)
+    if QuickMod and QuickMod.EnsureSelectionItems then
+        QuickMod.EnsureSelectionItems(item, selection)
     end
     if not alreadySynced and QuickMod and QuickMod.SyncFromContainer(item, selection, platform) then
         if not SERVER then
@@ -922,7 +920,6 @@ function Runtime.Cleanup(item)
     State.loadedStates[key] = nil
     State.savedSignatures[item] = nil
     State.pendingPartsRefresh[item] = nil
-    State.initialQuickItemsEnsured[item] = nil
     if State.lastQuickSignatures then State.lastQuickSignatures[item] = nil end
     Core.InvalidateQuickSlotsCache(item)
     if Gunsmith.QuickUiSpec then Gunsmith.QuickUiSpec.InvalidateCache(item) end

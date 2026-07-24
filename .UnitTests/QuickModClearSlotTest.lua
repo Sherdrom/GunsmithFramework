@@ -90,6 +90,10 @@ ensuredSlot = nil
 assert(GunsmithFramework.QuickMod.EnsureSelectionItems(weapon, selection))
 assert(ensuredSlot == nil)
 
+weaponInventory.items = {}
+assert(GunsmithFramework.QuickMod.EnsureSelectionItems(weapon, selection))
+assert(ensuredSlot == 0)
+
 local receiverOpticPath = "receiver/optic"
 local handleOpticPath = "receiver/carry_handle/optic"
 local opticItem = { removed = false }
@@ -123,4 +127,29 @@ assert(selection[receiverOpticPath] == "optic" and selection[handleOpticPath] ==
 weaponInventory.items = {}
 assert(GunsmithFramework.QuickMod.SyncFromContainer(weapon, selection, {}, true))
 assert(selection[receiverOpticPath] == nil and selection[handleOpticPath] == nil)
-print("QuickMod materializes default quick parts and preserves explicit removal")
+
+local hooksFile = assert(io.open(".AssemblyCSharpSource/GunsmithFramework/ClientProject/ClientSource/GunsmithHooks.cs", "r"))
+local hooksSource = hooksFile:read("*a")
+hooksFile:close()
+local firstEditorGuard = assert(hooksSource:find("Screen.Selected?.IsEditor != true", 1, true))
+assert(hooksSource:find("Screen.Selected?.IsEditor != true", firstEditorGuard + 1, true))
+
+local luaHooksFile = assert(io.open("Lua/Scripts/Gunsmith/Hooks.lua", "r"))
+local luaHooksSource = luaHooksFile:read("*a")
+luaHooksFile:close()
+local constructorHook = assert(luaHooksSource:find('Hook.Patch("Barotrauma.Item", ".ctor"', 1, true))
+local constructorHookEnd = assert(luaHooksSource:find("Hook.HookMethodType.After)", constructorHook, true))
+assert(luaHooksSource:sub(constructorHook, constructorHookEnd):find("Timer.Wait", 1, true))
+
+local runtimeFile = assert(io.open("Lua/Scripts/Gunsmith/Runtime.lua", "r"))
+local runtimeSource = runtimeFile:read("*a")
+runtimeFile:close()
+assert(not runtimeSource:find("initialQuickItemsEnsured", 1, true))
+
+local spawnerFile = assert(io.open(".AssemblyCSharpSource/GunsmithFramework/SharedProject/SharedSource/GunsmithQuickPartItemSpawner.cs", "r"))
+local spawnerSource = spawnerFile:read("*a")
+spawnerFile:close()
+assert(spawnerSource:find("Entity.Spawner == null || Entity.Spawner.Removed", 1, true))
+assert(spawnerSource:find("new(prefab, weaponItem.WorldPosition, null)", 1, true))
+
+print("QuickMod reconciles default quick parts and preserves explicit removal")
