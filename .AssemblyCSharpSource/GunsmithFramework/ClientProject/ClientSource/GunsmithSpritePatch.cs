@@ -57,7 +57,7 @@ namespace GunsmithFramework
         }
 
         [HarmonyPatch(typeof(GUI), nameof(GUI.Update))]
-        [HarmonyPostfix]
+        [HarmonyPrefix]
         private static void KeepWindowVisible()
         {
             if (GunsmithGui.ActiveWindowForInputBlock != null)

@@ -23,6 +23,7 @@ namespace GunsmithFramework
 
             public override void Update(float deltaTime)
             {
+                if (GUI.InputBlockingMenuOpen) { return; }
                 base.Update(deltaTime);
                 if (!Visible || item == null || item.Removed || !TryCreateQuickGeometry(out QuickGeometry geometry))
                 {

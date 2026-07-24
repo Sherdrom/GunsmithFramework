@@ -200,9 +200,9 @@ function Runtime.SyncQuickContainer(item)
     return true
 end
 
-finishQuickModChange = function(item, selection, platform, weapon, alreadySynced)
+finishQuickModChange = function(item, selection, platform, weapon, alreadySynced, preferredPath)
     if not alreadySynced then
-        QuickMod.SyncFromContainer(item, selection, platform, true)
+        QuickMod.SyncFromContainer(item, selection, platform, true, preferredPath)
     end
     if not alreadySynced then
         Core.PruneInvalidSelections(selection, platform, weapon, Core.OwnerForWeapon(weapon))
@@ -302,7 +302,7 @@ local function registerQuickSlotLayouts(item, selection, platform, weapon)
     if not Core.QuickSlotsForSelection then return end
     for _, quickSlot in ipairs(Core.QuickSlotsForSelection(item, selection, platform)) do
         local anchor = quickSlot.anchor
-        if anchor then
+        if anchor and selection[quickSlot.path] then
             local offset = quickSlot.itemPosOffset or {}
             Hook.Call(
                 "GunsmithFrameworkRegisterQuickSlotLayout",
@@ -685,7 +685,7 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode, character)
             if not QuickMod.InstallSpecificPartItem(item, character, partItem, slotIndex) then return end
         end
 
-        finishQuickModChange(item, selection, platform, weapon)
+        finishQuickModChange(item, selection, platform, weapon, false, slotPath)
         if refreshQuick then
             Runtime.RefreshQuick(item, true)
         else
@@ -777,7 +777,7 @@ function Runtime.InstallQuickItem(item, slotPath, draggedItem)
         return false
     end
 
-    finishQuickModChange(item, selection, platform, weapon)
+    finishQuickModChange(item, selection, platform, weapon, false, slotPath)
     Runtime.RefreshQuick(item, true)
     return true
 end

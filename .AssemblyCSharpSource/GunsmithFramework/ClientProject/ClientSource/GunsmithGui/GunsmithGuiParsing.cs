@@ -11,7 +11,7 @@ namespace GunsmithFramework
             string slotsText = string.Empty;
             if (sections.Length > 1)
             {
-                string[] remaining = sections[1].Split(new[] { "::" }, StringSplitOptions.None);
+                string[] remaining = sections[1].Split(new[] { "::" }, 3, StringSplitOptions.None);
                 if (remaining.Length >= 3)
                 {
                     previewSettings = ParsePreviewSettings(remaining[0]);

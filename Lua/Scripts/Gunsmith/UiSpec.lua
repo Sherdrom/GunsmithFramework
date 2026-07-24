@@ -51,8 +51,14 @@ function UiSpec.Build(item, selection, platform, currentPath)
             emptyStatus = "installed"
         end
         local partEntries = { Gunsmith.EmptyPartId .. ":" .. Core.FrameworkLocalizationKey("ui.empty_part") .. ":" .. emptyStatus }
+        local includedPartIds = {}
         for _, partId in ipairs(Core.GetPartsForType(slot.partType, ownerId)) do
+            includedPartIds[partId] = true
             appendPartEntry(partEntries, item, selection, platform, slot.path, partId, ownerId)
+        end
+        local currentPartId = selection[slot.path]
+        if currentPartId and not includedPartIds[currentPartId] then
+            appendPartEntry(partEntries, item, selection, platform, slot.path, currentPartId, ownerId)
         end
 
         local slotPath = slot.path

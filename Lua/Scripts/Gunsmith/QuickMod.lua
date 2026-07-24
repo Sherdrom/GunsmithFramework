@@ -120,26 +120,43 @@ function QuickMod.CanSlotAcceptItem(item, slotIndex, partItem)
     return item.OwnInventory.CanBePutInSlot(partItem, slotIndex) == true
 end
 
-function QuickMod.SyncFromContainer(item, selection, platform, clearEmpty)
+function QuickMod.SyncFromContainer(item, selection, platform, clearEmpty, preferredPath)
     local quickSlots = quickSlotsForItem(item)
     if not quickSlots or not selection or not platform then return false end
     local ownerId = Core.OwnerForWeaponId(Core.ItemIdentifier(item))
 
+    local ownersBySlot = {}
+    for _, quickSlot in ipairs(quickSlots) do
+        local contained = slotItem(item, quickSlot.slot)
+        local partId = contained and findCompatiblePartId(
+            selection,
+            platform,
+            quickSlot.path,
+            Core.ItemIdentifier(contained),
+            ownerId) or nil
+        if partId then
+            local current = ownersBySlot[quickSlot.slot]
+            if not current or quickSlot.path == preferredPath or
+                (current.path ~= preferredPath and selection[quickSlot.path] == partId and selection[current.path] ~= current.partId) then
+                ownersBySlot[quickSlot.slot] = { path = quickSlot.path, partId = partId }
+            end
+        end
+    end
+
     local changed = false
     for _, quickSlot in ipairs(quickSlots) do
         local path = quickSlot.path
-        local contained = slotItem(item, quickSlot.slot)
-        local newPartId = nil
-        if contained then
-            newPartId = findCompatiblePartId(selection, platform, path, Core.ItemIdentifier(contained), ownerId)
-        end
+        local owner = ownersBySlot[quickSlot.slot]
+        local newPartId = owner and owner.path == path and owner.partId or nil
 
         if newPartId then
             if selection[path] ~= newPartId then
                 selection[path] = newPartId
                 changed = true
             end
-        elseif clearEmpty and selection[path] ~= nil and not Core.IsRequiredSlot(platform, path) then
+        elseif selection[path] ~= nil and
+            ((owner and owner.path ~= path) or
+            (not owner and clearEmpty and not Core.IsRequiredSlot(platform, path))) then
             selection[path] = nil
             changed = true
         end

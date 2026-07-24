@@ -38,7 +38,7 @@ namespace GunsmithFramework
 
         private static void OpenInternal(Item item, string title, string slotSpec, bool quickMode)
         {
-            if (item == null || item.Removed) { return; }
+            if (GUI.InputBlockingMenuOpen || item == null || item.Removed) { return; }
 
             GunsmithGuiSpec spec = ParseSpec(slotSpec);
             if (spec.Slots.Count == 0) { return; }
@@ -97,7 +97,7 @@ namespace GunsmithFramework
 
             try
             {
-                activeWindow.AddToGUIUpdateList(order: 1);
+                activeWindow.AddToGUIUpdateList();
             }
             catch (Exception ex)
             {
@@ -202,7 +202,7 @@ namespace GunsmithFramework
         {
             if (!activeQuickMode || activeWindow == null) { return; }
             BuildQuickOverlay(title);
-            activeWindow.AddToGUIUpdateList(order: 1);
+            activeWindow.AddToGUIUpdateList();
         }
 
         private static void BuildSlotPanel(GUIFrame body)
@@ -239,6 +239,7 @@ namespace GunsmithFramework
                 }
 
                 if (userData is not GunsmithGuiSlot slot) { return false; }
+                selectedPartId = PartSelectionAfterSlotChange(selectedSlot, slot.Path, selectedPartId);
                 selectedSlot = slot.Path;
                 RebuildSlotList();
                 RefreshSelectionPanels();
@@ -303,6 +304,9 @@ namespace GunsmithFramework
                 selectedPartId = null;
             }
         }
+
+        internal static string? PartSelectionAfterSlotChange(string? previousSlot, string nextSlot, string? partId)
+            => string.Equals(previousSlot, nextSlot, StringComparison.Ordinal) ? partId : null;
 
         private static string ParentPath(string path)
         {
@@ -668,7 +672,7 @@ namespace GunsmithFramework
         }
 
         internal static bool IsGunsmithWindowBlockingInput
-            => activeWindow is { Visible: true };
+            => !GUI.InputBlockingMenuOpen && activeWindow is { Visible: true };
 
         internal static bool IsOpenForItem(Item item, bool quickMode)
             => item != null &&
@@ -679,12 +683,18 @@ namespace GunsmithFramework
         internal static GUIComponent? ActiveWindowForInputBlock => activeWindow;
 
         internal static bool IsMouseOnQuickBufferInventory
-            => activeQuickMode &&
+            => !GUI.InputBlockingMenuOpen &&
+               activeQuickMode &&
                activeWindow is { Visible: true } &&
                quickOverlayFrame?.IsMouseOnBufferInventory() == true;
 
         internal static bool TryHandleQuickOverlayDragging()
         {
+            if (GUI.InputBlockingMenuOpen)
+            {
+                GunsmithQuickDrag.Reset();
+                return false;
+            }
             if (!activeQuickMode || quickOverlayFrame == null)
             {
                 return false;
@@ -696,9 +706,14 @@ namespace GunsmithFramework
         internal static void RefreshWindow()
         {
             if (activeWindow == null) { return; }
+            if (GUI.InputBlockingMenuOpen)
+            {
+                GunsmithQuickDrag.Reset();
+                return;
+            }
             try
             {
-                activeWindow.AddToGUIUpdateList(order: 1);
+                activeWindow.AddToGUIUpdateList();
             }
             catch (Exception ex)
             {

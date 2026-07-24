@@ -51,8 +51,15 @@ namespace GunsmithFramework
                 CanBeFocused = true;
             }
 
+            public override void AddToGUIUpdateList(bool ignoreChildren = false, int order = 0)
+            {
+                if (GUI.InputBlockingMenuOpen) { return; }
+                base.AddToGUIUpdateList(ignoreChildren, order: 0);
+            }
+
             public override void Update(float deltaTime)
             {
+                if (GUI.InputBlockingMenuOpen) { return; }
                 base.Update(deltaTime);
                 if (!Visible) { return; }
 

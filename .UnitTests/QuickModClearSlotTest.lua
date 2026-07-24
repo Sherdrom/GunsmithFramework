@@ -89,4 +89,38 @@ weaponInventory.items = { movedItem }
 ensuredSlot = nil
 assert(GunsmithFramework.QuickMod.EnsureSelectionItems(weapon, selection))
 assert(ensuredSlot == nil)
+
+local receiverOpticPath = "receiver/optic"
+local handleOpticPath = "receiver/carry_handle/optic"
+local opticItem = { removed = false }
+selection = { [handleOpticPath] = "optic" }
+weaponInventory.items = { opticItem }
+GunsmithFramework.Config.parts.optic = { item = { identifier = "optic_item" } }
+GunsmithFramework.Core.WeaponConfig = function()
+    return {
+        quickSlots = {
+            { path = receiverOpticPath, slot = 0 },
+            { path = handleOpticPath, slot = 0 }
+        }
+    }
+end
+GunsmithFramework.Core.ItemIdentifier = function(item)
+    return item == opticItem and "optic_item" or "weapon"
+end
+GunsmithFramework.Core.IsValidPath = function() return true end
+GunsmithFramework.Core.IsPartCompatible = function() return true end
+
+assert(not GunsmithFramework.QuickMod.SyncFromContainer(weapon, selection, {}, true))
+assert(selection[receiverOpticPath] == nil and selection[handleOpticPath] == "optic")
+
+assert(GunsmithFramework.QuickMod.SyncFromContainer(weapon, selection, {}, true, receiverOpticPath))
+assert(selection[receiverOpticPath] == "optic" and selection[handleOpticPath] == nil)
+
+selection[handleOpticPath] = "optic"
+assert(GunsmithFramework.QuickMod.SyncFromContainer(weapon, selection, {}, true))
+assert(selection[receiverOpticPath] == "optic" and selection[handleOpticPath] == nil)
+
+weaponInventory.items = {}
+assert(GunsmithFramework.QuickMod.SyncFromContainer(weapon, selection, {}, true))
+assert(selection[receiverOpticPath] == nil and selection[handleOpticPath] == nil)
 print("QuickMod materializes default quick parts and preserves explicit removal")

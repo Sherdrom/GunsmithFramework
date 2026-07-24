@@ -78,6 +78,34 @@ public sealed class GunsmithGuiParsingTests
         Assert.Equal(Rectangle.Empty, part.VisualSourceRect);
     }
 
+    [Fact]
+    public void ParseSpec_PreservesPartsAfterEmptyEncodedFields()
+    {
+        const string spec =
+            "root::padding=12,scale=1::Ergonomics=0::rear_sight|rear_sight|installed|0|" +
+            "__empty:empty:disabled," +
+            "virtual:part.virtual:available::::0%2C0%2C0%2C0," +
+            "installed:part.installed:installed:Ergonomics=1:item:texture:1%2C2%2C3%2C4";
+
+        GunsmithGui.GunsmithGuiSlot slot = Assert.Single(GunsmithGui.ParseSpec(spec).Slots);
+
+        Assert.Equal(3, slot.Parts.Count);
+        Assert.Equal("virtual", slot.Parts[1].Id);
+        Assert.Equal("installed", slot.Parts[2].Id);
+    }
+
+    [Theory]
+    [InlineData("rear_sight", "rear_sight", "__empty", "__empty")]
+    [InlineData("barrel", "rear_sight", "__empty", null)]
+    public void PartSelectionAfterSlotChange_OnlyPreservesSelectionForSameSlot(
+        string previousSlot,
+        string nextSlot,
+        string partId,
+        string? expected)
+    {
+        Assert.Equal(expected, GunsmithGui.PartSelectionAfterSlotChange(previousSlot, nextSlot, partId));
+    }
+
     [Theory]
     [InlineData("1,2,3,4", true, 1, 2, 3, 4)]
     [InlineData(" 5, 6, 7, 8 ", true, 5, 6, 7, 8)]
