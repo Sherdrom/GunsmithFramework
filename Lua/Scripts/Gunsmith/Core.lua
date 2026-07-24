@@ -546,7 +546,13 @@ function Core.GetPartsForType(partType, ownerId)
             table.insert(parts, partId)
         end
     end
-    table.sort(parts)
+    table.sort(parts, function(leftId, rightId)
+        local leftOrder = Gunsmith.Config.parts[leftId].uiOrder
+        local rightOrder = Gunsmith.Config.parts[rightId].uiOrder
+        leftOrder = type(leftOrder) == "number" and leftOrder or 0
+        rightOrder = type(rightOrder) == "number" and rightOrder or 0
+        return leftOrder == rightOrder and leftId < rightId or leftOrder < rightOrder
+    end)
     partsByTypeCache[cacheKey] = parts
     return parts
 end

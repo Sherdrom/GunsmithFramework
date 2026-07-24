@@ -15,6 +15,25 @@ assert(Core.PartProvidesAccepted({ provides = { "mount" } }, { "mount" }))
 assert(not Core.PartProvidesAccepted({ provides = { "mount" } }, { "other" }))
 assert(Core.PartProvidesAccepted({ provides = { "a", "mount" } }, { "other", "mount" }))
 
+GunsmithFramework.Config.parts = {
+    alpha = { type = "sight" },
+    zeta = { type = "sight" },
+    first = { type = "sight", uiOrder = -100 },
+    last = { type = "sight", uiOrder = 10 },
+    ignored = { type = "other", uiOrder = -1000 }
+}
+GunsmithFramework.Owners = {
+    parts = {
+        alpha = "test",
+        zeta = "test",
+        first = "test",
+        last = "test",
+        ignored = "test"
+    }
+}
+GunsmithFramework.Packages = { test = { _importSet = {} } }
+assert(table.concat(Core.GetPartsForType("sight", "test"), ",") == "first,alpha,zeta,last")
+
 assert(UiSpec.EncodePartEntry("part-id", {
     nameKey = "part.name",
     stats = { Ergonomics = 1.25 },

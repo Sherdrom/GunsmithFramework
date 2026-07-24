@@ -462,6 +462,7 @@ GunsmithFramework.Config.parts.my_handguard = {
 | --- | --- | --- | --- |
 | `type` | string | 是 | 部件类型。安装到 root slot 时必须等于 root path；安装到 mount 时必须等于 `mount.partType` 或 `mount.path`。 |
 | `nameKey` | string | 是 | UI 显示名本地化 key。 |
+| `uiOrder` | number | 否，默认 `0` | 配件列表排序权重，越小越靠前；相同权重按 part id 排序。`[空]` 始终位于最前。 |
 | `provides` | string array | 是 | 兼容性标签。必须和目标 mount 的 `accepts` 至少有一个交集。 |
 | `excludes` | string array | 否 | 与这些 part id 互斥。任一方向声明都会互斥。 |
 | `item.identifier` | string | 条件必填 | 真实 XML 部件物品 identifier。非默认部件必须有 `item.identifier` 或 `item.virtual = true`。 |
