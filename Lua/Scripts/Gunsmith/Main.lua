@@ -457,14 +457,31 @@ local function sortedSetValues(set)
 end
 
 local function inferPackageTags(package)
-    local tagsByIdentifier = packageItemTags(package)
+    local fallbackTagsByIdentifier = nil
+    local canReadLoadedPrefabs = MapEntityPrefab and MapEntityPrefab.FindByIdentifier and Identifier
+    local function itemTags(identifier)
+        if canReadLoadedPrefabs then
+            local tags = {}
+            local prefab = MapEntityPrefab.FindByIdentifier(Identifier(identifier))
+            if prefab and prefab.Tags then
+                for tag in prefab.Tags do
+                    table.insert(tags, tag.Value)
+                end
+            end
+            return tags
+        end
+
+        fallbackTagsByIdentifier = fallbackTagsByIdentifier or packageItemTags(package)
+        return fallbackTagsByIdentifier[identifier] or {}
+    end
+
     local customPrefix = dominantIdentifierPrefix(package)
     local weaponTags = {}
     local partTags = {}
 
     for weaponId, _ in pairs(Framework.Config.weapons or {}) do
         if Framework.Owners.weapons[weaponId] == package.id then
-            for _, tag in ipairs(tagsByIdentifier[weaponId] or {}) do
+            for _, tag in ipairs(itemTags(weaponId)) do
                 local normalized = string.lower(tag)
                 if normalized ~= "gunsmith" and string.find(normalized, "gunsmith", 1, true) then
                     weaponTags[tag] = true
@@ -476,7 +493,7 @@ local function inferPackageTags(package)
     for partId, part in pairs(Framework.Config.parts or {}) do
         if type(part) == "table" and type(part.item) == "table" and type(part.item.identifier) == "string" then
             if Framework.Owners.parts[partId] == package.id then
-                for _, tag in ipairs(tagsByIdentifier[part.item.identifier] or {}) do
+                for _, tag in ipairs(itemTags(part.item.identifier)) do
                     local normalized = string.lower(tag)
                     if not commonItemTags[normalized] and (
                         string.find(normalized, "gunsmith", 1, true) or
@@ -499,6 +516,8 @@ local function inferPackageMetadata(package)
     if package._autoLocalizationPrefix then
         package.localizationPrefix = inferLocalizationPrefix(package) or package.localizationPrefix
     end
+
+    if not package._autoWeaponTags and not package._autoPartTags then return end
 
     local weaponTags, partTags = inferPackageTags(package)
     if package._autoWeaponTags and #weaponTags > 0 then

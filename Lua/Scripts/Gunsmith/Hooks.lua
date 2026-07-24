@@ -59,6 +59,7 @@ local function readItemCharacterAndStrings(args)
 end
 
 local function applyGunsmithItem(item, diagnoseNpcPreset, npcPresetName)
+    if not diagnoseNpcPreset and not Core.WeaponConfig(item) then return end
     if NpcPresets and NpcPresets.TryApply and NpcPresets.TryApply(item, diagnoseNpcPreset, npcPresetName) then
         return
     end
@@ -83,10 +84,19 @@ local function applyExistingGunsmithItems()
     end
 end
 
+local existingItemApplyGeneration = 0
 local function scheduleExistingItemApply()
+    local weapons = Gunsmith.Config and Gunsmith.Config.weapons
+    if type(weapons) ~= "table" or not next(weapons) then return end
+
     if Timer and Timer.Wait then
-        Timer.Wait(applyExistingGunsmithItems, 100)
-        Timer.Wait(applyExistingGunsmithItems, 1000)
+        existingItemApplyGeneration = existingItemApplyGeneration + 1
+        local generation = existingItemApplyGeneration
+        Timer.Wait(function()
+            if generation == existingItemApplyGeneration then
+                applyExistingGunsmithItems()
+            end
+        end, 100)
     else
         applyExistingGunsmithItems()
     end
