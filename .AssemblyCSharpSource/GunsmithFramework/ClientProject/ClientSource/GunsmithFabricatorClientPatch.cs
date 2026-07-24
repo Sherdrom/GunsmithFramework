@@ -182,15 +182,6 @@ namespace GunsmithFramework
                     RefreshRecipeList(__instance);
                 }
             }
-
-            object? selectedItem = SelectedItemField?.GetValue(__instance);
-            if (state.GunsmithCategorySelected &&
-                selectedItem != null &&
-                FabricatedItemField?.GetValue(__instance) == null &&
-                !GunsmithFabricatorRecipeFilterPatch.IsRecipeAllowedForFabricator(__instance, selectedItem))
-            {
-                ClearSelectedRecipe(__instance);
-            }
         }
 
         [HarmonyPatch(typeof(Fabricator), "StartButtonClicked")]
