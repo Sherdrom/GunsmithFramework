@@ -195,18 +195,18 @@ namespace GunsmithFramework
             if (original == null) { return null; }
 
             Rectangle sourceRect = CreateComposedSourceRect(texture);
-            Sprite clone = new(original)
+            Sprite clone = new(texture, sourceRect, original.offset, original.rotation)
             {
+                size = original.size,
+                effects = original.effects,
                 SourceRect = sourceRect,
                 Origin = origin,
                 RelativeOrigin = new Vector2(origin.X / sourceRect.Width, origin.Y / sourceRect.Height),
                 RelativeSize = Vector2.One,
                 Depth = original.Depth,
                 SourceElement = original.SourceElement,
-                EntityIdentifier = original.EntityIdentifier,
-                FilePath = original.FilePath
+                EntityIdentifier = original.EntityIdentifier
             };
-            clone.texture = texture;
             return clone;
         }
 
@@ -215,18 +215,18 @@ namespace GunsmithFramework
             if (original == null) { return null; }
 
             Rectangle sourceRect = CreateComposedSourceRect(texture);
-            Sprite clone = new(original)
+            Sprite clone = new(texture, sourceRect, original.offset, original.rotation)
             {
+                size = original.size,
+                effects = original.effects,
                 SourceRect = sourceRect,
                 Origin = new Vector2(sourceRect.Width * 0.5f, sourceRect.Height * 0.5f),
                 RelativeOrigin = new Vector2(0.5f, 0.5f),
                 RelativeSize = Vector2.One,
                 Depth = original.Depth,
                 SourceElement = original.SourceElement,
-                EntityIdentifier = original.EntityIdentifier,
-                FilePath = original.FilePath
+                EntityIdentifier = original.EntityIdentifier
             };
-            clone.texture = texture;
             return clone;
         }
 

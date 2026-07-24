@@ -84,8 +84,8 @@ namespace GunsmithFramework
             {
                 LuaCsSetup.PrintCsMessage($"[GunsmithFramework] Failed to create runtime sprites for '{item.Prefab.Identifier.Value}'.");
                 texture.Dispose();
-                worldTexture.Dispose();
-                inventoryTexture.Dispose();
+                if (worldSprite != null) { worldSprite.Remove(); } else { worldTexture.Dispose(); }
+                if (inventorySprite != null) { inventorySprite.Remove(); } else { inventoryTexture.Dispose(); }
                 return false;
             }
 
@@ -114,9 +114,7 @@ namespace GunsmithFramework
 
             if (existing != null)
             {
-                existing.Texture.Dispose();
-                existing.WorldTexture.Dispose();
-                existing.InventoryTexture.Dispose();
+                DisposeSpriteState(existing);
             }
 
             return true;
@@ -288,18 +286,17 @@ namespace GunsmithFramework
             GunsmithQuickSlotLightPatch.ClearItemState(item);
             if (spriteStates.TryRemove(item, out GunsmithSpriteState? state))
             {
-                if (!state.Texture.IsDisposed)
-                {
-                    state.Texture.Dispose();
-                }
-                if (!state.InventoryTexture.IsDisposed)
-                {
-                    state.InventoryTexture.Dispose();
-                }
-                if (!state.WorldTexture.IsDisposed)
-                {
-                    state.WorldTexture.Dispose();
-                }
+                DisposeSpriteState(state);
+            }
+        }
+
+        private static void DisposeSpriteState(GunsmithSpriteState state)
+        {
+            state.WorldSprite.Remove();
+            state.InventorySprite.Remove();
+            if (!state.Texture.IsDisposed)
+            {
+                state.Texture.Dispose();
             }
         }
 

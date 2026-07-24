@@ -319,7 +319,9 @@ function Hooks.Register()
     end, Hook.HookMethodType.After)
 
     Hook.Add("item.removed", "GunsmithFrameworkCleanup", function(item)
-        Runtime.Cleanup(item)
+        if Core.WeaponConfig(item) then
+            Runtime.Cleanup(item)
+        end
     end)
 
     if not CLIENT then
