@@ -71,7 +71,7 @@ namespace Barotrauma.Items.Components
         public void BroadcastState()
         {
 #if SERVER
-            item.CreateServerEvent(this);
+            global::GunsmithFramework.GunsmithPartChangeServer.SendState(item, SavedState);
 #endif
         }
 

@@ -104,14 +104,17 @@ assert(serverNetworkSource:find(
     "SendState(item, state, client.Connection)",
     1,
     true))
-assert(serverNetworkSource:find(
-    "foreach (Client client in GameMain.Server.ConnectedClients)",
+
+local sharedDataFile = assert(io.open(
+    ".AssemblyCSharpSource/GunsmithFramework/SharedProject/SharedSource/GunsmithData.cs",
+    "r"))
+local sharedDataSource = sharedDataFile:read("*a")
+sharedDataFile:close()
+assert(sharedDataSource:find(
+    "GunsmithPartChangeServer.SendState(item, SavedState)",
     1,
     true))
-assert(serverNetworkSource:find(
-    "SendToClient(response, target, DeliveryMethod.Reliable)",
-    1,
-    true))
+assert(not sharedDataSource:find("item.CreateServerEvent(this)", 1, true))
 
 local clientHooksFile = assert(io.open(
     ".AssemblyCSharpSource/GunsmithFramework/ClientProject/ClientSource/GunsmithHooks.cs",
