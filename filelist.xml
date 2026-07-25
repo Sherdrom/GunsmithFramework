@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <contentpackage name="GunsmithFramework" modversion="1.0.0" corepackage="False" gameversion="1.12.7.0">
+  <Afflictions file="%ModDir%/MultiplayerSync.xml" />
   <Text file="%ModDir%/text/English.xml" />
   <Text file="%ModDir%/text/Chinese.xml" />
 </contentpackage>
