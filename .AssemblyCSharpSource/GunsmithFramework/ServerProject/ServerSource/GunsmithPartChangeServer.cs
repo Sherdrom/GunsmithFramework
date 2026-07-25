@@ -77,10 +77,24 @@ namespace GunsmithFramework
 
         private static void SendState(Item item, string state, NetworkConnection? connection = null)
         {
-            IWriteMessage response = LuaCsSetup.Instance.Networking.Start(StateMessageId);
-            response.WriteUInt16(item.ID);
-            response.WriteString(state);
-            LuaCsSetup.Instance.Networking.SendToClient(response, connection, DeliveryMethod.Reliable);
+            void Send(NetworkConnection target)
+            {
+                IWriteMessage response = LuaCsSetup.Instance.Networking.Start(StateMessageId);
+                response.WriteUInt16(item.ID);
+                response.WriteString(state);
+                LuaCsSetup.Instance.Networking.SendToClient(response, target, DeliveryMethod.Reliable);
+            }
+
+            if (connection != null)
+            {
+                Send(connection);
+                return;
+            }
+
+            foreach (Client client in GameMain.Server.ConnectedClients)
+            {
+                Send(client.Connection);
+            }
         }
     }
 }
