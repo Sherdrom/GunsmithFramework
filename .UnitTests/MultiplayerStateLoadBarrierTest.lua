@@ -139,8 +139,20 @@ assert(hooksSource:find(
     1,
     true))
 assert(hooksSource:find(
+    "applyingReceivedInventoryState[instance] = true",
+    1,
+    true))
+assert(hooksSource:find(
+    "applyingReceivedInventoryState[instance.Inventory]",
+    1,
+    true))
+assert(hooksSource:find(
+    "Persistence.Request(item)",
+    1,
+    true))
+assert(not hooksSource:find(
     "Runtime.SyncQuickContainer(instance and instance.Owner)",
     1,
     true))
 
-print("Multiplayer refreshes quick-slot state after replicated inventory changes")
+print("Multiplayer requests authoritative quick-slot state after replicated inventory changes")
