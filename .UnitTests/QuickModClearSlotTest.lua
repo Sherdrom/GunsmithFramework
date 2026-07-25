@@ -66,9 +66,6 @@ GunsmithFramework.Core.IsRequiredSlot = function() return false end
 GunsmithFramework.Core.InvalidateQuickSlotsCache = function() end
 GunsmithFramework.Runtime = { GetSelection = function() return selection end }
 
-assert(GunsmithFramework.QuickMod.IsQuickSlotIndex(weapon, 0))
-assert(not GunsmithFramework.QuickMod.IsQuickSlotIndex(weapon, 1))
-
 assert(not GunsmithFramework.QuickMod.SyncFromContainer(weapon, selection, {}))
 assert(selection[stockPath] == "default_stock")
 
@@ -143,14 +140,6 @@ luaHooksFile:close()
 local constructorHook = assert(luaHooksSource:find('Hook.Patch("Barotrauma.Item", ".ctor"', 1, true))
 local constructorHookEnd = assert(luaHooksSource:find("Hook.HookMethodType.After)", constructorHook, true))
 assert(luaHooksSource:sub(constructorHook, constructorHookEnd):find("Timer.Wait", 1, true))
-assert(luaHooksSource:find(
-    'Hook.Patch("Barotrauma.Inventory", "ForceToSlot"',
-    1,
-    true))
-assert(luaHooksSource:find(
-    "QuickMod.IsQuickSlotIndex(owner, slotIndex)",
-    1,
-    true))
 assert(not luaHooksSource:find(
     'Hook.Patch("Barotrauma.Inventory", "ApplyReceivedState"',
     1,

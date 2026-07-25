@@ -107,6 +107,24 @@ public sealed class GunsmithQuickDragTests : IDisposable
     }
 
     [Fact]
+    public void ReceivedServerInventoryStateTemporarilyAllowsQuickSlotMutation()
+    {
+        Inventory inventory = CreateInventory(1);
+
+        Assert.False(GunsmithHiddenQuickSlotsPatch.IsQuickMutationAllowed(inventory));
+        GunsmithHiddenQuickSlotsPatch.BeginReceivingServerState(inventory);
+        try
+        {
+            Assert.True(GunsmithHiddenQuickSlotsPatch.IsQuickMutationAllowed(inventory));
+        }
+        finally
+        {
+            GunsmithHiddenQuickSlotsPatch.EndReceivingServerState(inventory);
+        }
+        Assert.False(GunsmithHiddenQuickSlotsPatch.IsQuickMutationAllowed(inventory));
+    }
+
+    [Fact]
     public void RemovedWeaponCancelsPendingWithoutLosingDraggedItem()
     {
         Item weapon = Uninitialized<Item>();

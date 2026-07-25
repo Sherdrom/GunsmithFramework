@@ -93,15 +93,6 @@ function QuickMod.IsQuickItem(item)
     return quickSlots ~= nil and #quickSlots > 0
 end
 
-function QuickMod.IsQuickSlotIndex(item, slotIndex)
-    local quickSlots = quickSlotsForItem(item)
-    if not quickSlots or slotIndex == nil then return false end
-    for _, quickSlot in ipairs(quickSlots) do
-        if quickSlot.slot == slotIndex then return true end
-    end
-    return false
-end
-
 function QuickMod.SlotForPath(item, path)
     local quickSlots = quickSlotsForItem(item)
     if not quickSlots or not path then return nil end

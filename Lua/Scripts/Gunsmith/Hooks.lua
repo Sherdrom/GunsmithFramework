@@ -326,16 +326,6 @@ function Hooks.Register()
         syncQuickModContainer(instance)
     end, Hook.HookMethodType.After)
 
-    if CLIENT then
-        Hook.Patch("Barotrauma.Inventory", "ForceToSlot", { "Barotrauma.Item", "System.Int32" }, function(instance, ptable)
-            local owner = instance and instance.Owner
-            local slotIndex = tonumber(ptable and ptable["index"])
-            if owner and QuickMod and QuickMod.IsQuickSlotIndex(owner, slotIndex) then
-                syncQuickModContainerItem(owner)
-            end
-        end, Hook.HookMethodType.After)
-    end
-
     Hook.Add("item.removed", "GunsmithFrameworkCleanup", function(item)
         if Core.WeaponConfig(item) then
             Runtime.Cleanup(item)

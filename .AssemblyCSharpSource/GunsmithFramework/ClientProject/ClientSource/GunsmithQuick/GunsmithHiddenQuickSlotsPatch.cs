@@ -8,6 +8,7 @@ namespace GunsmithFramework
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Inventory, LayoutCache> OriginalLayoutsByInventory = new();
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Inventory, FrameState> FrameStateByInventory = new();
         private static readonly HashSet<Item> QuickMutationItems = new();
+        private static readonly HashSet<Inventory> ReceivingServerStateInventories = new();
 
         public static void RegisterHiddenSlots(string itemIdentifier, string slotSpec)
         {
@@ -108,7 +109,18 @@ namespace GunsmithFramework
             ManagedSlotsByItemIdentifier.Clear();
             VisibleWhenContainedByItemIdentifier.Clear();
             QuickMutationItems.Clear();
+            ReceivingServerStateInventories.Clear();
         }
+
+        [HarmonyPatch(typeof(Inventory), nameof(Inventory.ApplyReceivedState))]
+        [HarmonyPrefix]
+        internal static void BeginReceivingServerState(Inventory __instance)
+            => ReceivingServerStateInventories.Add(__instance);
+
+        [HarmonyPatch(typeof(Inventory), nameof(Inventory.ApplyReceivedState))]
+        [HarmonyFinalizer]
+        internal static void EndReceivingServerState(Inventory __instance)
+            => ReceivingServerStateInventories.Remove(__instance);
 
         [HarmonyPatch(typeof(Inventory), nameof(Inventory.HideSlot))]
         [HarmonyPrefix]
@@ -467,9 +479,10 @@ namespace GunsmithFramework
                    HasInjectedQuickSlots(inventory);
         }
 
-        private static bool IsQuickMutationAllowed(Inventory inventory)
+        internal static bool IsQuickMutationAllowed(Inventory inventory)
         {
-            return inventory.Owner is Item item && QuickMutationItems.Contains(item);
+            return ReceivingServerStateInventories.Contains(inventory) ||
+                   (inventory.Owner is Item item && QuickMutationItems.Contains(item));
         }
 
         private static int FindAllowedNonManagedSlot(ItemInventory inventory, Item item, bool ignoreCondition)
