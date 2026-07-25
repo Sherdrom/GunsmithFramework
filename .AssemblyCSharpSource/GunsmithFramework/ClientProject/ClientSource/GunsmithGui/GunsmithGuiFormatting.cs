@@ -76,7 +76,7 @@ namespace GunsmithFramework
         {
             List<GunsmithStatDisplay> entries = new();
 
-            AddNonZeroStatLine(entries, Key("stat.ergonomics"), stats.Ergonomics, "0.##");
+            AddNonZeroStatLine(entries, Key("stat.ergonomics"), GunsmithErgonomicsAimPatch.ClampErgonomics(stats.Ergonomics), "0.##");
             foreach (KeyValuePair<StatTypes, float> stat in stats.Values.OrderBy(stat => stat.Key))
             {
                 AddNonZeroStatTypeLine(entries, stat.Key, stat.Value);

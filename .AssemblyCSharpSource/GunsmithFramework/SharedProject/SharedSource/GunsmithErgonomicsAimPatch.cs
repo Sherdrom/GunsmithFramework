@@ -7,6 +7,19 @@ namespace GunsmithFramework
     public static class GunsmithErgonomicsAimPatch
     {
         private const float RaiseTravelRadians = MathHelper.Pi;
+        private const float BaseAimFollowDegrees = 120.0f;
+        private const float AimFollowDegreesPerErgonomics = 3.9f;
+        private const float MinimumAimFollowDegrees = 120.0f;
+        private const float MaximumAimFollowDegrees = 900.0f;
+
+        internal static float MinimumErgonomics
+            => (MinimumAimFollowDegrees - BaseAimFollowDegrees) / AimFollowDegreesPerErgonomics;
+
+        internal static float MaximumErgonomics
+            => (MaximumAimFollowDegrees - BaseAimFollowDegrees) / AimFollowDegreesPerErgonomics;
+
+        internal static float ClampErgonomics(float ergonomics)
+            => MathHelper.Clamp(ergonomics, MinimumErgonomics, MaximumErgonomics);
 
         private sealed class AimRaiseRuntime
         {
@@ -215,8 +228,8 @@ namespace GunsmithFramework
 
         private static float AimFollowRadiansPerSecond(GunsmithRuntimeState state)
         {
-            float degrees = 120.0f + state.Stats.Ergonomics * 3.9f;
-            degrees = MathHelper.Clamp(degrees, 120.0f, 900.0f);
+            float degrees = BaseAimFollowDegrees + state.Stats.Ergonomics * AimFollowDegreesPerErgonomics;
+            degrees = MathHelper.Clamp(degrees, MinimumAimFollowDegrees, MaximumAimFollowDegrees);
             return MathHelper.ToRadians(degrees);
         }
 
