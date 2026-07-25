@@ -196,6 +196,8 @@ namespace GunsmithFramework
                 activeItem,
                 activePreviewSettings,
                 activeSlots);
+            RectTransform quickStatsTransform = new(new Vector2(0.92f, 0.10f), activeWindow.RectTransform, Anchor.BottomCenter) { RelativeOffset = new Vector2(0.0f, 0.11f) };
+            _ = new GunsmithStatsText(quickStatsTransform, activeWeaponStats, inline: true, centerInline: true);
         }
 
         private static void RebuildQuickOverlay(string title)

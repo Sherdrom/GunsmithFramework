@@ -285,12 +285,14 @@ namespace GunsmithFramework
 
             private readonly List<GunsmithStatDisplay> stats;
             private readonly bool inline;
+            private readonly bool centerInline;
 
-            public GunsmithStatsText(RectTransform rectT, GunsmithStats stats, bool inline)
+            public GunsmithStatsText(RectTransform rectT, GunsmithStats stats, bool inline, bool centerInline = false)
                 : base(rectT, style: null, color: Color.Transparent)
             {
                 this.stats = FormatStats(stats);
                 this.inline = inline;
+                this.centerInline = centerInline;
                 CanBeFocused = false;
             }
 
@@ -322,10 +324,11 @@ namespace GunsmithFramework
             private void DrawInline(SpriteBatch spriteBatch, GUIFont font)
             {
                 float lineHeight = Math.Max(font.MeasureString("Mg").Y + 1.0f, 1.0f);
-                float x = Rect.X;
                 float y = Rect.Y;
                 bool hasTextOnLine = false;
                 Vector2 separatorSize = font.MeasureString(Separator);
+                float contentWidth = stats.Sum(stat => font.MeasureString(stat.Text).X) + separatorSize.X * Math.Max(stats.Count - 1, 0);
+                float x = centerInline ? MathF.Round(Rect.X + Math.Max((Rect.Width - contentWidth) * 0.5f, 0.0f)) : Rect.X;
 
                 foreach (GunsmithStatDisplay stat in stats)
                 {
