@@ -67,6 +67,7 @@ CLIENT = false
 SERVER = true
 Runtime.SyncQuickModContainerItem({})
 assert(quickSyncs == 2)
+assert(saves == 1)
 CLIENT = true
 SERVER = false
 
@@ -75,7 +76,7 @@ selection = Runtime.GetSelection(item)
 assert(selection.handguard == "saved_handguard")
 assert(GunsmithFramework.State.loadedStates[item] == true)
 GunsmithFramework.Persistence.Save(item)
-assert(saves == 1)
+assert(saves == 2)
 
 local clientNetworkFile = assert(io.open(
     ".AssemblyCSharpSource/GunsmithFramework/ClientProject/ClientSource/GunsmithPartChangeClient.cs",
@@ -134,25 +135,9 @@ local hooksFile = assert(io.open("Lua/Scripts/Gunsmith/Hooks.lua", "r"))
 local hooksSource = hooksFile:read("*a")
 hooksFile:close()
 assert(not hooksSource:find("if not CLIENT then return end", 1, true))
-assert(hooksSource:find(
+assert(not hooksSource:find(
     'Hook.Patch("Barotrauma.Inventory", "ApplyReceivedState"',
     1,
     true))
-assert(hooksSource:find(
-    "applyingReceivedInventoryState[instance] = true",
-    1,
-    true))
-assert(hooksSource:find(
-    "applyingReceivedInventoryState[instance.Inventory]",
-    1,
-    true))
-assert(hooksSource:find(
-    "Persistence.Request(item)",
-    1,
-    true))
-assert(not hooksSource:find(
-    "Runtime.SyncQuickContainer(instance and instance.Owner)",
-    1,
-    true))
 
-print("Multiplayer requests authoritative quick-slot state after replicated inventory changes")
+print("Server rebroadcasts authoritative quick-slot state after container changes")

@@ -245,7 +245,6 @@ local function isQuickSlotMutation(item)
 end
 
 local pendingQuickModContainerSync = setmetatable({}, { __mode = "k" })
-local applyingReceivedInventoryState = setmetatable({}, { __mode = "k" })
 
 local function flushQuickModContainerSync(item)
     if not item then return end
@@ -260,7 +259,6 @@ end
 
 local function syncQuickModContainer(instance)
     if not instance then return end
-    if CLIENT and instance.Inventory and applyingReceivedInventoryState[instance.Inventory] then return end
     local item = instance.Item
     if not item then return end
     if pendingQuickModContainerSync[item] then return end
@@ -325,20 +323,6 @@ function Hooks.Register()
         applyGunsmithItem(readContainedItem(ptable))
         syncQuickModContainer(instance)
     end, Hook.HookMethodType.After)
-
-    if CLIENT then
-        Hook.Patch("Barotrauma.Inventory", "ApplyReceivedState", function(instance)
-            if instance then applyingReceivedInventoryState[instance] = true end
-        end, Hook.HookMethodType.Before)
-
-        Hook.Patch("Barotrauma.Inventory", "ApplyReceivedState", function(instance)
-            if instance then applyingReceivedInventoryState[instance] = nil end
-            local item = instance and instance.Owner
-            if item and Core.WeaponConfig(item) and QuickMod and QuickMod.IsQuickItem(item) then
-                Persistence.Request(item)
-            end
-        end, Hook.HookMethodType.After)
-    end
 
     Hook.Add("item.removed", "GunsmithFrameworkCleanup", function(item)
         if Core.WeaponConfig(item) then

@@ -184,6 +184,8 @@ function Runtime.SyncQuickModContainerItem(item)
     if QuickMod.SyncFromContainer(item, selection, platform, true) then
         finishQuickModChange(item, selection, platform, Core.WeaponConfig(item), true)
         Runtime.RefreshParts(item, true)
+    elseif SERVER then
+        Persistence.Save(item)
     end
 end
 
