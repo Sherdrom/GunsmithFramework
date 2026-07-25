@@ -134,5 +134,13 @@ local hooksFile = assert(io.open("Lua/Scripts/Gunsmith/Hooks.lua", "r"))
 local hooksSource = hooksFile:read("*a")
 hooksFile:close()
 assert(not hooksSource:find("if not CLIENT then return end", 1, true))
+assert(hooksSource:find(
+    'Hook.Patch("Barotrauma.Inventory", "ApplyReceivedState"',
+    1,
+    true))
+assert(hooksSource:find(
+    "Runtime.SyncQuickContainer(instance and instance.Owner)",
+    1,
+    true))
 
-print("Multiplayer blocks premature saves and refreshes quick-slot state on the server")
+print("Multiplayer refreshes quick-slot state after replicated inventory changes")

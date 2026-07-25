@@ -324,6 +324,12 @@ function Hooks.Register()
         syncQuickModContainer(instance)
     end, Hook.HookMethodType.After)
 
+    if CLIENT then
+        Hook.Patch("Barotrauma.Inventory", "ApplyReceivedState", function(instance)
+            Runtime.SyncQuickContainer(instance and instance.Owner)
+        end, Hook.HookMethodType.After)
+    end
+
     Hook.Add("item.removed", "GunsmithFrameworkCleanup", function(item)
         if Core.WeaponConfig(item) then
             Runtime.Cleanup(item)
