@@ -10,6 +10,7 @@ namespace GunsmithFramework
             private readonly GunsmithPreviewSettings settings;
             private readonly List<GunsmithGuiSlot> slots;
             private readonly Dictionary<string, float> failedDropTimers = new(StringComparer.Ordinal);
+            private Inventory.SlotReference? quickTooltipSlot;
             private static Texture2D? lineTexture;
 
             public QuickOverlayFrame(RectTransform rectT, Item? item, GunsmithPreviewSettings settings, List<GunsmithGuiSlot> slots)
@@ -164,6 +165,7 @@ namespace GunsmithFramework
 
                 spriteBatch.Draw(state.Texture, geometry.Destination, geometry.SourceRect, Color.White);
                 Texture2D line = GetLineTexture();
+                QuickSlotLayout? hoveredLayout = null;
 
                 foreach (QuickSlotLayout layout in BuildSlotLayouts(geometry))
                 {
@@ -171,11 +173,24 @@ namespace GunsmithFramework
                     DrawLine(spriteBatch, line, layout.Anchor, new Vector2(layout.Rect.Center.X, layout.Rect.Center.Y), lineColor, 1.0f);
                     DrawQuickSlot(spriteBatch, layout);
                     DrawSlotLabel(spriteBatch, layout.Rect, LocalizeKey(layout.Slot.NameKey));
+                    if (layout.Rect.Contains(PlayerInput.MousePosition))
+                    {
+                        hoveredLayout = layout;
+                    }
 
                     if (!layout.AnchorValid && warnedQuickAnchorPaths.Add(layout.Slot.Path))
                     {
                         LuaCsSetup.PrintCsMessage($"[GunsmithFramework] Quick slot '{layout.Slot.Path}' has no resolved anchor; using fallback UI position.");
                     }
+                }
+
+                if (hoveredLayout is QuickSlotLayout hovered)
+                {
+                    DrawQuickSlotTooltip(spriteBatch, hovered);
+                }
+                else
+                {
+                    quickTooltipSlot = null;
                 }
             }
 
@@ -403,6 +418,43 @@ namespace GunsmithFramework
                 {
                     DrawPartIcon(spriteBatch, layout.Rect, installedPart, 0.82f);
                 }
+            }
+
+            private void DrawQuickSlotTooltip(SpriteBatch spriteBatch, QuickSlotLayout layout)
+            {
+                if (item?.OwnInventory == null ||
+                    Inventory.DraggingItems.Any() ||
+                    string.IsNullOrWhiteSpace(layout.Slot.CurrentPartId))
+                {
+                    quickTooltipSlot = null;
+                    return;
+                }
+
+                Item? containedItem = GetContainedQuickItem(layout.Slot);
+                int slotIndex = layout.Slot.QuickMeta.SlotIndex;
+                if (containedItem == null)
+                {
+                    quickTooltipSlot = null;
+                    return;
+                }
+
+                VisualSlot visualSlot = new(layout.Rect);
+                if (quickTooltipSlot == null ||
+                    !ReferenceEquals(quickTooltipSlot.Item, containedItem) ||
+                    quickTooltipSlot.SlotIndex != slotIndex)
+                {
+                    quickTooltipSlot = new Inventory.SlotReference(item.OwnInventory, visualSlot, slotIndex, isSubSlot: false);
+                }
+                else
+                {
+                    quickTooltipSlot.Slot = visualSlot;
+                    if (quickTooltipSlot.TooltipNeedsRefresh())
+                    {
+                        quickTooltipSlot.RefreshTooltip();
+                    }
+                }
+
+                GUIComponent.DrawToolTip(spriteBatch, quickTooltipSlot.Tooltip, layout.Rect, Anchor.BottomRight);
             }
 
             private static void DrawPartIcon(SpriteBatch spriteBatch, Rectangle rect, GunsmithGuiPart part, float fill)
