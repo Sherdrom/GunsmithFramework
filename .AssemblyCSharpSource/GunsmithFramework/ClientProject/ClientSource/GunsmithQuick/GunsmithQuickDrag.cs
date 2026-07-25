@@ -8,13 +8,15 @@ namespace GunsmithFramework
             public readonly string SlotPath;
             public readonly int SlotIndex;
             public readonly Item DraggedItem;
+            public readonly IReadOnlySet<string> AllowedItemIdentifiers;
 
-            public PendingQuickDrag(Item weaponItem, string slotPath, int slotIndex, Item draggedItem)
+            public PendingQuickDrag(Item weaponItem, string slotPath, int slotIndex, Item draggedItem, IReadOnlySet<string> allowedItemIdentifiers)
             {
                 WeaponItem = weaponItem;
                 SlotPath = slotPath;
                 SlotIndex = slotIndex;
                 DraggedItem = draggedItem;
+                AllowedItemIdentifiers = allowedItemIdentifiers;
             }
         }
 
@@ -32,7 +34,7 @@ namespace GunsmithFramework
             => IsPendingSource(weaponItem, slotPath, slotIndex) &&
                ReferenceEquals(pendingQuickDrag!.DraggedItem, draggedItem);
 
-        internal static bool Begin(Item weaponItem, string slotPath, int slotIndex, Item draggedItem)
+        internal static bool Begin(Item weaponItem, string slotPath, int slotIndex, Item draggedItem, IReadOnlySet<string> allowedItemIdentifiers)
         {
             if (weaponItem.OwnInventory == null ||
                 slotIndex < 0 ||
@@ -46,7 +48,7 @@ namespace GunsmithFramework
             Inventory.DraggingItems.Clear();
             Inventory.DraggingItems.Add(draggedItem);
             Inventory.DraggingSlot = null;
-            pendingQuickDrag = new PendingQuickDrag(weaponItem, slotPath, slotIndex, draggedItem);
+            pendingQuickDrag = new PendingQuickDrag(weaponItem, slotPath, slotIndex, draggedItem, allowedItemIdentifiers);
             return true;
         }
 
@@ -73,7 +75,7 @@ namespace GunsmithFramework
                 return CompleteOverlayDrop(restored);
             }
 
-            if (!IsDraggedItemAllowedByQuickSlot(allowedItemIdentifiers, draggedItem))
+            if (!IsItemAllowedByQuickSlot(allowedItemIdentifiers, draggedItem))
             {
                 return false;
             }
@@ -155,6 +157,10 @@ namespace GunsmithFramework
             if (existingItem == null || CanNativeInventoryCombine(draggedItem, existingItem, allowCombine))
             {
                 return false;
+            }
+            if (!IsItemAllowedByQuickSlot(drag.AllowedItemIdentifiers, existingItem))
+            {
+                return true;
             }
 
             handlingNativeQuickDragDrop = true;
@@ -334,10 +340,13 @@ namespace GunsmithFramework
                 existingItem.Prefab?.Identifier.Value ?? string.Empty);
         }
 
-        private static bool IsDraggedItemAllowedByQuickSlot(IReadOnlySet<string> allowedItemIdentifiers, Item draggedItem)
+        internal static bool IsQuickSlotIdentifierAllowed(IReadOnlySet<string> allowedItemIdentifiers, string identifier)
+            => !string.IsNullOrWhiteSpace(identifier) && allowedItemIdentifiers.Contains(identifier);
+
+        private static bool IsItemAllowedByQuickSlot(IReadOnlySet<string> allowedItemIdentifiers, Item item)
         {
-            string identifier = draggedItem.Prefab?.Identifier.Value ?? string.Empty;
-            return !string.IsNullOrWhiteSpace(identifier) && allowedItemIdentifiers.Contains(identifier);
+            string identifier = item.Prefab?.Identifier.Value ?? string.Empty;
+            return IsQuickSlotIdentifierAllowed(allowedItemIdentifiers, identifier);
         }
 
         private static bool PutItemInWeaponSlot(Item weaponItem, Item itemToPut, int slotIndex, bool allowSwapping = true)

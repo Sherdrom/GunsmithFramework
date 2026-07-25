@@ -482,7 +482,7 @@ namespace GunsmithFramework
                     return;
                 }
 
-                if (!GunsmithQuickDrag.Begin(item, slot.Path, slot.QuickMeta.SlotIndex, containedItem))
+                if (!GunsmithQuickDrag.Begin(item, slot.Path, slot.QuickMeta.SlotIndex, containedItem, slot.QuickMeta.AllowedItemIdentifiers))
                 {
                     return;
                 }

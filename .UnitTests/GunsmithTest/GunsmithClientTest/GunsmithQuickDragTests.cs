@@ -48,7 +48,7 @@ public sealed class GunsmithQuickDragTests : IDisposable
         SetInstanceField(weapon, "ownInventory", source);
         PutInSlot(source, dragged, 0);
 
-        Assert.True(GunsmithQuickDrag.Begin(weapon, "receiver/optic", 0, dragged));
+        Assert.True(GunsmithQuickDrag.Begin(weapon, "receiver/optic", 0, dragged, new HashSet<string> { "optic" }));
         Assert.Same(source, dragged.ParentInventory);
         Assert.True(source.Contains(dragged));
         Assert.Contains(dragged, Inventory.DraggingItems);
@@ -95,6 +95,15 @@ public sealed class GunsmithQuickDragTests : IDisposable
         Assert.False(GunsmithQuickDrag.CanNativeInventoryCombine(false, "ammo", "ammo"));
         Assert.False(GunsmithQuickDrag.CanNativeInventoryCombine(true, "", "ammo"));
         Assert.False(GunsmithQuickDrag.CanNativeInventoryCombine(true, "ammo", "shell"));
+    }
+
+    [Fact]
+    public void QuickSlotIdentifierValidationRejectsDifferentPartType()
+    {
+        HashSet<string> allowed = new(StringComparer.OrdinalIgnoreCase) { "stock" };
+
+        Assert.True(GunsmithQuickDrag.IsQuickSlotIdentifierAllowed(allowed, "STOCK"));
+        Assert.False(GunsmithQuickDrag.IsQuickSlotIdentifierAllowed(allowed, "grip"));
     }
 
     [Fact]
@@ -166,7 +175,7 @@ public sealed class GunsmithQuickDragTests : IDisposable
             pendingType,
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
             binder: null,
-            args: new object[] { weapon, slotPath, slotIndex, dragged },
+            args: new object[] { weapon, slotPath, slotIndex, dragged, new HashSet<string> { "optic" } },
             culture: null)!;
         SetStaticField("pendingQuickDrag", pending);
     }
