@@ -247,6 +247,24 @@ namespace GunsmithFramework
                 return GunsmithDataAccess.GetSavedState(item);
             });
 
+            GunsmithLuaHooks.Add(hook, "GunsmithFrameworkDebugSpriteState", args =>
+            {
+                Item? item = FindArg<Item>(args);
+                if (item == null || !TryGetValidState(item, out GunsmithSpriteState state))
+                {
+                    return "<none>";
+                }
+
+                string activeSprite = ReferenceEquals(item.activeSprite, state.WorldSprite)
+                    ? "gunsmith"
+                    : ReferenceEquals(item.activeSprite, item.Prefab.Sprite) ? "prefab" : "other";
+                string inventorySprite = ReferenceEquals(item.OverrideInventorySprite, state.InventorySprite)
+                    ? "gunsmith"
+                    : item.OverrideInventorySprite == null ? "none" : "other";
+                return $"active={activeSprite};inventory={inventorySprite};layers=" +
+                       string.Join(",", state.Layers.Select(layer => $"{layer.SlotPath}={layer.PartId}"));
+            });
+
             GunsmithLuaHooks.Add(hook, "GunsmithFrameworkGetNpcPreset", args =>
             {
                 Item? item = FindArg<Item>(args);
@@ -260,10 +278,7 @@ namespace GunsmithFramework
                 {
                     if (GameMain.Client != null)
                     {
-                        if (!GunsmithDataAccess.RequestStateFromServer(item))
-                        {
-                            CallLuaHook("GunsmithFrameworkReceiveState", item, string.Empty);
-                        }
+                        GunsmithPartChangeClient.RequestState(item);
                     }
                     else
                     {

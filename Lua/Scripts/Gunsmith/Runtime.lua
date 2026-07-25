@@ -21,6 +21,12 @@ Gunsmith.State = Gunsmith.State or {
 }
 
 local State = Gunsmith.State
+State.selections = State.selections or {}
+State.uiPaths = State.uiPaths or {}
+State.loadedStates = State.loadedStates or {}
+setmetatable(State.selections, nil)
+setmetatable(State.uiPaths, nil)
+setmetatable(State.loadedStates, nil)
 State.appliedSignatures = State.appliedSignatures or {}
 State.appliedConfigSignatures = State.appliedConfigSignatures or {}
 State.savedSignatures = State.savedSignatures or {}
@@ -43,14 +49,17 @@ local function invalidateAppliedState(item)
     State.appliedConfigSignatures[item] = nil
 end
 
-local function applyServerSavedSelection(item, selection, platform, weapon)
-    if not SERVER or not Hook or not Hook.Call then return end
+local function applyComponentSavedSelection(item, selection, platform, weapon)
+    if not Hook or not Hook.Call then return false end
     local savedState = Hook.Call("GunsmithFrameworkGetSavedState", item)
-    if type(savedState) ~= "string" or savedState == "" then return end
+    if type(savedState) ~= "string" or savedState == "" then return false end
+    local savedParts = Persistence.Decode(savedState)
+    if type(savedParts) ~= "table" then return false end
 
     local ownerId = Core.OwnerForWeapon(weapon)
-    Persistence.ApplySavedParts(selection, platform, weapon, Persistence.Decode(savedState), ownerId)
+    Persistence.ApplySavedParts(selection, platform, weapon, savedParts, ownerId)
     Core.PruneInvalidSelections(selection, platform, weapon, ownerId)
+    return true
 end
 
 function Runtime.GetSelection(item)
@@ -61,13 +70,16 @@ function Runtime.GetSelection(item)
     if not State.selections[key] then
         local weapon = Core.WeaponConfig(item)
         State.selections[key] = Core.BuildDefaultSelection(platform, weapon, Core.OwnerForWeapon(weapon))
-        if not State.loadedStates[key] then
+    end
+    if State.loadedStates[key] ~= true then
+        local weapon = Core.WeaponConfig(item)
+        if applyComponentSavedSelection(item, State.selections[key], platform, weapon) then
             State.loadedStates[key] = true
-            if SERVER then
-                applyServerSavedSelection(item, State.selections[key], platform, weapon)
-            else
-                Persistence.Request(item)
-            end
+        elseif SERVER then
+            State.loadedStates[key] = true
+        elseif State.loadedStates[key] ~= "pending" then
+            State.loadedStates[key] = "pending"
+            Persistence.Request(item)
         end
     end
     return State.selections[key]
@@ -462,15 +474,6 @@ function Runtime.Apply(item, alreadySynced)
     if alreadySynced then
         selectionSignature = buildSignature(item, selection, platform, true)
         quickAttachmentBarrelSpec = buildQuickAttachmentBarrelSignature(item, selection, platform, weapon)
-        local quickSignature = selectionSignature .. "|qatBarrels:" .. quickAttachmentBarrelSpec
-        State.lastQuickSignatures = State.lastQuickSignatures or {}
-        if not getmetatable(State.lastQuickSignatures) then
-            setmetatable(State.lastQuickSignatures, { __mode = "k" })
-        end
-        if State.lastQuickSignatures[item] == quickSignature then
-            return
-        end
-        State.lastQuickSignatures[item] = quickSignature
     end
 
     local inventorySpec = encodeInventorySettings(item)
@@ -920,7 +923,6 @@ function Runtime.Cleanup(item)
     State.loadedStates[key] = nil
     State.savedSignatures[item] = nil
     State.pendingPartsRefresh[item] = nil
-    if State.lastQuickSignatures then State.lastQuickSignatures[item] = nil end
     Core.InvalidateQuickSlotsCache(item)
     if Gunsmith.QuickUiSpec then Gunsmith.QuickUiSpec.InvalidateCache(item) end
     invalidateAppliedState(item)

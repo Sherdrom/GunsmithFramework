@@ -5,6 +5,7 @@ namespace GunsmithFramework
     internal static class GunsmithPartChangeClient
     {
         internal const string RequestMessageId = "GunsmithFramework.SetPart.v1";
+        internal const string StateRequestMessageId = "GunsmithFramework.GetPartState.v1";
         internal const string StateMessageId = "GunsmithFramework.PartState.v1";
 
         internal static void Register()
@@ -32,6 +33,27 @@ namespace GunsmithFramework
             catch (Exception ex)
             {
                 LuaCsSetup.PrintCsMessage($"[GunsmithFramework] Failed to submit part change: {ex.Message}");
+                return false;
+            }
+        }
+
+        internal static bool RequestState(Item item)
+        {
+            if (GameMain.Client == null || item == null || item.Removed)
+            {
+                return false;
+            }
+
+            try
+            {
+                IWriteMessage message = LuaCsSetup.Instance.Networking.Start(StateRequestMessageId);
+                message.WriteUInt16(item.ID);
+                LuaCsSetup.Instance.Networking.SendToServer(message, DeliveryMethod.Reliable);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LuaCsSetup.PrintCsMessage($"[GunsmithFramework] Failed to request part state: {ex.Message}");
                 return false;
             }
         }

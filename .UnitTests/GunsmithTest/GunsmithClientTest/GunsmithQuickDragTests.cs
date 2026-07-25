@@ -40,6 +40,21 @@ public sealed class GunsmithQuickDragTests : IDisposable
     }
 
     [Fact]
+    public void BeginKeepsDraggedItemInSourceUntilDrop()
+    {
+        Item weapon = Uninitialized<Item>();
+        Item dragged = Uninitialized<Item>();
+        ItemInventory source = CreateInventory(1);
+        SetInstanceField(weapon, "ownInventory", source);
+        PutInSlot(source, dragged, 0);
+
+        Assert.True(GunsmithQuickDrag.Begin(weapon, "receiver/optic", 0, dragged));
+        Assert.Same(source, dragged.ParentInventory);
+        Assert.True(source.Contains(dragged));
+        Assert.Contains(dragged, Inventory.DraggingItems);
+    }
+
+    [Fact]
     public void UnrelatedItemAndInvalidTargetAreNotIntercepted()
     {
         Item weapon = Uninitialized<Item>();
@@ -105,11 +120,13 @@ public sealed class GunsmithQuickDragTests : IDisposable
         SetInstanceField(dragged, "parentInventory", CreateInventory(1));
         SetPending(weapon, "receiver/optic", 0, dragged);
         SetStaticField("pendingNativeQuickDragDropClearItem", delayedClear);
+        Inventory.DraggingItems.Add(dragged);
         Inventory.DraggingItems.Add(delayedClear);
 
         Assert.False(GunsmithQuickDrag.ReconcileAfterNativeDragging());
         Assert.Null(GetStaticField("pendingQuickDrag"));
         Assert.Null(GetStaticField("pendingNativeQuickDragDropClearItem"));
+        Assert.DoesNotContain(dragged, Inventory.DraggingItems);
         Assert.DoesNotContain(delayedClear, Inventory.DraggingItems);
     }
 
@@ -131,6 +148,15 @@ public sealed class GunsmithQuickDragTests : IDisposable
         slotsField.SetValue(inventory, slots);
         FindInstanceField(typeof(Inventory), "capacity").SetValue(inventory, slotCount);
         return inventory;
+    }
+
+    private static void PutInSlot(Inventory inventory, Item item, int slotIndex)
+    {
+        Array slots = (Array)FindInstanceField(typeof(Inventory), "slots").GetValue(inventory)!;
+        object slot = slots.GetValue(slotIndex)!;
+        slot.GetType().GetMethod("Add", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
+            .Invoke(slot, new object[] { item });
+        SetInstanceField(item, "parentInventory", inventory);
     }
 
     private static void SetPending(Item weapon, string slotPath, int slotIndex, Item dragged)

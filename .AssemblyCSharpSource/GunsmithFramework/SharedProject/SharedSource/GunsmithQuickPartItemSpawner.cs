@@ -50,17 +50,7 @@ namespace GunsmithFramework
 
             if (Entity.Spawner == null || Entity.Spawner.Removed)
             {
-                if (GameMain.NetworkMember != null) { return false; }
-
-                Item spawned = new(prefab, weaponItem.WorldPosition, null);
-                if (TryPutQuickPartItem(weaponItem, spawned, slotIndex, identifier, createNetworkEvent: false))
-                {
-                    return true;
-                }
-
-                DebugConsole.ThrowError(
-                    $"[GunsmithFramework] Failed to put '{itemIdentifier}' into '{weaponItem.Prefab.Identifier.Value}' slot {slotIndex} during map loading.");
-                spawned.Remove();
+                // Item.Load may still have reserved IDs that have not been instantiated yet.
                 return false;
             }
 

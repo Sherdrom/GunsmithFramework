@@ -128,8 +128,7 @@ GunsmithFramework.State = {
     selections = {},
     loadedStates = {},
     appliedSignatures = {},
-    appliedConfigSignatures = {},
-    lastQuickSignatures = {}
+    appliedConfigSignatures = {}
 }
 GunsmithFramework.Core.PlatformConfig = function() return platform end
 GunsmithFramework.Core.WeaponConfig = function() return {} end

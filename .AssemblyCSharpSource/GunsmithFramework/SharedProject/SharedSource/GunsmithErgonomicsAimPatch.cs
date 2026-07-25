@@ -215,8 +215,8 @@ namespace GunsmithFramework
 
         private static float AimFollowRadiansPerSecond(GunsmithRuntimeState state)
         {
-            float degrees = 270.0f + state.Stats.Ergonomics * 3.15f;
-            degrees = MathHelper.Clamp(degrees, 180.0f, 900.0f);
+            float degrees = 120.0f + state.Stats.Ergonomics * 3.9f;
+            degrees = MathHelper.Clamp(degrees, 120.0f, 900.0f);
             return MathHelper.ToRadians(degrees);
         }
 

@@ -150,6 +150,11 @@ local spawnerFile = assert(io.open(".AssemblyCSharpSource/GunsmithFramework/Shar
 local spawnerSource = spawnerFile:read("*a")
 spawnerFile:close()
 assert(spawnerSource:find("Entity.Spawner == null || Entity.Spawner.Removed", 1, true))
-assert(spawnerSource:find("new(prefab, weaponItem.WorldPosition, null)", 1, true))
+assert(not spawnerSource:find("new(prefab, weaponItem.WorldPosition, null)", 1, true))
+
+local quickDragFile = assert(io.open(".AssemblyCSharpSource/GunsmithFramework/ClientProject/ClientSource/GunsmithQuick/GunsmithQuickDrag.cs", "r"))
+local quickDragSource = quickDragFile:read("*a")
+quickDragFile:close()
+assert(not quickDragSource:find("createNetworkEvent: false", 1, true))
 
 print("QuickMod reconciles default quick parts and preserves explicit removal")

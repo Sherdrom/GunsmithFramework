@@ -114,7 +114,6 @@ function Persistence.Receive(item, json)
     State.loadedStates[key] = true
     State.appliedSignatures[item] = nil
     State.appliedConfigSignatures[item] = nil
-    if State.lastQuickSignatures then State.lastQuickSignatures[item] = nil end
 
     if Gunsmith.Runtime then
         Gunsmith.Runtime.Apply(item, hasSavedState)
@@ -129,6 +128,9 @@ function Persistence.Request(item)
 end
 
 function Persistence.Save(item)
+    local State = Gunsmith.State
+    local key = Core.ItemKey(item)
+    if CLIENT and State and State.loadedStates[key] ~= true then return end
     if not Hook or not Hook.Call then return end
     local platform = Core.PlatformConfig(item)
     local weapon = Core.WeaponConfig(item)
