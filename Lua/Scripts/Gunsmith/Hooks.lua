@@ -258,7 +258,6 @@ local function flushQuickModContainerSync(item)
 end
 
 local function syncQuickModContainer(instance)
-    if not CLIENT then return end
     if not instance then return end
     local item = instance.Item
     if not item then return end

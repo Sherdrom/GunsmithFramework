@@ -172,7 +172,6 @@ function Runtime.RefreshQuick(item, alreadySynced)
 end
 
 function Runtime.SyncQuickModContainerItem(item)
-    if SERVER then return end
     if not QuickMod then return end
     if not item or item.removed then return end
 
@@ -490,16 +489,17 @@ function Runtime.Apply(item, alreadySynced)
     if SERVER then
         local statsSpec = Stats.Encode(Stats.SumSelection(selection))
         local managedItemSpec = encodeManagedItems(selection)
-        if Hook and Hook.Call then
+        local applied = Hook and Hook.Call and
             Hook.Call(
                 "GunsmithFrameworkApplyRuntimeState",
                 item,
                 configSignature .. "|stats:" .. statsSpec .. "|items:" .. managedItemSpec,
                 statsSpec,
-                managedItemSpec)
+                managedItemSpec) == true
+        if applied then
+            registerQuickAttachmentBarrels(item, selection, platform, weapon)
+            State.appliedConfigSignatures[item] = configSignature
         end
-        registerQuickAttachmentBarrels(item, selection, platform, weapon)
-        State.appliedConfigSignatures[item] = configSignature
         return
     end
     local statsSpec = Stats.Encode(Stats.SumSelection(selection))

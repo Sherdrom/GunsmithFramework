@@ -56,4 +56,19 @@ GunsmithFramework.Runtime.Apply(item, true)
 GunsmithFramework.Runtime.Apply(item, true)
 
 assert(applyCalls == 2)
-print("A failed saved-state sprite apply is retried")
+
+CLIENT = false
+SERVER = true
+applyCalls = 0
+GunsmithFramework.State.appliedConfigSignatures[item] = nil
+Hook.Call = function(name)
+    if name ~= "GunsmithFrameworkApplyRuntimeState" then return nil end
+    applyCalls = applyCalls + 1
+    return applyCalls > 1
+end
+
+GunsmithFramework.Runtime.Apply(item, true)
+GunsmithFramework.Runtime.Apply(item, true)
+
+assert(applyCalls == 2)
+print("Failed client and server runtime applies are retried")

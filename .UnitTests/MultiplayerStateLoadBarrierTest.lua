@@ -63,6 +63,13 @@ assert(quickSyncs == 1)
 GunsmithFramework.Persistence.Save(item)
 assert(saves == 0)
 
+CLIENT = false
+SERVER = true
+Runtime.SyncQuickModContainerItem({})
+assert(quickSyncs == 2)
+CLIENT = true
+SERVER = false
+
 componentState = "saved-state"
 selection = Runtime.GetSelection(item)
 assert(selection.handguard == "saved_handguard")
@@ -112,4 +119,9 @@ assert(not clientHooksSource:find(
     1,
     true))
 
-print("Multiplayer remains usable while blocking saves until authoritative state arrives")
+local hooksFile = assert(io.open("Lua/Scripts/Gunsmith/Hooks.lua", "r"))
+local hooksSource = hooksFile:read("*a")
+hooksFile:close()
+assert(not hooksSource:find("if not CLIENT then return end", 1, true))
+
+print("Multiplayer blocks premature saves and refreshes quick-slot state on the server")
