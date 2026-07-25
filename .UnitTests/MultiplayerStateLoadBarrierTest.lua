@@ -130,6 +130,10 @@ assert(not clientHooksSource:find(
     "GunsmithDataAccess.RequestStateFromServer(item)",
     1,
     true))
+assert(not clientHooksSource:find(
+    "GunsmithDataAccess.SubmitStateToServer(item, savedState)",
+    1,
+    true))
 
 local hooksFile = assert(io.open("Lua/Scripts/Gunsmith/Hooks.lua", "r"))
 local hooksSource = hooksFile:read("*a")

@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
 using Barotrauma;
+using Barotrauma.Items.Components;
 using HarmonyLib;
 using Xunit;
 
@@ -49,6 +50,26 @@ public sealed class GunsmithLifecycleCleanupTests
         AssertRegistryEmpty(typeof(GunsmithErgonomicsAimPatch), "runtimes");
         AssertRegistryEmpty(typeof(GunsmithNpcPresetPatch), "PendingItemPresets");
         Assert.Equal(string.Empty, GunsmithNpcPresetPatch.GetPreset(item));
+    }
+
+    [Fact]
+    public void SpawnerWaitsForSavedContainerItemsToFinishLoading()
+    {
+        Assert.False(GunsmithQuickPartItemSpawner.HasPendingLoadedItem(null, 0));
+
+        ItemContainer container = Uninitialized<ItemContainer>();
+        FieldInfo? itemIdsField = typeof(ItemContainer).GetField(
+            "itemIds",
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        Assert.NotNull(itemIdsField);
+
+        itemIdsField!.SetValue(container, new[] { new List<ushort> { 42 }, new List<ushort>() });
+        Assert.True(GunsmithQuickPartItemSpawner.HasPendingLoadedItem(container, 0));
+        Assert.False(GunsmithQuickPartItemSpawner.HasPendingLoadedItem(container, 1));
+        Assert.False(GunsmithQuickPartItemSpawner.HasPendingLoadedItem(container, 2));
+
+        itemIdsField.SetValue(container, null);
+        Assert.False(GunsmithQuickPartItemSpawner.HasPendingLoadedItem(container, 0));
     }
 
     [Fact]

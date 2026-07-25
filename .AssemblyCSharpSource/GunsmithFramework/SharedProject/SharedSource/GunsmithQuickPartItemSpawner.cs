@@ -1,10 +1,13 @@
 using System.Runtime.CompilerServices;
+using Barotrauma.Items.Components;
 
 namespace GunsmithFramework
 {
     internal static class GunsmithQuickPartItemSpawner
     {
         private static readonly ConditionalWeakTable<Item, HashSet<string>> PendingQuickPartSpawns = new();
+        private static readonly FieldInfo? LoadedItemIdsField =
+            typeof(ItemContainer).GetField("itemIds", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         private static int generation;
 
         internal static Action<Item>? BeginQuickSlotMutation { get; set; }
@@ -53,6 +56,10 @@ namespace GunsmithFramework
                 // Item.Load may still have reserved IDs that have not been instantiated yet.
                 return false;
             }
+            if (HasPendingLoadedItem(weaponItem.GetComponent<ItemContainer>(), slotIndex))
+            {
+                return false;
+            }
 
             HashSet<string> pendingSpawns = PendingQuickPartSpawns.GetOrCreateValue(weaponItem);
             string pendingKey = $"{slotIndex}:{identifier.Value}";
@@ -94,6 +101,13 @@ namespace GunsmithFramework
 
             return true;
         }
+
+        internal static bool HasPendingLoadedItem(ItemContainer? container, int slotIndex)
+            => container != null &&
+               LoadedItemIdsField?.GetValue(container) is List<ushort>[] itemIds &&
+               slotIndex >= 0 &&
+               slotIndex < itemIds.Length &&
+               itemIds[slotIndex] is { Count: > 0 };
 
         private static bool TryPutQuickPartItem(Item weaponItem, Item spawned, int slotIndex, Identifier identifier, bool createNetworkEvent)
         {

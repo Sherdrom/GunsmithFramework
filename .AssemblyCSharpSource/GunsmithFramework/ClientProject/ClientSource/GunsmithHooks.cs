@@ -292,16 +292,9 @@ namespace GunsmithFramework
             {
                 Item? item = FindArg<Item>(args);
                 string? savedState = FindStringArg(args, 0);
-                if (item != null && savedState != null)
+                if (item != null && savedState != null && GameMain.Client == null)
                 {
-                    if (GameMain.Client != null)
-                    {
-                        GunsmithDataAccess.SubmitStateToServer(item, savedState);
-                    }
-                    else
-                    {
-                        GunsmithDataAccess.SetSavedState(item, savedState);
-                    }
+                    GunsmithDataAccess.SetSavedState(item, savedState);
                 }
                 return null;
             });
