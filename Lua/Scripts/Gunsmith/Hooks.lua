@@ -257,9 +257,7 @@ local function flushQuickModContainerSync(item)
     end
 end
 
-local function syncQuickModContainer(instance)
-    if not instance then return end
-    local item = instance.Item
+local function syncQuickModContainerItem(item)
     if not item then return end
     if pendingQuickModContainerSync[item] then return end
     if not (Core.WeaponConfig(item) and QuickMod and QuickMod.IsQuickItem(item)) then return end
@@ -271,6 +269,10 @@ local function syncQuickModContainer(instance)
     else
         flushQuickModContainerSync(item)
     end
+end
+
+local function syncQuickModContainer(instance)
+    syncQuickModContainerItem(instance and instance.Item)
 end
 
 function Hooks.Register()
@@ -323,6 +325,16 @@ function Hooks.Register()
         applyGunsmithItem(readContainedItem(ptable))
         syncQuickModContainer(instance)
     end, Hook.HookMethodType.After)
+
+    if CLIENT then
+        Hook.Patch("Barotrauma.Inventory", "ForceToSlot", { "Barotrauma.Item", "System.Int32" }, function(instance, ptable)
+            local owner = instance and instance.Owner
+            local slotIndex = tonumber(ptable and ptable["index"])
+            if owner and QuickMod and QuickMod.IsQuickSlotIndex(owner, slotIndex) then
+                syncQuickModContainerItem(owner)
+            end
+        end, Hook.HookMethodType.After)
+    end
 
     Hook.Add("item.removed", "GunsmithFrameworkCleanup", function(item)
         if Core.WeaponConfig(item) then
