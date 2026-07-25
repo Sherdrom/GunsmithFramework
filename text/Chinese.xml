@@ -28,19 +28,19 @@
   <gunsmith.framework.action.disabled>不可拆空</gunsmith.framework.action.disabled>
   <gunsmith.framework.action.remove>拆除该配件</gunsmith.framework.action.remove>
   <gunsmith.framework.action.install>安装该配件</gunsmith.framework.action.install>
-  <gunsmith.framework.stat.ergonomics>操控</gunsmith.framework.stat.ergonomics>
+  <gunsmith.framework.stat.ergonomics>人机工效</gunsmith.framework.stat.ergonomics>
   <gunsmith.framework.stat.none>无属性修正</gunsmith.framework.stat.none>
-  <gunsmith.framework.stattypes.ElectricalSkillBonus>电气技能</gunsmith.framework.stattypes.ElectricalSkillBonus>
-  <gunsmith.framework.stattypes.HelmSkillBonus>掌舵技能</gunsmith.framework.stattypes.HelmSkillBonus>
-  <gunsmith.framework.stattypes.MechanicalSkillBonus>机械技能</gunsmith.framework.stattypes.MechanicalSkillBonus>
-  <gunsmith.framework.stattypes.MedicalSkillBonus>医疗技能</gunsmith.framework.stattypes.MedicalSkillBonus>
-  <gunsmith.framework.stattypes.WeaponsSkillBonus>武器技能</gunsmith.framework.stattypes.WeaponsSkillBonus>
-  <gunsmith.framework.stattypes.HelmSkillOverride>掌舵技能下限</gunsmith.framework.stattypes.HelmSkillOverride>
-  <gunsmith.framework.stattypes.MedicalSkillOverride>医疗技能下限</gunsmith.framework.stattypes.MedicalSkillOverride>
-  <gunsmith.framework.stattypes.WeaponsSkillOverride>武器技能下限</gunsmith.framework.stattypes.WeaponsSkillOverride>
-  <gunsmith.framework.stattypes.ElectricalSkillOverride>电气技能下限</gunsmith.framework.stattypes.ElectricalSkillOverride>
-  <gunsmith.framework.stattypes.MechanicalSkillOverride>机械技能下限</gunsmith.framework.stattypes.MechanicalSkillOverride>
-  <gunsmith.framework.stattypes.MaximumHealthMultiplier>最大生命</gunsmith.framework.stattypes.MaximumHealthMultiplier>
+  <gunsmith.framework.stattypes.ElectricalSkillBonus>电气工程</gunsmith.framework.stattypes.ElectricalSkillBonus>
+  <gunsmith.framework.stattypes.HelmSkillBonus>驾驶水平</gunsmith.framework.stattypes.HelmSkillBonus>
+  <gunsmith.framework.stattypes.MechanicalSkillBonus>机械工程</gunsmith.framework.stattypes.MechanicalSkillBonus>
+  <gunsmith.framework.stattypes.MedicalSkillBonus>医疗水平</gunsmith.framework.stattypes.MedicalSkillBonus>
+  <gunsmith.framework.stattypes.WeaponsSkillBonus>武器操作</gunsmith.framework.stattypes.WeaponsSkillBonus>
+  <gunsmith.framework.stattypes.HelmSkillOverride>驾驶水平下限</gunsmith.framework.stattypes.HelmSkillOverride>
+  <gunsmith.framework.stattypes.MedicalSkillOverride>医疗水平下限</gunsmith.framework.stattypes.MedicalSkillOverride>
+  <gunsmith.framework.stattypes.WeaponsSkillOverride>武器操作下限</gunsmith.framework.stattypes.WeaponsSkillOverride>
+  <gunsmith.framework.stattypes.ElectricalSkillOverride>电气工程下限</gunsmith.framework.stattypes.ElectricalSkillOverride>
+  <gunsmith.framework.stattypes.MechanicalSkillOverride>机械工程下限</gunsmith.framework.stattypes.MechanicalSkillOverride>
+  <gunsmith.framework.stattypes.MaximumHealthMultiplier>最大生命值</gunsmith.framework.stattypes.MaximumHealthMultiplier>
   <gunsmith.framework.stattypes.MovementSpeed>移动速度</gunsmith.framework.stattypes.MovementSpeed>
   <gunsmith.framework.stattypes.WalkingSpeed>行走速度</gunsmith.framework.stattypes.WalkingSpeed>
   <gunsmith.framework.stattypes.SwimmingSpeed>游泳速度</gunsmith.framework.stattypes.SwimmingSpeed>
@@ -73,17 +73,17 @@
   <gunsmith.framework.stattypes.GeneticMaterialTaintedProbabilityReductionOnCombine>基因污染概率降低</gunsmith.framework.stattypes.GeneticMaterialTaintedProbabilityReductionOnCombine>
   <gunsmith.framework.stattypes.SkillGainSpeed>技能成长</gunsmith.framework.stattypes.SkillGainSpeed>
   <gunsmith.framework.stattypes.ExtraLevelGain>额外等级获取</gunsmith.framework.stattypes.ExtraLevelGain>
-  <gunsmith.framework.stattypes.HelmSkillGainSpeed>掌舵技能成长</gunsmith.framework.stattypes.HelmSkillGainSpeed>
-  <gunsmith.framework.stattypes.WeaponsSkillGainSpeed>武器技能成长</gunsmith.framework.stattypes.WeaponsSkillGainSpeed>
-  <gunsmith.framework.stattypes.MedicalSkillGainSpeed>医疗技能成长</gunsmith.framework.stattypes.MedicalSkillGainSpeed>
-  <gunsmith.framework.stattypes.ElectricalSkillGainSpeed>电气技能成长</gunsmith.framework.stattypes.ElectricalSkillGainSpeed>
-  <gunsmith.framework.stattypes.MechanicalSkillGainSpeed>机械技能成长</gunsmith.framework.stattypes.MechanicalSkillGainSpeed>
+  <gunsmith.framework.stattypes.HelmSkillGainSpeed>驾驶水平成长</gunsmith.framework.stattypes.HelmSkillGainSpeed>
+  <gunsmith.framework.stattypes.WeaponsSkillGainSpeed>武器操作成长</gunsmith.framework.stattypes.WeaponsSkillGainSpeed>
+  <gunsmith.framework.stattypes.MedicalSkillGainSpeed>医疗水平成长</gunsmith.framework.stattypes.MedicalSkillGainSpeed>
+  <gunsmith.framework.stattypes.ElectricalSkillGainSpeed>电气工程成长</gunsmith.framework.stattypes.ElectricalSkillGainSpeed>
+  <gunsmith.framework.stattypes.MechanicalSkillGainSpeed>机械工程成长</gunsmith.framework.stattypes.MechanicalSkillGainSpeed>
   <gunsmith.framework.stattypes.MedicalItemApplyingMultiplier>医疗物品使用速度</gunsmith.framework.stattypes.MedicalItemApplyingMultiplier>
   <gunsmith.framework.stattypes.BuffItemApplyingMultiplier>增益物品使用速度</gunsmith.framework.stattypes.BuffItemApplyingMultiplier>
-  <gunsmith.framework.stattypes.PoisonMultiplier>毒物效果</gunsmith.framework.stattypes.PoisonMultiplier>
-  <gunsmith.framework.stattypes.TinkeringDuration>鼓捣持续时间</gunsmith.framework.stattypes.TinkeringDuration>
-  <gunsmith.framework.stattypes.TinkeringStrength>鼓捣强度</gunsmith.framework.stattypes.TinkeringStrength>
-  <gunsmith.framework.stattypes.TinkeringDamage>鼓捣伤害</gunsmith.framework.stattypes.TinkeringDamage>
+  <gunsmith.framework.stattypes.PoisonMultiplier>毒药效果</gunsmith.framework.stattypes.PoisonMultiplier>
+  <gunsmith.framework.stattypes.TinkeringDuration>超频持续时间</gunsmith.framework.stattypes.TinkeringDuration>
+  <gunsmith.framework.stattypes.TinkeringStrength>超频强度</gunsmith.framework.stattypes.TinkeringStrength>
+  <gunsmith.framework.stattypes.TinkeringDamage>超频伤害</gunsmith.framework.stattypes.TinkeringDamage>
   <gunsmith.framework.stattypes.ReputationGainMultiplier>声望获取</gunsmith.framework.stattypes.ReputationGainMultiplier>
   <gunsmith.framework.stattypes.ReputationLossMultiplier>声望损失</gunsmith.framework.stattypes.ReputationLossMultiplier>
   <gunsmith.framework.stattypes.MissionMoneyGainMultiplier>任务金钱</gunsmith.framework.stattypes.MissionMoneyGainMultiplier>
@@ -100,7 +100,7 @@
   <gunsmith.framework.stattypes.ExplosionRadiusMultiplier>爆炸范围</gunsmith.framework.stattypes.ExplosionRadiusMultiplier>
   <gunsmith.framework.stattypes.ExplosionDamageMultiplier>爆炸伤害</gunsmith.framework.stattypes.ExplosionDamageMultiplier>
   <gunsmith.framework.stattypes.FabricationSpeed>制造速度</gunsmith.framework.stattypes.FabricationSpeed>
-  <gunsmith.framework.stattypes.BallastFloraDamageMultiplier>压载舱菌群伤害</gunsmith.framework.stattypes.BallastFloraDamageMultiplier>
+  <gunsmith.framework.stattypes.BallastFloraDamageMultiplier>压载舱丘脑伤害</gunsmith.framework.stattypes.BallastFloraDamageMultiplier>
   <gunsmith.framework.stattypes.HoldBreathMultiplier>屏息时间</gunsmith.framework.stattypes.HoldBreathMultiplier>
   <gunsmith.framework.stattypes.Apprenticeship>学徒加成</gunsmith.framework.stattypes.Apprenticeship>
   <gunsmith.framework.stattypes.CPRBoost>心肺复苏加成</gunsmith.framework.stattypes.CPRBoost>
@@ -110,5 +110,5 @@
   <gunsmith.framework.stattypes.SoundRangeMultiplier>声音范围</gunsmith.framework.stattypes.SoundRangeMultiplier>
   <gunsmith.framework.stattypes.SightRangeMultiplier>视野范围</gunsmith.framework.stattypes.SightRangeMultiplier>
   <gunsmith.framework.stattypes.DualWieldingPenaltyReduction>双持惩罚降低</gunsmith.framework.stattypes.DualWieldingPenaltyReduction>
-  <gunsmith.framework.stattypes.NaturalMeleeAttackMultiplier>徒手近战伤害</gunsmith.framework.stattypes.NaturalMeleeAttackMultiplier>
+  <gunsmith.framework.stattypes.NaturalMeleeAttackMultiplier>附肢近战伤害</gunsmith.framework.stattypes.NaturalMeleeAttackMultiplier>
 </infotexts>
