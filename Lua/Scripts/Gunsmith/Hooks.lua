@@ -398,10 +398,9 @@ function Hooks.Register()
 
     Hook.Patch("Barotrauma.Character", "ControlLocalPlayer", function(instance, ptable)
         if not PlayerInput or not Keys then return end
-        if not PlayerInput.KeyHit(Keys.G) then return end
-
-        local shiftDown = false
-        shiftDown = PlayerInput.KeyDown(Keys.LeftShift) or PlayerInput.KeyDown(Keys.RightShift)
+        local shiftDown = PlayerInput.KeyDown(Keys.LeftShift) or PlayerInput.KeyDown(Keys.RightShift)
+        local keyHook = shiftDown and "GunsmithFrameworkQuickOpenKeyHit" or "GunsmithFrameworkOpenKeyHit"
+        if Hook.Call(keyHook) ~= true then return end
 
         local item = Runtime.SelectedHandWeapon(instance)
         if item then

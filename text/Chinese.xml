@@ -111,4 +111,10 @@
   <gunsmith.framework.stattypes.SightRangeMultiplier>视野范围</gunsmith.framework.stattypes.SightRangeMultiplier>
   <gunsmith.framework.stattypes.DualWieldingPenaltyReduction>双持惩罚降低</gunsmith.framework.stattypes.DualWieldingPenaltyReduction>
   <gunsmith.framework.stattypes.NaturalMeleeAttackMultiplier>附肢近战伤害</gunsmith.framework.stattypes.NaturalMeleeAttackMultiplier>
+  <GunsmithFramework.OpenKey.DisplayName>打开枪匠界面</GunsmithFramework.OpenKey.DisplayName>
+  <GunsmithFramework.OpenKey.ToolTip>设置打开枪匠界面的按键。</GunsmithFramework.OpenKey.ToolTip>
+  <GunsmithFramework.OpenKey.DisplayCategory>枪匠框架</GunsmithFramework.OpenKey.DisplayCategory>
+  <GunsmithFramework.QuickOpenKey.DisplayName>打开快速改装（组合键shift+）</GunsmithFramework.QuickOpenKey.DisplayName>
+  <GunsmithFramework.QuickOpenKey.ToolTip>设置按住 Shift 时打开快速改装界面的按键。</GunsmithFramework.QuickOpenKey.ToolTip>
+  <GunsmithFramework.QuickOpenKey.DisplayCategory>枪匠框架</GunsmithFramework.QuickOpenKey.DisplayCategory>
 </infotexts>

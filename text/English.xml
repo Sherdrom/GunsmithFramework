@@ -111,4 +111,10 @@
   <gunsmith.framework.stattypes.SightRangeMultiplier>Sight Range</gunsmith.framework.stattypes.SightRangeMultiplier>
   <gunsmith.framework.stattypes.DualWieldingPenaltyReduction>Dual Wielding Penalty Reduction</gunsmith.framework.stattypes.DualWieldingPenaltyReduction>
   <gunsmith.framework.stattypes.NaturalMeleeAttackMultiplier>Natural Melee Damage</gunsmith.framework.stattypes.NaturalMeleeAttackMultiplier>
+  <GunsmithFramework.OpenKey.DisplayName>Open Gunsmith Key</GunsmithFramework.OpenKey.DisplayName>
+  <GunsmithFramework.OpenKey.ToolTip>Open the Gunsmith interface.</GunsmithFramework.OpenKey.ToolTip>
+  <GunsmithFramework.OpenKey.DisplayCategory>GunsmithFramework</GunsmithFramework.OpenKey.DisplayCategory>
+  <GunsmithFramework.QuickOpenKey.DisplayName>Quick Gunsmith Key (While Holding Shift + )</GunsmithFramework.QuickOpenKey.DisplayName>
+  <GunsmithFramework.QuickOpenKey.ToolTip>Open Quick Gunsmith while holding Shift.</GunsmithFramework.QuickOpenKey.ToolTip>
+  <GunsmithFramework.QuickOpenKey.DisplayCategory>GunsmithFramework</GunsmithFramework.QuickOpenKey.DisplayCategory>
 </infotexts>
