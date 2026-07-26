@@ -584,12 +584,6 @@ local function runStartupValidation()
     end
 end
 
-if Timer and Timer.Wait then
-    Timer.Wait(runStartupValidation, 1000)
-else
-    runStartupValidation()
-end
-
 if Framework.Validation and Framework.Validation.RegisterCommands then
     Framework.Validation.RegisterCommands()
 end
@@ -600,4 +594,16 @@ end
 
 if Framework.Hooks and Framework.Hooks.Register then
     Framework.Hooks.Register()
+end
+
+local pendingPackages = Framework.PendingPackages or {}
+Framework.PendingPackages = nil
+for _, package in ipairs(pendingPackages) do
+    Framework.RegisterPackage(package)
+end
+
+if Timer and Timer.Wait then
+    Timer.Wait(runStartupValidation, 1000)
+else
+    runStartupValidation()
 end

@@ -7,19 +7,27 @@ GunsmithFramework 是一个 Barotrauma 模组框架，用 Lua 描述枪械平台
 ## 需要准备
 
 - Barotrauma 已启用 LuaCs / Lua For Barotrauma。
-- GunsmithFramework 作为独立模组启用，并且加载顺序早于你的第三方枪械模组。
+- GunsmithFramework 作为独立模组启用；使用下面的延迟注册写法时，模组加载顺序不做要求。
 - 你的模组拥有自己的 `ModConfig.xml`、`filelist.xml`、XML 物品文件、Lua 配置文件和本地化文本。
 
-第三方模组只需要调用 GunsmithFramework 暴露的 Lua API：
+第三方模组通过同一个 package 描述完成直接注册或延迟注册：
 
 ```lua
-GunsmithFramework.RegisterPackage({
+local package = {
     modDir = ...,
     entry = "Lua/Scripts/MyGunsmithMod/Config.lua"
-})
+}
+
+GunsmithFramework = GunsmithFramework or {}
+if GunsmithFramework.RegisterPackage then
+    GunsmithFramework.RegisterPackage(package)
+else
+    GunsmithFramework.PendingPackages = GunsmithFramework.PendingPackages or {}
+    table.insert(GunsmithFramework.PendingPackages, package)
+end
 ```
 
-不要直接改 `Lua/Scripts/Gunsmith/*.lua`。
+入口可以放在模组内的任意路径。第三方模组先加载时会暂存 package，GunsmithFramework 启动后自动注册；框架先加载时则立即注册。
 
 ## 快速开始
 
@@ -62,13 +70,21 @@ MyGunsmithMod/
 `Lua/Autorun/init.lua`：
 
 ```lua
-GunsmithFramework.RegisterPackage({
+local package = {
     modDir = ...,
     id = "my_gunsmith_mod",
     name = "My Gunsmith Mod",
     entry = "Lua/Scripts/MyGunsmithMod/Config.lua",
     localizationFiles = { "text/English.xml" }
-})
+}
+
+GunsmithFramework = GunsmithFramework or {}
+if GunsmithFramework.RegisterPackage then
+    GunsmithFramework.RegisterPackage(package)
+else
+    GunsmithFramework.PendingPackages = GunsmithFramework.PendingPackages or {}
+    table.insert(GunsmithFramework.PendingPackages, package)
+end
 ```
 
 `Lua/Scripts/MyGunsmithMod/Config.lua`：
@@ -233,6 +249,7 @@ child draw offset = child anchor - child visual.attachPoint * child visual.scale
 ## 包级配置
 
 `GunsmithFramework.RegisterPackage(package)` 可接收字符串或 table。字符串会被视为 `entry`。
+如果 Autorun 执行时该函数尚不存在，将同一个 table 加入 `GunsmithFramework.PendingPackages`；框架启动时会依次交给 `RegisterPackage`。
 
 ```lua
 GunsmithFramework.RegisterPackage({
