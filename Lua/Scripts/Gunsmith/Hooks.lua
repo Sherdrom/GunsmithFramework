@@ -4,6 +4,7 @@ local Gunsmith = GunsmithFramework
 local Core = Gunsmith.Core
 local Persistence = Gunsmith.Persistence
 local Runtime = Gunsmith.Runtime
+local Stats = Gunsmith.Stats
 local QuickMod = Gunsmith.QuickMod
 local NpcPresets = Gunsmith.NpcPresets
 local Hooks = {}
@@ -299,6 +300,10 @@ function Hooks.Register()
 
     Hook.Add("GunsmithFrameworkGetFabricatorPartItemIds", "GunsmithFrameworkGetFabricatorPartItemIds", function(item)
         return Runtime.FabricatorPartItemIds(item)
+    end)
+
+    Hook.Add("GunsmithFrameworkGetItemStats", "GunsmithFrameworkGetItemStats", function(item)
+        return Stats.TooltipSpec(item)
     end)
 
     Hook.Patch("Barotrauma.Item", "OnMapLoaded", function(instance, ptable)

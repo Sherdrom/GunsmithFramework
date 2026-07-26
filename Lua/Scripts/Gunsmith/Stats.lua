@@ -161,3 +161,30 @@ function Stats.ManagedItemIdentifiers(selection)
     end
     return ids
 end
+
+function Stats.TooltipSpec(item)
+    local weapon = Core.WeaponConfig(item)
+    if weapon then
+        local runtime = Gunsmith.Runtime
+        local selection = runtime and runtime.GetSelection(item)
+            or Core.BuildDefaultSelection(Core.PlatformConfig(item), weapon, Core.OwnerForWeapon(weapon))
+        return Core.LocalizationPrefixForItem(item) .. "::" .. Stats.Encode(Stats.SumSelection(selection))
+    end
+
+    local identifier = Core.ItemIdentifier(item)
+    if not identifier then return nil end
+
+    local partIds = {}
+    for partId, part in pairs(Gunsmith.Config.parts or {}) do
+        if part and part.item and part.item.identifier == identifier then
+            table.insert(partIds, partId)
+        end
+    end
+    table.sort(partIds)
+    local partId = partIds[1]
+    if not partId then return nil end
+
+    local package = Core.PackageForOwner(Core.OwnerForPartId(partId))
+    local prefix = package and package.localizationPrefix or Gunsmith.LocalizationPrefix or "gunsmith.framework"
+    return prefix .. "::" .. Stats.Encode(Stats.PartStats(Core.GetPart(partId)))
+end

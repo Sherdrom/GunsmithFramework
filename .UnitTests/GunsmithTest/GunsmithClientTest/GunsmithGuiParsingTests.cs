@@ -106,6 +106,28 @@ public sealed class GunsmithGuiParsingTests
         Assert.Equal(expected, GunsmithGui.PartSelectionAfterSlotChange(previousSlot, nextSlot, partId));
     }
 
+    [Fact]
+    public void InsertTooltipStats_PutsStatsBeforeModAndSkillLines()
+    {
+        const string modLine = "\n‖color:purple‖Deep-Diving-Armory‖color:end‖";
+        const string tooltip = "description" + modLine + "\nrequired skill";
+
+        Assert.Equal(
+            "description\nbonus" + modLine + "\nrequired skill",
+            GunsmithGui.InsertTooltipStats(tooltip, "bonus", modLine));
+    }
+
+    [Fact]
+    public void FormatTooltipStat_MatchesVanillaValueFirstStyle()
+    {
+        Assert.Equal(
+            $"  ‖color:{XMLExtensions.ToStringHex(GUIStyle.Green)}‖+30%‖color:end‖ 火力",
+            GunsmithGui.FormatTooltipStat("+30%", "火力", 0.3f));
+        Assert.Equal(
+            $"  ‖color:{XMLExtensions.ToStringHex(GUIStyle.Red)}‖-10%‖color:end‖ 射速",
+            GunsmithGui.FormatTooltipStat("-10%", "射速", -0.1f));
+    }
+
     [Theory]
     [InlineData("1,2,3,4", true, 1, 2, 3, 4)]
     [InlineData(" 5, 6, 7, 8 ", true, 5, 6, 7, 8)]

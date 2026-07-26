@@ -5,23 +5,23 @@
   <gunsmith.framework.ui.quick_root>Quick Slots</gunsmith.framework.ui.quick_root>
   <gunsmith.framework.ui.close>Close</gunsmith.framework.ui.close>
   <gunsmith.framework.ui.current_slots>Slots</gunsmith.framework.ui.current_slots>
-  <gunsmith.framework.ui.back>Back</gunsmith.framework.ui.back>
+  <gunsmith.framework.ui.back>[Back]</gunsmith.framework.ui.back>
   <gunsmith.framework.ui.preview_placeholder>No preview available</gunsmith.framework.ui.preview_placeholder>
   <gunsmith.framework.ui.path_line>Path: {0}</gunsmith.framework.ui.path_line>
   <gunsmith.framework.ui.enter_mounts>Open Mounts</gunsmith.framework.ui.enter_mounts>
   <gunsmith.framework.ui.part_list_title>{0}</gunsmith.framework.ui.part_list_title>
   <gunsmith.framework.ui.part_detail_title>Part Details</gunsmith.framework.ui.part_detail_title>
-  <gunsmith.framework.ui.empty_part>Empty</gunsmith.framework.ui.empty_part>
+  <gunsmith.framework.ui.empty_part>[Empty]</gunsmith.framework.ui.empty_part>
   <gunsmith.framework.ui.weapon_root>Weapon</gunsmith.framework.ui.weapon_root>
   <gunsmith.framework.ui.fabricator_category>Gunsmith</gunsmith.framework.ui.fabricator_category>
   <gunsmith.framework.ui.fabricator_weapon_slot>Weapon</gunsmith.framework.ui.fabricator_weapon_slot>
   <gunsmith.framework.ui.fabricator_insert_weapon>Insert a Gunsmith weapon.</gunsmith.framework.ui.fabricator_insert_weapon>
   <gunsmith.framework.ui.fabricator_no_compatible_parts>No compatible gunsmith recipes.</gunsmith.framework.ui.fabricator_no_compatible_parts>
-  <gunsmith.framework.status.installed>Installed</gunsmith.framework.status.installed>
-  <gunsmith.framework.status.missing>Missing</gunsmith.framework.status.missing>
-  <gunsmith.framework.status.incompatible>Incompatible</gunsmith.framework.status.incompatible>
-  <gunsmith.framework.status.disabled>Disabled</gunsmith.framework.status.disabled>
-  <gunsmith.framework.status.available>Available</gunsmith.framework.status.available>
+  <gunsmith.framework.status.installed>[Installed]</gunsmith.framework.status.installed>
+  <gunsmith.framework.status.missing>[Missing]</gunsmith.framework.status.missing>
+  <gunsmith.framework.status.incompatible>[Incompatible]</gunsmith.framework.status.incompatible>
+  <gunsmith.framework.status.disabled>[Disabled]</gunsmith.framework.status.disabled>
+  <gunsmith.framework.status.available>[Available]</gunsmith.framework.status.available>
   <gunsmith.framework.action.installed>Installed</gunsmith.framework.action.installed>
   <gunsmith.framework.action.missing>Missing item</gunsmith.framework.action.missing>
   <gunsmith.framework.action.incompatible>Incompatible</gunsmith.framework.action.incompatible>
