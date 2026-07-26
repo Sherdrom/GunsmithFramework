@@ -237,7 +237,7 @@ namespace GunsmithFramework
         [HarmonyPrefix]
         private static bool BlockDirectManagedSlotPut(ItemInventory __instance, Item item, int i, Character user, bool createNetworkEvent, bool ignoreCondition, bool triggerOnInsertedEffects, ref bool __result)
         {
-            if (!IsManagedSlot(__instance, i) || IsQuickMutationAllowed(__instance))
+            if (!IsManagedSlot(__instance, i) || IsQuickMutationAllowed(__instance, i))
             {
                 return true;
             }
@@ -484,6 +484,10 @@ namespace GunsmithFramework
             return ReceivingServerStateInventories.Contains(inventory) ||
                    (inventory.Owner is Item item && QuickMutationItems.Contains(item));
         }
+
+        internal static bool IsQuickMutationAllowed(ItemInventory inventory, int slotIndex)
+            => IsQuickMutationAllowed((Inventory)inventory) ||
+               GunsmithQuickPartItemSpawner.HasPendingLoadedItem(inventory.Container, slotIndex);
 
         private static int FindAllowedNonManagedSlot(ItemInventory inventory, Item item, bool ignoreCondition)
         {

@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Barotrauma;
+using Barotrauma.Items.Components;
 using GunsmithFramework;
 using Xunit;
 
@@ -122,6 +123,20 @@ public sealed class GunsmithQuickDragTests : IDisposable
             GunsmithHiddenQuickSlotsPatch.EndReceivingServerState(inventory);
         }
         Assert.False(GunsmithHiddenQuickSlotsPatch.IsQuickMutationAllowed(inventory));
+    }
+
+    [Fact]
+    public void SavedContainedItemTemporarilyAllowsQuickSlotMutation()
+    {
+        ItemContainer container = Uninitialized<ItemContainer>();
+        ItemInventory inventory = CreateInventory(1);
+        SetInstanceField(inventory, "container", container);
+
+        Assert.False(GunsmithHiddenQuickSlotsPatch.IsQuickMutationAllowed(inventory, 0));
+        SetInstanceField(container, "itemIds", new[] { new List<ushort> { 1 } });
+        Assert.True(GunsmithHiddenQuickSlotsPatch.IsQuickMutationAllowed(inventory, 0));
+        SetInstanceField(container, "itemIds", null);
+        Assert.False(GunsmithHiddenQuickSlotsPatch.IsQuickMutationAllowed(inventory, 0));
     }
 
     [Fact]
