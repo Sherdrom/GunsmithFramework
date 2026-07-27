@@ -62,7 +62,6 @@ GunsmithFramework.Core.WeaponConfig = function() return { quickSlots = { { path 
 GunsmithFramework.Core.PlatformConfig = function() return {} end
 GunsmithFramework.Core.ItemIdentifier = function() return "weapon" end
 GunsmithFramework.Core.OwnerForWeaponId = function() return "owner" end
-GunsmithFramework.Core.IsRequiredSlot = function() return false end
 GunsmithFramework.Core.InvalidateQuickSlotsCache = function() end
 GunsmithFramework.Runtime = { GetSelection = function() return selection end }
 

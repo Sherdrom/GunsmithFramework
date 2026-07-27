@@ -8,7 +8,7 @@ namespace GunsmithFramework
 {
     public static class GunsmithQuickAttachmentBarrelSelectorPatch
     {
-        private const string VceTypeName = "Barotrauma.Items.Components.SwitchableRangedWeapon";
+        private const string VceTypeName = "SRW.SwitchableRangedWeapon";
         private const string SelectorPropertyName = "currentProjectileSelected";
 
         private static readonly object PatchLock = new();
@@ -16,6 +16,7 @@ namespace GunsmithFramework
         private static Type? switchableRangedWeaponType;
         private static MethodInfo? selectorGetter;
         private static MethodInfo? patchedSelectorSetter;
+        private static MethodInfo? projectileFinder;
 
         internal static void Reset()
         {
@@ -25,6 +26,7 @@ namespace GunsmithFramework
                 switchableRangedWeaponType = null;
                 selectorGetter = null;
                 patchedSelectorSetter = null;
+                projectileFinder = null;
             }
         }
 
@@ -59,6 +61,18 @@ namespace GunsmithFramework
             }
 
             return false;
+        }
+
+        internal static bool IsSelectedProjectileAvailable(RangedWeapon rangedWeapon)
+        {
+            Type? type = switchableRangedWeaponType;
+            MethodInfo? finder = projectileFinder;
+            if (type == null || finder == null || !type.IsInstanceOfType(rangedWeapon))
+            {
+                return true;
+            }
+
+            return finder.Invoke(rangedWeapon, new object[] { false }) is Projectile;
         }
 
         private static bool TryEnsureSelectorBridgeForComponent(ItemComponent component)
@@ -132,11 +146,18 @@ namespace GunsmithFramework
 
                 switchableRangedWeaponType = type;
                 selectorGetter = getter;
+                projectileFinder = type.GetMethod(
+                    nameof(RangedWeapon.FindProjectile),
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    binder: null,
+                    types: new[] { typeof(bool) },
+                    modifiers: null);
                 if (patchedSelectorSetter != setter)
                 {
                     harmonyInstance.Patch(setter, postfix: new HarmonyMethod(postfix));
                     patchedSelectorSetter = setter;
                 }
+                GunsmithErgonomicsRangedWeaponUsePatch.PatchOverride(harmonyInstance, type);
                 return true;
             }
         }

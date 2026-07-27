@@ -103,13 +103,13 @@ function QuickUiSpec.Build(item, selection, platform)
         if Core.IsValidPath(selection, platform, quickSlot.path) then
             local partType = Core.PartTypeForPath(selection, quickSlot.path)
             local emptyStatus = "available"
-            if Core.IsRequiredSlot(platform, quickSlot.path) then
-                emptyStatus = "disabled"
-            elseif not selection[quickSlot.path] then
+            if not selection[quickSlot.path] then
                 emptyStatus = "installed"
             end
 
-            local partEntries = { Gunsmith.EmptyPartId .. ":" .. Core.FrameworkLocalizationKey("ui.empty_part") .. ":" .. emptyStatus }
+            local emptyNameKey = Core.FrameworkLocalizationKey(
+                Core.IsRequiredSlot(platform, quickSlot.path) and "ui.empty_required_part" or "ui.empty_part")
+            local partEntries = { Gunsmith.EmptyPartId .. ":" .. emptyNameKey .. ":" .. emptyStatus }
             for _, partId in ipairs(Core.GetPartsForType(partType, ownerId)) do
                 appendPartEntry(partEntries, item, selection, platform, quickSlot.path, partId, quickSlot.slot, availableIds, ownerId)
             end

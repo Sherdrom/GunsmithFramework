@@ -274,8 +274,54 @@ namespace GunsmithFramework
     [HarmonyPatch(typeof(RangedWeapon), nameof(RangedWeapon.Use), new[] { typeof(float), typeof(Character) })]
     public static class GunsmithErgonomicsRangedWeaponUsePatch
     {
+        internal static bool ShouldBlockMissingRequiredParts(bool hasMissingRequiredParts, int selectedProjectile)
+            => hasMissingRequiredParts && selectedProjectile != 1;
+
+        internal static void PatchOverride(Harmony harmony, Type type)
+        {
+            MethodInfo? useOverride = AccessTools.DeclaredMethod(
+                type,
+                nameof(RangedWeapon.Use),
+                new[] { typeof(float), typeof(Character) });
+            if (useOverride != null)
+            {
+                harmony.Patch(useOverride, prefix: new HarmonyMethod(typeof(GunsmithErgonomicsRangedWeaponUsePatch), nameof(Prefix)));
+            }
+        }
+
         private static bool Prefix(RangedWeapon __instance, Character? character, ref bool __result)
         {
+            if (GunsmithRuntimeStates.TryGet(__instance.Item, out GunsmithRuntimeState state))
+            {
+                int selectedProjectile = 0;
+                if (state.HasMissingRequiredParts)
+                {
+                    GunsmithQuickAttachmentBarrelSelectorPatch.TryGetSelectedProjectile(
+                        __instance.Item,
+                        out selectedProjectile);
+                }
+
+                if (ShouldBlockMissingRequiredParts(state.HasMissingRequiredParts, selectedProjectile))
+                {
+#if CLIENT
+                    if (character == Character.Controlled)
+                    {
+                        GUI.AddMessage(
+                            TextManager.Get("gunsmith.framework.error.missing_required_parts"),
+                            Color.Red);
+                    }
+#endif
+                    __result = false;
+                    return false;
+                }
+
+                if (!GunsmithQuickAttachmentBarrelSelectorPatch.IsSelectedProjectileAvailable(__instance))
+                {
+                    __result = false;
+                    return false;
+                }
+            }
+
             if (!GunsmithErgonomicsAimPatch.ShouldSuppressUse(character, __instance.Item))
             {
                 return true;

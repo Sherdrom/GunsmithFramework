@@ -32,7 +32,8 @@ namespace GunsmithFramework
             {
                 Signature = signature,
                 Stats = ParseRuntimeStats(statsSpec),
-                ManagedItemIdentifiers = ParseIdentifierSet(managedItemSpec)
+                ManagedItemIdentifiers = ParseIdentifierSet(managedItemSpec),
+                HasMissingRequiredParts = signature.Contains("|missingRequired:1|", StringComparison.Ordinal)
             };
 
         internal static void Set(Item item, GunsmithRuntimeState state)
@@ -139,6 +140,7 @@ namespace GunsmithFramework
         public string Signature { get; init; } = string.Empty;
         public GunsmithRuntimeStats Stats { get; init; } = GunsmithRuntimeStats.Empty;
         public IReadOnlySet<string> ManagedItemIdentifiers { get; init; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        public bool HasMissingRequiredParts { get; init; }
     }
 
     internal sealed class GunsmithRuntimeStats

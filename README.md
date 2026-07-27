@@ -100,7 +100,7 @@ dofile(configPath .. "/Weapons/ExampleWeapon.lua")
 
 ## 最小可运行示例
 
-这个例子只有一个不可拆空的 `receiver` 根部件，能通过框架识别、合成贴图、打开 UI、保存状态。
+这个例子只有一个重要的 `receiver` 根部件，能通过框架识别、合成贴图、打开 UI、保存状态。重要部件可以拆空，但缺少时枪械无法开火。
 
 `Config/Platforms/ExamplePlatform.lua`：
 
@@ -332,13 +332,14 @@ GunsmithFramework.Config.platforms.my_platform = {
 | `rootSlots[].hidden` | boolean | 否 | 隐藏根槽不直接显示在 UI 根层，它的子挂点会显示在根层。 |
 | `pathNameKeys` | table | 是 | 路径段到本地化 key 的映射。root path 和 required slot 的每个路径段都需要 key。 |
 | `localizationPrefix` | string | 否 | 可选。覆盖此 platform 的路径 UI 文案前缀；大多数第三方模组可以不写。 |
-| `requiredSlots` | string array | 否 | 不能拆空的子槽。只有存在且仅存在一个 hidden root 时可用，路径写 hidden root 下的相对路径，不要带 hidden root 自身。 |
+| `requiredSlots` | string array | 否 | 重要子槽。可以拆空，但任一重要槽为空时主武器无法开火，并在尝试开火时提示玩家。只有存在且仅存在一个 hidden root 时可用，路径写 hidden root 下的相对路径，不要带 hidden root 自身。 |
 
 规则：
 
-- root slot 永远必选，不要写 `required = true`。
+- root slot 永远属于重要槽，不要写 `required = true`；它可以拆空，但缺少时主武器无法开火。
 - `requiredSlots` 必须是数组，不是 `{ barrel = true }` 这样的键值表。
 - 如果没有 hidden root，就不要写 `requiredSlots`。
+- `SwitchableRangedWeapon` 选择下挂弹药（索引 `1`）时，下挂武器仍可开火；重要部件限制只作用于主武器。
 
 ## Weapon 配置
 

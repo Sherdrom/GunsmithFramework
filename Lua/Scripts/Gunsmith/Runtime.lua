@@ -483,7 +483,8 @@ function Runtime.Apply(item, alreadySynced)
         selectionSignature = buildSignature(item, selection, platform, false)
     end
     quickAttachmentBarrelSpec = quickAttachmentBarrelSpec or buildQuickAttachmentBarrelSignature(item, selection, platform, weapon)
-    local configSignature = selectionSignature .. "|inventory:" .. inventorySpec .. "|world:" .. worldSpec .. "|qatBarrels:" .. quickAttachmentBarrelSpec
+    local missingRequiredSpec = Core.HasMissingRequiredParts(selection, platform) and "1" or "0"
+    local configSignature = selectionSignature .. "|inventory:" .. inventorySpec .. "|world:" .. worldSpec .. "|qatBarrels:" .. quickAttachmentBarrelSpec .. "|missingRequired:" .. missingRequiredSpec
     if State.appliedConfigSignatures[item] == configSignature then
         return
     end
@@ -669,7 +670,6 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode, character)
         end
 
         if partId == Gunsmith.EmptyPartId then
-            if Core.IsRequiredSlot(platform, slotPath) then return end
             if not QuickMod.ClearSlot(item, character, slotIndex, refreshAfterReturn) then return end
         else
             local part = Gunsmith.Config.parts[partId]
@@ -708,7 +708,6 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode, character)
     end
 
     if partId == Gunsmith.EmptyPartId then
-        if Core.IsRequiredSlot(platform, slotPath) then return end
         returnedParts = returnSelectionSubtree(character, item, selection, platform, slotPath, refreshWhenReturned)
         selection[slotPath] = nil
     else

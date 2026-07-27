@@ -65,12 +65,10 @@ local platform = {
 }
 
 local originalBuildDefaultSelection = GunsmithFramework.Core.BuildDefaultSelection
-local originalIsRequiredSlot = GunsmithFramework.Core.IsRequiredSlot
 local originalIsValidPath = GunsmithFramework.Core.IsValidPath
 GunsmithFramework.Core.BuildDefaultSelection = function()
     return { ["receiver/handguard"] = "default-handguard" }
 end
-GunsmithFramework.Core.IsRequiredSlot = function() return false end
 GunsmithFramework.Core.IsValidPath = function(_, _, path)
     return path == "receiver/handguard"
 end
@@ -83,10 +81,13 @@ local encoded = Persistence.Encode({
 }, platform)
 
 GunsmithFramework.Core.BuildDefaultSelection = originalBuildDefaultSelection
-GunsmithFramework.Core.IsRequiredSlot = originalIsRequiredSlot
 GunsmithFramework.Core.IsValidPath = originalIsValidPath
 
 assert(encoded == "{\"v\":1,\"parts\":{\"receiver\":\"receiver-id\",\"stock\":\"__empty\",\"receiver\\/barrel\":\"barrel-id\",\"receiver\\/barrel\\/muzzle\":\"muzzle-id\",\"receiver\\/handguard\":\"__empty\",\"receiver\\/optic\":\"optic-id\"}}")
+
+local restoredSelection = { receiver = "receiver-id" }
+Persistence.ApplySavedParts(restoredSelection, platform, {}, { receiver = "__empty" })
+assert(restoredSelection.receiver == nil)
 
 local expectedSerialized = {
     "receiver", "receiver-id",

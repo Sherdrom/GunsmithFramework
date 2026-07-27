@@ -37,9 +37,19 @@ namespace GunsmithFramework
         public static bool ApplyFromLua(Item item, string signature, string layerSpec, string inventorySpec, string worldSpec, string statsSpec, string managedItemSpec, int width, int height)
         {
             if (!IsReady || item == null || item.Removed) { return false; }
-            if (string.IsNullOrWhiteSpace(signature) || string.IsNullOrWhiteSpace(layerSpec)) { return false; }
+            if (string.IsNullOrWhiteSpace(signature)) { return false; }
 
             GunsmithRuntimeState runtimeState = GunsmithRuntimeStates.CreateState(signature, statsSpec, managedItemSpec);
+            if (string.IsNullOrWhiteSpace(layerSpec))
+            {
+                RestoreVanillaSprite(item);
+                if (spriteStates.TryRemove(item, out GunsmithSpriteState? emptyState))
+                {
+                    DisposeSpriteState(emptyState);
+                }
+                SetRuntimeState(item, runtimeState);
+                return true;
+            }
 
             string spriteSignature = BuildSpriteSignature(layerSpec, inventorySpec, worldSpec, width, height);
             if (spriteStates.TryGetValue(item, out GunsmithSpriteState? existing) && existing.Signature == spriteSignature)

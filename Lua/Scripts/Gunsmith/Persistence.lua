@@ -46,7 +46,6 @@ function Persistence.Encode(selection, platform, weapon)
     for path, _ in pairs(defaults) do
         if not Core.IsRootSlot(platform, path)
             and selection[path] == nil
-            and not Core.IsRequiredSlot(platform, path)
             and Core.IsValidPath(selection, platform, path) then
             nestedParts[path] = Gunsmith.EmptyPartId
         end
@@ -83,9 +82,7 @@ function Persistence.ApplySavedParts(selection, platform, weapon, savedParts, ow
         local partId = savedParts[path]
         if Core.IsValidPath(selection, platform, path) then
             if partId == Gunsmith.EmptyPartId then
-                if not Core.IsRequiredSlot(platform, path) then
-                    selection[path] = nil
-                end
+                selection[path] = nil
             else
                 local part = Gunsmith.Config.parts[partId]
                 if part and Core.IsPartCompatible(selection, platform, path, partId, ownerId) then

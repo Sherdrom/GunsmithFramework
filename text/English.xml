@@ -12,6 +12,7 @@
   <gunsmith.framework.ui.part_list_title>{0}</gunsmith.framework.ui.part_list_title>
   <gunsmith.framework.ui.part_detail_title>Part Details</gunsmith.framework.ui.part_detail_title>
   <gunsmith.framework.ui.empty_part>[Empty]</gunsmith.framework.ui.empty_part>
+  <gunsmith.framework.ui.empty_required_part>[Empty] (cannot fire without this important part)</gunsmith.framework.ui.empty_required_part>
   <gunsmith.framework.ui.weapon_root>Weapon</gunsmith.framework.ui.weapon_root>
   <gunsmith.framework.ui.fabricator_category>Gunsmith</gunsmith.framework.ui.fabricator_category>
   <gunsmith.framework.ui.fabricator_weapon_slot>Weapon</gunsmith.framework.ui.fabricator_weapon_slot>
@@ -28,6 +29,7 @@
   <gunsmith.framework.action.disabled>Unavailable</gunsmith.framework.action.disabled>
   <gunsmith.framework.action.remove>Remove</gunsmith.framework.action.remove>
   <gunsmith.framework.action.install>Install</gunsmith.framework.action.install>
+  <gunsmith.framework.error.missing_required_parts>The weapon is missing an important part.</gunsmith.framework.error.missing_required_parts>
   <gunsmith.framework.stat.ergonomics>Ergonomics</gunsmith.framework.stat.ergonomics>
   <gunsmith.framework.stat.none>No stat changes</gunsmith.framework.stat.none>
   <gunsmith.framework.stattypes.ElectricalSkillBonus>Electrical Skill Bonus</gunsmith.framework.stattypes.ElectricalSkillBonus>

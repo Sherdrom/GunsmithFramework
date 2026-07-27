@@ -8,6 +8,19 @@ local Core = GunsmithFramework.Core
 local Stats = GunsmithFramework.Stats
 local UiSpec = GunsmithFramework.UiSpec
 
+local requiredPlatform = {
+    rootSlots = { { path = "receiver", hidden = true } },
+    requiredSlots = { "upper_receiver/barrel", "stock_mount" }
+}
+assert(Core.HasMissingRequiredParts({}, requiredPlatform))
+assert(Core.HasMissingRequiredParts({ receiver = "receiver" }, requiredPlatform))
+assert(not Core.HasMissingRequiredParts({
+    receiver = "receiver",
+    ["receiver/upper_receiver/barrel"] = "barrel",
+    ["receiver/stock_mount"] = "stock"
+}, requiredPlatform))
+assert(not Core.HasMissingRequiredParts({ receiver = "receiver" }, { rootSlots = requiredPlatform.rootSlots, requiredSlots = "upper_receiver/barrel" }))
+
 assert(not Core.PartProvidesAccepted(nil, { "mount" }))
 assert(not Core.PartProvidesAccepted(42, { "mount" }))
 assert(not Core.PartProvidesAccepted({}, { "mount" }))

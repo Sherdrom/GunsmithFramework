@@ -13,7 +13,7 @@ GunsmithFramework = {
         GetPartsForType = function() return { "alternative" } end,
         HasChildSlots = function() return false end,
         IsPartCompatible = function() return true end,
-        IsRequiredSlot = function() return false end,
+        IsRequiredSlot = function() return true end,
         ItemIdentifier = function() return "weapon" end,
         NormalizeUiPath = function(_, path) return path end,
         OwnerForWeaponId = function() return "owner" end,
@@ -46,5 +46,8 @@ local spec = GunsmithFramework.UiSpec.Build(
 assert(
     spec:find("installed:part.installed:installed", 1, true),
     "UiSpec must include the current part even when the candidate cache omits it")
+assert(
+    spec:find("__empty:ui.empty_required_part:available", 1, true),
+    "Important slots must stay removable and warn that the weapon will not fire")
 
 print("UiSpec current-part fallback test passed")

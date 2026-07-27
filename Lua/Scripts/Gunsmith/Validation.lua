@@ -25,6 +25,7 @@ local frameworkLocalizationKeySuffixes = {
     "ui.part_list_title",
     "ui.part_detail_title",
     "ui.empty_part",
+    "ui.empty_required_part",
     "ui.weapon_root",
     "status.installed",
     "status.missing",
@@ -37,6 +38,7 @@ local frameworkLocalizationKeySuffixes = {
     "action.disabled",
     "action.remove",
     "action.install",
+    "error.missing_required_parts",
     "stat.ergonomics",
     "stat.none"
 }

@@ -676,6 +676,23 @@ function Core.IsRequiredSlot(platform, path)
     return false
 end
 
+function Core.HasMissingRequiredParts(selection, platform)
+    if type(selection) ~= "table" or not platform then return false end
+
+    for _, root in ipairs(Core.RootSlotDefs(platform)) do
+        if selection[root.path] == nil then return true end
+    end
+
+    local hiddenRootPath = Core.HiddenHomeRootPath(platform)
+    for _, relativePath in ipairs(type(platform.requiredSlots) == "table" and platform.requiredSlots or {}) do
+        if type(relativePath) == "string" then
+            local path = hiddenRootPath and Core.JoinPath(hiddenRootPath, relativePath) or relativePath
+            if selection[path] == nil then return true end
+        end
+    end
+    return false
+end
+
 function Core.HiddenHomeRootPath(platform)
     if not platform then return nil end
 

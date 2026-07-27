@@ -45,12 +45,12 @@ function UiSpec.Build(item, selection, platform, currentPath)
 
     for _, slot in ipairs(Core.SlotsForPath(selection, platform, path)) do
         local emptyStatus = "available"
-        if Core.IsRequiredSlot(platform, slot.path) then
-            emptyStatus = "disabled"
-        elseif not selection[slot.path] then
+        if not selection[slot.path] then
             emptyStatus = "installed"
         end
-        local partEntries = { Gunsmith.EmptyPartId .. ":" .. Core.FrameworkLocalizationKey("ui.empty_part") .. ":" .. emptyStatus }
+        local emptyNameKey = Core.FrameworkLocalizationKey(
+            Core.IsRequiredSlot(platform, slot.path) and "ui.empty_required_part" or "ui.empty_part")
+        local partEntries = { Gunsmith.EmptyPartId .. ":" .. emptyNameKey .. ":" .. emptyStatus }
         local includedPartIds = {}
         for _, partId in ipairs(Core.GetPartsForType(slot.partType, ownerId)) do
             includedPartIds[partId] = true

@@ -14,6 +14,22 @@ namespace GunsmithFramework.Tests;
 public sealed class GunsmithLifecycleCleanupTests
 {
     [Fact]
+    public void RuntimeStateTracksMissingRequiredParts()
+    {
+        Assert.False(GunsmithRuntimeStates.CreateState("selection|missingRequired:0|stats:", "", "").HasMissingRequiredParts);
+        Assert.True(GunsmithRuntimeStates.CreateState("selection|missingRequired:1|stats:", "", "").HasMissingRequiredParts);
+    }
+
+    [Theory]
+    [InlineData(true, 0, true)]
+    [InlineData(true, 1, false)]
+    [InlineData(false, 0, false)]
+    public void MissingRequiredPartsOnlyBlockPrimaryFire(bool missing, int selectedProjectile, bool expected)
+        => Assert.Equal(
+            expected,
+            GunsmithErgonomicsRangedWeaponUsePatch.ShouldBlockMissingRequiredParts(missing, selectedProjectile));
+
+    [Fact]
     public void OwnerResetsClearSharedRegistriesAndAreIdempotent()
     {
         Item item = Uninitialized<Item>();
@@ -90,6 +106,7 @@ public sealed class GunsmithLifecycleCleanupTests
         SetStaticField(typeof(GunsmithQuickAttachmentBarrelSelectorPatch), "switchableRangedWeaponType", typeof(SelectorStub));
         SetStaticField(typeof(GunsmithQuickAttachmentBarrelSelectorPatch), "selectorGetter", selector.GetMethod);
         SetStaticField(typeof(GunsmithQuickAttachmentBarrelSelectorPatch), "patchedSelectorSetter", selector.SetMethod);
+        SetStaticField(typeof(GunsmithQuickAttachmentBarrelSelectorPatch), "projectileFinder", selector.GetMethod);
 
         GunsmithQuickPartItemSpawner.Reset();
         GunsmithQuickAttachmentBarrelSelectorPatch.Reset();
@@ -104,6 +121,7 @@ public sealed class GunsmithLifecycleCleanupTests
         Assert.Null(GetStaticField(typeof(GunsmithQuickAttachmentBarrelSelectorPatch), "switchableRangedWeaponType"));
         Assert.Null(GetStaticField(typeof(GunsmithQuickAttachmentBarrelSelectorPatch), "selectorGetter"));
         Assert.Null(GetStaticField(typeof(GunsmithQuickAttachmentBarrelSelectorPatch), "patchedSelectorSetter"));
+        Assert.Null(GetStaticField(typeof(GunsmithQuickAttachmentBarrelSelectorPatch), "projectileFinder"));
     }
 
     [Fact]

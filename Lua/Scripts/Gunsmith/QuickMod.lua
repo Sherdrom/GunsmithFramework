@@ -155,8 +155,7 @@ function QuickMod.SyncFromContainer(item, selection, platform, clearEmpty, prefe
                 changed = true
             end
         elseif selection[path] ~= nil and
-            ((owner and owner.path ~= path) or
-            (not owner and clearEmpty and not Core.IsRequiredSlot(platform, path))) then
+            ((owner and owner.path ~= path) or (not owner and clearEmpty)) then
             selection[path] = nil
             changed = true
         end
