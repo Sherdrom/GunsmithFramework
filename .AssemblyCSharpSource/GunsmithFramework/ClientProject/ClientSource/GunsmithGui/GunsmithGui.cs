@@ -438,6 +438,7 @@ namespace GunsmithFramework
             row.Frame.UserData = part;
             row.Frame.Color = selected ? Color.DarkOliveGreen * 0.55f : Color.Transparent;
             row.Label.Text = (LocalizedString)LocalizeKey(part.NameKey);
+            row.Label.TextColor = part.NameKey == DefaultLocalizationPrefix + ".ui.empty_required_part" ? GUIStyle.Red : Color.White;
             row.Status.Text = (LocalizedString)PartStatusText(slot, part);
             row.Status.TextColor = PartStatusColor(slot, part);
         }
