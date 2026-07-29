@@ -89,6 +89,27 @@ local restoredSelection = { receiver = "receiver-id" }
 Persistence.ApplySavedParts(restoredSelection, platform, {}, { receiver = "__empty" })
 assert(restoredSelection.receiver == nil)
 
+local savedEmptyPartForPath = GunsmithFramework.Core.EmptyPartForPath
+local savedIsPartCompatible = GunsmithFramework.Core.IsPartCompatible
+local savedPruneInvalidSelections = GunsmithFramework.Core.PruneInvalidSelections
+GunsmithFramework.Core.EmptyPartForPath = function(_, path)
+    return path == "receiver/rear_sight_mount" and "virtual-empty" or nil
+end
+GunsmithFramework.Core.IsPartCompatible = function() return true end
+GunsmithFramework.Core.PruneInvalidSelections = function() end
+GunsmithFramework.Core.IsValidPath = function() return true end
+local migratedSelection = { receiver = "receiver-id" }
+Persistence.ApplySavedParts(
+    migratedSelection,
+    platform,
+    {},
+    { ["receiver/rear_sight_mount"] = "__empty" })
+assert(migratedSelection["receiver/rear_sight_mount"] == "virtual-empty")
+GunsmithFramework.Core.EmptyPartForPath = savedEmptyPartForPath
+GunsmithFramework.Core.IsPartCompatible = savedIsPartCompatible
+GunsmithFramework.Core.PruneInvalidSelections = savedPruneInvalidSelections
+GunsmithFramework.Core.IsValidPath = originalIsValidPath
+
 local expectedSerialized = {
     "receiver", "receiver-id",
     "stock", "__empty",

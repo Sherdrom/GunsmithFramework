@@ -44,8 +44,9 @@ function UiSpec.Build(item, selection, platform, currentPath)
     local entries = {}
 
     for _, slot in ipairs(Core.SlotsForPath(selection, platform, path)) do
+        local emptyPartId = Core.EmptyPartForPath(selection, slot.path)
         local emptyStatus = "available"
-        if not selection[slot.path] then
+        if not selection[slot.path] or selection[slot.path] == emptyPartId then
             emptyStatus = "installed"
         end
         local emptyNameKey = Core.FrameworkLocalizationKey(
@@ -53,11 +54,13 @@ function UiSpec.Build(item, selection, platform, currentPath)
         local partEntries = { Gunsmith.EmptyPartId .. ":" .. emptyNameKey .. ":" .. emptyStatus }
         local includedPartIds = {}
         for _, partId in ipairs(Core.GetPartsForType(slot.partType, ownerId)) do
-            includedPartIds[partId] = true
-            appendPartEntry(partEntries, item, selection, platform, slot.path, partId, ownerId)
+            if partId ~= emptyPartId then
+                includedPartIds[partId] = true
+                appendPartEntry(partEntries, item, selection, platform, slot.path, partId, ownerId)
+            end
         end
         local currentPartId = selection[slot.path]
-        if currentPartId and not includedPartIds[currentPartId] then
+        if currentPartId and currentPartId ~= emptyPartId and not includedPartIds[currentPartId] then
             appendPartEntry(partEntries, item, selection, platform, slot.path, currentPartId, ownerId)
         end
 
@@ -65,7 +68,7 @@ function UiSpec.Build(item, selection, platform, currentPath)
         local entry = {
             slotPath,
             slot.nameKey,
-            tostring(selection[slotPath] or ""),
+            tostring(currentPartId == emptyPartId and "" or currentPartId or ""),
             Core.HasChildSlots(selection, platform, slotPath) and "1" or "0",
             table.concat(partEntries, ",")
         }

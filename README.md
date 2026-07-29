@@ -533,6 +533,7 @@ mounts = {
 | `partType` | string | 否 | 接受的 part `type`。未写时使用 `path`。 |
 | `nameKey` | string | 否 | 子槽显示名本地化 key。未写时用 platform `pathNameKeys[path]`。 |
 | `defaultPart` | string | 否 | 父部件安装时自动安装的默认子部件。 |
+| `emptyPart` | string | 否 | 选择 `[空]` 时内部安装的虚拟子部件，可继续提供下级 mount；UI 不会把它显示为第二个候选项。 |
 | `accepts` | string array | 是 | 接受的 `provides` 标签。 |
 | `anchor` | point | 否 | 父部件上的子挂点，坐标相对父部件 `visual.attachPoint`。 |
 | `visualOrder` | number | 否 | 安装在此 mount 上的子部件图层顺序。 |
@@ -546,6 +547,8 @@ mounts = {
 - `defaultPart` 必须存在。
 - 默认部件的 `type` 必须匹配 `mount.partType` 或 `mount.path`。
 - 默认部件的 `provides` 必须被 `mount.accepts` 接受。
+- `emptyPart` 同样必须匹配 mount，并声明 `item = { virtual = true }`，不能带 `item.identifier`。
+- `emptyPart` 会被视为已安装；表示可用的空挂点时，不要把该路径加入 `requiredSlots`。
 - 默认树最大深度为 32，不能形成循环。
 
 ### Quick Attachment 枪口出口偏移

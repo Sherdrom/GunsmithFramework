@@ -3,14 +3,16 @@ GunsmithFramework = {
     Config = {
         parts = {
             alternative = { nameKey = "part.alternative" },
+            empty = { nameKey = "part.empty" },
             installed = { nameKey = "part.installed" }
         }
     },
     Core = {
+        EmptyPartForPath = function() return "empty" end,
         EncodePreview = function() return "" end,
         EncodeText = tostring,
         FrameworkLocalizationKey = function(key) return key end,
-        GetPartsForType = function() return { "alternative" } end,
+        GetPartsForType = function() return { "empty", "alternative" } end,
         HasChildSlots = function() return false end,
         IsPartCompatible = function() return true end,
         IsRequiredSlot = function() return true end,
@@ -49,5 +51,17 @@ assert(
 assert(
     spec:find("__empty:ui.empty_required_part:available", 1, true),
     "Important slots must stay removable and warn that the weapon will not fire")
+
+local emptySpec = GunsmithFramework.UiSpec.Build(
+    {},
+    { rear_sight_mount = "empty" },
+    {},
+    "")
+local _, emptyEntryCount = emptySpec:gsub("__empty:", "")
+assert(emptyEntryCount == 1, "emptyPart must be represented by exactly one synthetic empty entry")
+assert(not emptySpec:find("empty:part.empty:", 1, true), "emptyPart must not appear as a second candidate")
+assert(
+    emptySpec:find("rear_sight_mount|rear_sight_mount||0|__empty:ui.empty_required_part:installed", 1, true),
+    "emptyPart must be exposed to the UI as the installed empty state")
 
 print("UiSpec current-part fallback test passed")

@@ -126,8 +126,10 @@ function QuickMod.SyncFromContainer(item, selection, platform, clearEmpty, prefe
     local ownerId = Core.OwnerForWeaponId(Core.ItemIdentifier(item))
 
     local ownersBySlot = {}
+    local occupiedSlots = {}
     for _, quickSlot in ipairs(quickSlots) do
         local contained = slotItem(item, quickSlot.slot)
+        if contained then occupiedSlots[quickSlot.slot] = true end
         local partId = contained and findCompatiblePartId(
             selection,
             platform,
@@ -147,7 +149,9 @@ function QuickMod.SyncFromContainer(item, selection, platform, clearEmpty, prefe
     for _, quickSlot in ipairs(quickSlots) do
         local path = quickSlot.path
         local owner = ownersBySlot[quickSlot.slot]
-        local newPartId = owner and owner.path == path and owner.partId or nil
+        local emptyPartId = clearEmpty and not occupiedSlots[quickSlot.slot] and Core.EmptyPartForPath(selection, path) or nil
+        if emptyPartId and not Core.IsPartCompatible(selection, platform, path, emptyPartId, ownerId) then emptyPartId = nil end
+        local newPartId = owner and owner.path == path and owner.partId or emptyPartId
 
         if newPartId then
             if selection[path] ~= newPartId then

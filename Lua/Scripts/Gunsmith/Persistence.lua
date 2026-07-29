@@ -82,7 +82,9 @@ function Persistence.ApplySavedParts(selection, platform, weapon, savedParts, ow
         local partId = savedParts[path]
         if Core.IsValidPath(selection, platform, path) then
             if partId == Gunsmith.EmptyPartId then
-                selection[path] = nil
+                local emptyPartId = Core.EmptyPartForPath(selection, path)
+                selection[path] = emptyPartId and Core.IsPartCompatible(selection, platform, path, emptyPartId, ownerId)
+                    and emptyPartId or nil
             else
                 local part = Gunsmith.Config.parts[partId]
                 if part and Core.IsPartCompatible(selection, platform, path, partId, ownerId) then

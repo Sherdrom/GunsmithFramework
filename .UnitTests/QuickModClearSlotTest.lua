@@ -23,7 +23,7 @@ function character.Inventory.TryPutItem(item, actor, allowedSlots, createNetwork
 end
 
 GunsmithFramework = {
-    Core = {},
+    Core = { EmptyPartForPath = function() return nil end },
     Config = { parts = {} }
 }
 SERVER = false
@@ -126,6 +126,13 @@ assert(selection[receiverOpticPath] == "optic" and selection[handleOpticPath] ==
 weaponInventory.items = {}
 assert(GunsmithFramework.QuickMod.SyncFromContainer(weapon, selection, {}, true))
 assert(selection[receiverOpticPath] == nil and selection[handleOpticPath] == nil)
+
+selection[receiverOpticPath] = "optic"
+GunsmithFramework.Core.EmptyPartForPath = function(_, path)
+    return path == receiverOpticPath and "virtual_empty" or nil
+end
+assert(GunsmithFramework.QuickMod.SyncFromContainer(weapon, selection, {}, true))
+assert(selection[receiverOpticPath] == "virtual_empty" and selection[handleOpticPath] == nil)
 
 local hooksFile = assert(io.open(".AssemblyCSharpSource/GunsmithFramework/ClientProject/ClientSource/GunsmithHooks.cs", "r"))
 local hooksSource = hooksFile:read("*a")

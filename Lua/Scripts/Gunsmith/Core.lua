@@ -639,6 +639,18 @@ function Core.MountForPath(selection, path)
     return byPath[childPath]
 end
 
+function Core.EmptyPartForPath(selection, path)
+    local mount = Core.MountForPath(selection, path)
+    local partId = mount and mount.emptyPart or nil
+    local part = Core.GetPart(partId)
+    local item = part and part.item or nil
+    if type(partId) ~= "string" or partId == "" or type(item) ~= "table" or item.virtual ~= true
+        or item.identifier ~= nil then
+        return nil
+    end
+    return partId
+end
+
 local function requiredSlotSet(platform)
     if not platform then return {} end
 

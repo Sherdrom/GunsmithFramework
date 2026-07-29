@@ -20,6 +20,7 @@ GunsmithFramework = {
         ItemKey = function() return "weapon" end,
         IsValidPath = function() return true end,
         IsRequiredSlot = function() return false end,
+        EmptyPartForPath = function() return nil end,
         GetPart = function(partId)
             return GunsmithFramework.Config.parts[partId] or { item = { identifier = partId .. "_item" } }
         end,

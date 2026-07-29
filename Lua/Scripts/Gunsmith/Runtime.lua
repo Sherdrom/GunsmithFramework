@@ -656,6 +656,8 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode, character)
     if not selection or not platform or not Core.IsValidPath(selection, platform, slotPath) then return end
 
     character = character or (Inventory and Inventory.ActorForItem(item) or nil)
+    local emptyPartId = partId == Gunsmith.EmptyPartId and Core.EmptyPartForPath(selection, slotPath) or nil
+    if emptyPartId and not Core.IsPartCompatible(selection, platform, slotPath, emptyPartId, ownerId) then return end
 
     local quickSlotIndex = QuickMod and QuickMod.SlotForPath(item, slotPath) or nil
     if quickSlotIndex ~= nil then
@@ -708,8 +710,9 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode, character)
     end
 
     if partId == Gunsmith.EmptyPartId then
+        if selection[slotPath] == emptyPartId then return true end
         returnedParts = returnSelectionSubtree(character, item, selection, platform, slotPath, refreshWhenReturned)
-        selection[slotPath] = nil
+        selection[slotPath] = emptyPartId
     else
         local part = Gunsmith.Config.parts[partId]
         if not part or not Core.IsPartCompatible(selection, platform, slotPath, partId, ownerId) then return end

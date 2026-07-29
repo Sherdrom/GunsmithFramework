@@ -794,6 +794,25 @@ function Validation.Run(configOverride, label)
                                 table.insert(warnings, mountLabel .. " accepts no currently provided part type.")
                             end
                         end
+                        if mount.emptyPart ~= nil then
+                            if type(mount.emptyPart) ~= "string" or mount.emptyPart == "" then
+                                table.insert(errors, mountLabel .. " emptyPart must be a non-empty string when declared.")
+                            else
+                                local emptyPart = parts[mount.emptyPart]
+                                validateReference("parts", mount.emptyPart, ownerFor("parts", partId), mountLabel .. ".emptyPart")
+                                if not emptyPart then
+                                    table.insert(errors, mountLabel .. " emptyPart '" .. mount.emptyPart .. "' does not exist.")
+                                elseif not partCanAttachToMount(emptyPart, mount) then
+                                    table.insert(errors, mountLabel .. " emptyPart '" .. mount.emptyPart .. "' is not compatible with this mount.")
+                                else
+                                    local emptyItem = emptyPart.item
+                                    if type(emptyItem) ~= "table" or emptyItem.virtual ~= true
+                                        or emptyItem.identifier ~= nil then
+                                        table.insert(errors, mountLabel .. " emptyPart must reference a virtual part without item.identifier.")
+                                    end
+                                end
+                            end
+                        end
                         if not validOptionalPoint(mount.anchor) then
                             table.insert(errors, mountLabel .. " anchor must contain numeric x/y.")
                         end

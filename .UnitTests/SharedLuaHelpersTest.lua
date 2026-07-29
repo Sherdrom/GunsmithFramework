@@ -34,6 +34,11 @@ GunsmithFramework.Config.parts = {
     zeta = { type = "sight" },
     first = { type = "sight", uiOrder = -100 },
     last = { type = "sight", uiOrder = 10 },
+    receiver = {
+        type = "receiver",
+        mounts = { { path = "rear_sight", accepts = { "rear_sight" }, emptyPart = "empty_rear_sight" } }
+    },
+    empty_rear_sight = { type = "rear_sight", provides = { "rear_sight" }, item = { virtual = true } },
     ignored = { type = "other", uiOrder = -1000 }
 }
 GunsmithFramework.Owners = {
@@ -42,11 +47,18 @@ GunsmithFramework.Owners = {
         zeta = "test",
         first = "test",
         last = "test",
+        receiver = "test",
+        empty_rear_sight = "test",
         ignored = "test"
     }
 }
 GunsmithFramework.Packages = { test = { _importSet = {}, localizationPrefix = "test.gunsmith" } }
 assert(table.concat(Core.GetPartsForType("sight", "test"), ",") == "first,alpha,zeta,last")
+local emptySelection = { receiver = "receiver" }
+assert(Core.EmptyPartForPath(emptySelection, "receiver/rear_sight") == "empty_rear_sight")
+GunsmithFramework.Config.parts.empty_rear_sight.item.identifier = "physical_item"
+assert(Core.EmptyPartForPath(emptySelection, "receiver/rear_sight") == nil)
+GunsmithFramework.Config.parts.empty_rear_sight.item.identifier = nil
 
 assert(UiSpec.EncodePartEntry("part-id", {
     nameKey = "part.name",

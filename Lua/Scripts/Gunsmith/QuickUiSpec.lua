@@ -102,8 +102,9 @@ function QuickUiSpec.Build(item, selection, platform)
     for _, quickSlot in ipairs(quickSlotsForItem(item, selection, platform)) do
         if Core.IsValidPath(selection, platform, quickSlot.path) then
             local partType = Core.PartTypeForPath(selection, quickSlot.path)
+            local emptyPartId = Core.EmptyPartForPath(selection, quickSlot.path)
             local emptyStatus = "available"
-            if not selection[quickSlot.path] then
+            if not selection[quickSlot.path] or selection[quickSlot.path] == emptyPartId then
                 emptyStatus = "installed"
             end
 
@@ -111,13 +112,15 @@ function QuickUiSpec.Build(item, selection, platform)
                 Core.IsRequiredSlot(platform, quickSlot.path) and "ui.empty_required_part" or "ui.empty_part")
             local partEntries = { Gunsmith.EmptyPartId .. ":" .. emptyNameKey .. ":" .. emptyStatus }
             for _, partId in ipairs(Core.GetPartsForType(partType, ownerId)) do
-                appendPartEntry(partEntries, item, selection, platform, quickSlot.path, partId, quickSlot.slot, availableIds, ownerId)
+                if partId ~= emptyPartId then
+                    appendPartEntry(partEntries, item, selection, platform, quickSlot.path, partId, quickSlot.slot, availableIds, ownerId)
+                end
             end
 
             table.insert(entries, table.concat({
                 quickSlot.path,
                 quickSlot.nameKey or Core.PathNameKey(platform, quickSlot.path),
-                tostring(selection[quickSlot.path] or ""),
+                tostring(selection[quickSlot.path] == emptyPartId and "" or selection[quickSlot.path] or ""),
                 "0",
                 table.concat(partEntries, ","),
                 quickMeta(item, selection, platform, weapon, quickSlot, ownerId)
