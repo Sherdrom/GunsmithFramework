@@ -42,13 +42,52 @@ namespace GunsmithFramework
         private sealed class GunsmithWindowFrame : GUIFrame
         {
             private readonly Action close;
-            private bool dragging;
+            private readonly GUIDragHandle dragHandle;
 
-            public GunsmithWindowFrame(RectTransform rectT, Action close, Color color)
-                : base(rectT, style: null, color: color)
+            public GunsmithWindowFrame(RectTransform rectT, Action close)
+                : base(rectT, style: "ItemUI")
             {
                 this.close = close;
                 CanBeFocused = true;
+
+                dragHandle = new GUIDragHandle(new RectTransform(new Vector2(1.0f, 0.0f), RectTransform, Anchor.TopCenter)
+                {
+                    MinSize = new Point(0, GUIStyle.ItemFrameMargin.Y / 2)
+                }, RectTransform, style: null)
+                {
+                    DragArea = HUDLayoutSettings.ItemHUDArea
+                };
+
+                int iconHeight = GUIStyle.ItemFrameMargin.Y / 4;
+                _ = new GUIImage(new RectTransform(new Point(Rect.Width, iconHeight), dragHandle.RectTransform, Anchor.TopCenter)
+                {
+                    AbsoluteOffset = new Point(0, iconHeight / 2),
+                    MinSize = new Point(0, iconHeight)
+                }, style: "GUIDragIndicatorHorizontal");
+
+                int buttonHeight = (int)(GUIStyle.ItemFrameMargin.Y * 0.4f);
+                _ = new GUIButton(new RectTransform(new Point(buttonHeight), dragHandle.RectTransform, Anchor.TopLeft)
+                {
+                    AbsoluteOffset = new Point(buttonHeight / 4),
+                    MinSize = new Point(buttonHeight)
+                }, style: "GUIButtonSettings")
+                {
+                    OnClicked = (_, _) =>
+                    {
+                        GUIContextMenu.CreateContextMenu(
+                            new ContextMenuOption("item.resetuiposition", isEnabled: true, onSelected: () => RectTransform.ScreenSpaceOffset = Point.Zero),
+                            new ContextMenuOption(TextManager.Get(dragHandle.Enabled ? "item.lockuiposition" : "item.unlockuiposition"), isEnabled: true, onSelected: () => dragHandle.Enabled = !dragHandle.Enabled));
+                        return true;
+                    }
+                };
+            }
+
+            public override void ClearChildren()
+            {
+                foreach (GUIComponent child in Children.Where(child => child != dragHandle).ToList())
+                {
+                    child.RectTransform.Parent = null;
+                }
             }
 
             public override void AddToGUIUpdateList(bool ignoreChildren = false, int order = 0)
@@ -74,32 +113,6 @@ namespace GunsmithFramework
                     close();
                     return;
                 }
-
-                Rectangle dragArea = new(Rect.X, Rect.Y, Rect.Width, Math.Max((int)(Rect.Height * 0.14f), 28));
-                if (dragArea.Contains(PlayerInput.MousePosition) && PlayerInput.PrimaryMouseButtonDown())
-                {
-                    dragging = true;
-                }
-
-                if (!PlayerInput.PrimaryMouseButtonHeld())
-                {
-                    dragging = false;
-                    return;
-                }
-
-                if (!dragging)
-                {
-                    return;
-                }
-
-                Vector2 speed = PlayerInput.MouseSpeed;
-                if (speed == Vector2.Zero)
-                {
-                    return;
-                }
-
-                RectTransform.ScreenSpaceOffset += new Point((int)Math.Round(speed.X), (int)Math.Round(speed.Y));
-                ClampToArea(new Rectangle(0, 0, GameMain.GraphicsWidth, GameMain.GraphicsHeight));
             }
         }
     }

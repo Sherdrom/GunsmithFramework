@@ -85,12 +85,12 @@ namespace GunsmithFramework
             activeWeaponStats = spec.WeaponStats;
             if (quickMode)
             {
-                activeWindow = new GunsmithWindowFrame(new RectTransform(new Vector2(0.78f, 0.68f), GUI.Canvas, Anchor.Center), CloseWindow, Color.Black * 0.62f);
+                activeWindow = new GunsmithWindowFrame(new RectTransform(new Vector2(0.78f, 0.68f), GUI.Canvas, Anchor.Center), CloseWindow);
                 BuildQuickOverlay(title);
             }
             else
             {
-                activeWindow = new GunsmithWindowFrame(new RectTransform(new Vector2(0.74f, 0.62f), GUI.Canvas, Anchor.Center), CloseWindow, Color.Black * 0.85f);
+                activeWindow = new GunsmithWindowFrame(new RectTransform(new Vector2(0.74f, 0.64f), GUI.Canvas, Anchor.Center), CloseWindow);
                 BuildHeader(title);
                 BuildBody();
             }
@@ -145,8 +145,15 @@ namespace GunsmithFramework
         {
             if (activeWindow == null) { return; }
 
-            GUIFrame header = new(new RectTransform(new Vector2(0.96f, 0.12f), activeWindow.RectTransform, Anchor.TopCenter), color: Color.Black * 0.35f);
-            _ = new GUITextBlock(new RectTransform(new Vector2(0.76f, 0.78f), header.RectTransform, Anchor.CenterLeft), FormatL(title, LocalizedItemName(activeItem)), textAlignment: Alignment.CenterLeft);
+            GUIFrame header = new(new RectTransform(new Vector2(0.96f, 0.12f), activeWindow.RectTransform, Anchor.TopCenter), style: null, color: Color.Transparent)
+            {
+                CanBeFocused = false,
+                RectTransform = { RelativeOffset = new Vector2(0.0f, 0.02f) }
+            };
+            _ = new GUITextBlock(new RectTransform(new Vector2(0.76f, 0.78f), header.RectTransform, Anchor.CenterLeft), FormatL(title, LocalizedItemName(activeItem)), textAlignment: Alignment.CenterLeft)
+            {
+                CanBeFocused = false
+            };
 
             GUIButton closeButton = new(new RectTransform(new Vector2(0.16f, 0.72f), header.RectTransform, Anchor.CenterRight), L(Key("ui.close")), Alignment.Center);
             closeButton.OnClicked = (_, _) =>
@@ -160,7 +167,10 @@ namespace GunsmithFramework
         {
             if (activeWindow == null) { return; }
 
-            GUIFrame body = new(new RectTransform(new Vector2(0.96f, 0.82f), activeWindow.RectTransform, Anchor.BottomCenter), color: Color.Transparent);
+            GUIFrame body = new(new RectTransform(new Vector2(0.96f, 0.82f), activeWindow.RectTransform, Anchor.BottomCenter)
+            {
+                RelativeOffset = new Vector2(0.0f, 0.02f)
+            }, color: Color.Transparent);
             BuildSlotPanel(body);
 
             GUIFrame middle = new(new RectTransform(new Vector2(0.36f, 0.96f), body.RectTransform, Anchor.Center), color: Color.Transparent);
@@ -182,8 +192,15 @@ namespace GunsmithFramework
             GunsmithQuickDrag.Restore(syncLua: false);
             activeWindow.ClearChildren();
 
-            GUIFrame header = new(new RectTransform(new Vector2(0.48f, 0.09f), activeWindow.RectTransform, Anchor.TopCenter), color: Color.Black * 0.35f);
-            _ = new GUITextBlock(new RectTransform(new Vector2(0.72f, 0.72f), header.RectTransform, Anchor.CenterLeft), FormatL(title, LocalizedItemName(activeItem)), textAlignment: Alignment.CenterLeft);
+            GUIFrame header = new(new RectTransform(new Vector2(0.75f, 0.09f), activeWindow.RectTransform, Anchor.TopCenter), color: Color.Black * 0.35f)
+            {
+                CanBeFocused = false,
+                RectTransform = { RelativeOffset = new Vector2(0.0f, 0.04f) }
+            };
+            _ = new GUITextBlock(new RectTransform(new Vector2(0.72f, 0.72f), header.RectTransform, Anchor.CenterLeft), FormatL(title, LocalizedItemName(activeItem)), textAlignment: Alignment.CenterLeft)
+            {
+                CanBeFocused = false
+            };
             GUIButton closeButton = new(new RectTransform(new Vector2(0.20f, 0.72f), header.RectTransform, Anchor.CenterRight), L(Key("ui.close")), Alignment.Center);
             closeButton.OnClicked = (_, _) =>
             {
