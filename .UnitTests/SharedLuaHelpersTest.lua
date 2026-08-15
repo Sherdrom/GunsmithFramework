@@ -74,6 +74,8 @@ GunsmithFramework.Config.parts.alpha.item = { identifier = "alpha_item" }
 GunsmithFramework.Config.parts.alpha.stats = { Ergonomics = 1.25, AttackMultiplier = -0.1 }
 assert(Stats.TooltipSpec({ Prefab = { Identifier = { Value = "alpha_item" } } })
     == "test.gunsmith::Ergonomics=1.2500,AttackMultiplier=-0.1000")
+assert(Stats.TooltipSpec("alpha_item")
+    == Stats.TooltipSpec({ Prefab = { Identifier = { Value = "alpha_item" } } }))
 
 GunsmithFramework.Config.parts.zeta.stats = { Ergonomics = -0.25, AttackMultiplier = 0.2 }
 GunsmithFramework.Config.weapons = { test_weapon = { platform = "test_platform" } }

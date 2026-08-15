@@ -150,6 +150,51 @@ namespace GunsmithFramework
             UpdateWeaponSlotVisibility(__instance);
         }
 
+        [HarmonyPatch(typeof(Fabricator), "CreateSelectedItemUI")]
+        [HarmonyPostfix]
+        private static void AppendGunsmithRecipeStats(Fabricator __instance)
+        {
+            if (!IsGunsmithCategorySelected(__instance))
+            {
+                return;
+            }
+
+            object? selectedRecipe = SelectedItemField?.GetValue(__instance);
+            if (!GunsmithFabricatorRecipeFilterPatch.TryGetRecipeTargetIdentifier(selectedRecipe, out string identifier))
+            {
+                return;
+            }
+
+            string? stats = GunsmithGui.GetFormattedItemStats(identifier, indent: string.Empty);
+            if (stats == null)
+            {
+                return;
+            }
+
+            FieldInfo? frameField = __instance.GuiFrame.Rect.Height > GUI.IntScale(500)
+                ? SelectedItemReqsFrameField
+                : SelectedItemFrameField;
+            if (frameField?.GetValue(__instance) is not GUIFrame detailFrame ||
+                detailFrame.GetChild<GUILayoutGroup>() is not GUILayoutGroup detailLayout)
+            {
+                return;
+            }
+
+            GUITextBlock statsBlock = new GUITextBlock(
+                new RectTransform(new Vector2(1.0f, 0.0f), detailLayout.RectTransform),
+                RichString.Rich(stats),
+                font: GUIStyle.SmallFont,
+                wrap: true);
+
+            GUITextBlock? requiredSkillsBlock = detailLayout.Children
+                .OfType<GUITextBlock>()
+                .FirstOrDefault(block => block.ToolTip == TextManager.Get("fabricatorrequiredskills.tooltip"));
+            if (requiredSkillsBlock != null)
+            {
+                statsBlock.RectTransform.RepositionChildInHierarchy(detailLayout.GetChildIndex(requiredSkillsBlock));
+            }
+        }
+
         [HarmonyPatch(typeof(Fabricator), "FilterEntities")]
         [HarmonyPostfix]
         private static void ApplyFilterAfterVanillaFiltering(Fabricator __instance)

@@ -163,15 +163,21 @@ function Stats.ManagedItemIdentifiers(selection)
 end
 
 function Stats.TooltipSpec(item)
-    local weapon = Core.WeaponConfig(item)
-    if weapon then
-        local runtime = Gunsmith.Runtime
-        local selection = runtime and runtime.GetSelection(item)
-            or Core.BuildDefaultSelection(Core.PlatformConfig(item), weapon, Core.OwnerForWeapon(weapon))
-        return Core.LocalizationPrefixForItem(item) .. "::" .. Stats.Encode(Stats.SumSelection(selection))
+    local identifier
+    if type(item) == "string" then
+        identifier = item
+    else
+        local weapon = Core.WeaponConfig(item)
+        if weapon then
+            local runtime = Gunsmith.Runtime
+            local selection = runtime and runtime.GetSelection(item)
+                or Core.BuildDefaultSelection(Core.PlatformConfig(item), weapon, Core.OwnerForWeapon(weapon))
+            return Core.LocalizationPrefixForItem(item) .. "::" .. Stats.Encode(Stats.SumSelection(selection))
+        end
+
+        identifier = Core.ItemIdentifier(item)
     end
 
-    local identifier = Core.ItemIdentifier(item)
     if not identifier then return nil end
 
     local partIds = {}

@@ -126,6 +126,9 @@ public sealed class GunsmithGuiParsingTests
         Assert.Equal(
             $"  ‖color:{XMLExtensions.ToStringHex(GUIStyle.Red)}‖-10%‖color:end‖ 射速",
             GunsmithGui.FormatTooltipStat("-10%", "射速", -0.1f));
+        Assert.Equal(
+            $"‖color:{XMLExtensions.ToStringHex(GUIStyle.Green)}‖+30%‖color:end‖ 火力",
+            GunsmithGui.FormatTooltipStat("+30%", "火力", 0.3f, indent: string.Empty));
     }
 
     [Theory]
