@@ -15,6 +15,7 @@ GunsmithFramework = {
         GetPartsForType = function() return { "empty", "alternative" } end,
         HasChildSlots = function() return false end,
         IsPartCompatible = function() return true end,
+        PartConflictsWithSelection = function() return false end,
         IsRequiredSlot = function() return true end,
         ItemIdentifier = function() return "weapon" end,
         NormalizeUiPath = function(_, path) return path end,

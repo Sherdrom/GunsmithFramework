@@ -29,6 +29,8 @@ local function appendPartEntry(entries, item, selection, platform, slotPath, par
         local status = "available"
         if selection[slotPath] == partId then
             status = "installed"
+        elseif Core.PartConflictsWithSelection(selection, slotPath, partId) then
+            status = "exclusive"
         elseif not Core.IsPartCompatible(selection, platform, slotPath, partId, ownerId) then
             status = "incompatible"
         elseif Inventory and not Inventory.HasPartItem(Inventory.ActorForItem(item), part, item) then

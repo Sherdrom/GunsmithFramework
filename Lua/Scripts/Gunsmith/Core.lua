@@ -226,6 +226,11 @@ function Core.PartExcludes(part)
     return part.excludes
 end
 
+function Core.PartGroups(part)
+    if not part or type(part.groups) ~= "table" then return {} end
+    return part.groups
+end
+
 local function partExcludesPartId(part, excludedPartId)
     if not excludedPartId then return false end
     for _, partId in ipairs(Core.PartExcludes(part)) do
@@ -234,30 +239,67 @@ local function partExcludesPartId(part, excludedPartId)
     return false
 end
 
-local function pruneExcludedSelections(selection)
-    if type(selection) ~= "table" then return false end
+local function groupExcludesGroup(group, excludedGroup)
+    local exclusiveGroups = Gunsmith.Config and Gunsmith.Config.exclusiveGroups
+    local excludedGroups = type(exclusiveGroups) == "table" and exclusiveGroups[group] or nil
+    if type(excludedGroups) ~= "table" then return false end
+    for _, groupId in ipairs(excludedGroups) do
+        if groupId == excludedGroup then return true end
+    end
+    return false
+end
 
-    local removePaths = {}
-    for sourcePath, sourcePartId in pairs(selection) do
-        local sourcePart = Core.GetPart(sourcePartId)
-        for _, excludedPartId in ipairs(Core.PartExcludes(sourcePart)) do
-            for targetPath, targetPartId in pairs(selection) do
-                if targetPath ~= sourcePath and targetPartId == excludedPartId then
-                    removePaths[targetPath] = true
-                end
+local function partsHaveExclusiveGroupConflict(part, otherPart)
+    for _, group in ipairs(Core.PartGroups(part)) do
+        for _, otherGroup in ipairs(Core.PartGroups(otherPart)) do
+            if groupExcludesGroup(group, otherGroup) or groupExcludesGroup(otherGroup, group) then
+                return true
             end
         end
     end
+    return false
+end
+
+local function partsConflict(partId, part, otherPartId, otherPart)
+    return partExcludesPartId(part, otherPartId)
+        or partExcludesPartId(otherPart, partId)
+        or partsHaveExclusiveGroupConflict(part, otherPart)
+end
+
+local function pruneConflictingSelections(selection)
+    if type(selection) ~= "table" then return false end
 
     local changed = false
-    for path, _ in pairs(removePaths) do
-        if selection[path] ~= nil then
-            selection[path] = nil
-            clearDescendants(selection, path)
-            changed = true
+    while true do
+        local removePath = nil
+        local paths = Core.SortedSelectionPaths(selection)
+        for sourceIndex = 1, #paths do
+            local sourcePath = paths[sourceIndex]
+            local sourcePartId = selection[sourcePath]
+            local sourcePart = Core.GetPart(sourcePartId)
+            for targetIndex = sourceIndex + 1, #paths do
+                local targetPath = paths[targetIndex]
+                local targetPartId = selection[targetPath]
+                local targetPart = Core.GetPart(targetPartId)
+                if sourcePart and targetPart and partsConflict(sourcePartId, sourcePart, targetPartId, targetPart) then
+                    local sourceExcludesTarget = partExcludesPartId(sourcePart, targetPartId)
+                    local targetExcludesSource = partExcludesPartId(targetPart, sourcePartId)
+                    if sourceExcludesTarget ~= targetExcludesSource then
+                        removePath = sourceExcludesTarget and targetPath or sourcePath
+                    else
+                        removePath = targetPath
+                    end
+                    break
+                end
+            end
+            if removePath then break end
         end
+
+        if not removePath then return changed end
+        selection[removePath] = nil
+        clearDescendants(selection, removePath)
+        changed = true
     end
-    return changed
 end
 
 function Core.RootSlotDef(platform, path)
@@ -367,7 +409,7 @@ function Core.BuildDefaultSelection(platform, weapon, ownerId)
             Core.ApplyMountDefaultsForPath(selection, path, ownerId, {}, 0)
         end
     end
-    while pruneExcludedSelections(selection) do end
+    while pruneConflictingSelections(selection) do end
     defaultSelectionCache[weapon] = selection
     return copySelection(selection)
 end
@@ -588,10 +630,6 @@ local function pathWithin(path, rootPath)
     return path == rootPath or string.sub(path, 1, #rootPath + 1) == rootPath .. "/"
 end
 
-local function partsMutuallyExclude(partId, part, otherPartId, otherPart)
-    return partExcludesPartId(part, otherPartId) or partExcludesPartId(otherPart, partId)
-end
-
 function Core.PartConflictsWithSelection(selection, path, partId)
     if type(selection) ~= "table" then return false end
     local part = Core.GetPart(partId)
@@ -600,7 +638,7 @@ function Core.PartConflictsWithSelection(selection, path, partId)
     for selectedPath, selectedPartId in pairs(selection) do
         if not pathWithin(selectedPath, path) then
             local selectedPart = Core.GetPart(selectedPartId)
-            if selectedPart and partsMutuallyExclude(partId, part, selectedPartId, selectedPart) then
+            if selectedPart and partsConflict(partId, part, selectedPartId, selectedPart) then
                 return true
             end
         end
@@ -827,7 +865,7 @@ function Core.PruneInvalidSelections(selection, platform, weapon, ownerId)
     local changed = true
     while changed do
         changed = false
-        if pruneExcludedSelections(selection) then
+        if pruneConflictingSelections(selection) then
             changed = true
         end
         for path, partId in pairs(selection) do

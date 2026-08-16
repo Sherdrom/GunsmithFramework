@@ -9,6 +9,7 @@ Framework.Config = Framework.Config or {}
 Framework.Config.platforms = Framework.Config.platforms or {}
 Framework.Config.weapons = Framework.Config.weapons or {}
 Framework.Config.parts = Framework.Config.parts or {}
+Framework.Config.exclusiveGroups = Framework.Config.exclusiveGroups or {}
 Framework.Config.npcPresets = Framework.Config.npcPresets or { profiles = {} }
 Framework.Config.npcPresets.profiles = Framework.Config.npcPresets.profiles or {}
 Framework.Packages = Framework.Packages or {}

@@ -20,7 +20,7 @@ namespace GunsmithFramework
 
         internal sealed record GunsmithGuiPart(string Id, string NameKey, string Status, GunsmithStats Stats, string ItemIdentifier, string VisualTexturePath, Rectangle VisualSourceRect)
         {
-            public bool IsActionable => Status != "missing" && Status != "disabled" && Status != "incompatible";
+            public bool IsActionable => Status != "missing" && Status != "disabled" && Status != "exclusive" && Status != "incompatible";
         }
 
         internal sealed class GunsmithStats

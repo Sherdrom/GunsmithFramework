@@ -487,6 +487,7 @@ namespace GunsmithFramework
                 : part.Status switch
                 {
                     "missing" => Key("status.missing"),
+                    "exclusive" => Key("status.exclusive"),
                     "incompatible" => Key("status.incompatible"),
                     "disabled" => Key("status.disabled"),
                     _ => string.Empty
@@ -501,6 +502,7 @@ namespace GunsmithFramework
             return part.Status switch
             {
                 "missing" => Color.DarkRed,
+                "exclusive" => Color.OrangeRed,
                 "incompatible" => Color.OrangeRed,
                 "disabled" => Color.Gray,
                 _ => Color.Cyan

@@ -64,6 +64,7 @@ namespace GunsmithFramework
             return part.Status switch
             {
                 "missing" => LocalizeKey(Key("action.missing")),
+                "exclusive" => LocalizeKey(Key("action.exclusive")),
                 "incompatible" => LocalizeKey(Key("action.incompatible")),
                 "disabled" => LocalizeKey(Key("action.disabled")),
                 _ => LocalizeKey(part.Id == EmptyPartId ? Key("action.remove") : Key("action.install"))

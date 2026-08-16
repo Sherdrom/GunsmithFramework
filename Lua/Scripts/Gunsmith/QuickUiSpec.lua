@@ -27,6 +27,8 @@ local function appendPartEntry(entries, item, selection, platform, slotPath, par
     local replacingExisting = quickSlotHasItem(item, quickSlotIndex)
     if selection[slotPath] == partId then
         status = "installed"
+    elseif Core.PartConflictsWithSelection(selection, slotPath, partId) then
+        status = "exclusive"
     elseif not Core.IsPartCompatible(selection, platform, slotPath, partId, ownerId) then
         status = "incompatible"
     elseif identifier and identifier ~= "" and not replacingExisting and not canQuickSlotAccept(item, quickSlotIndex, identifier) then

@@ -16,7 +16,8 @@ public sealed class GunsmithGuiParsingTests
             "::Ergonomics=4.5,RangedSpreadReduction=0.25,RangedAttackSpeed=-0.1" +
             "::barrel|deep.part.barrel|short|1|" +
             "short:deep.part.short:available:Ergonomics=1~RangedAttackMultiplier=0.2:item%7Csmg:texture%3Apath:1%2C2%2C3%2C4," +
-            "long:deep.part.long:missing" +
+            "long:deep.part.long:missing," +
+            "exclusive:deep.part.exclusive:exclusive" +
             "|slot=2,anchorX=0.25,anchorY=0.75,anchorValid=1,items=smg~rifle";
 
         GunsmithGui.GunsmithGuiSpec parsed = GunsmithGui.ParseSpec(spec);
@@ -42,7 +43,7 @@ public sealed class GunsmithGuiParsingTests
         Assert.Contains("smg", slot.QuickMeta.AllowedItemIdentifiers);
         Assert.Contains("rifle", slot.QuickMeta.AllowedItemIdentifiers);
 
-        Assert.Equal(2, slot.Parts.Count);
+        Assert.Equal(3, slot.Parts.Count);
         GunsmithGui.GunsmithGuiPart shortPart = slot.Parts[0];
         Assert.Equal("short", shortPart.Id);
         Assert.Equal("deep.part.short", shortPart.NameKey);
@@ -56,6 +57,10 @@ public sealed class GunsmithGuiParsingTests
         GunsmithGui.GunsmithGuiPart longPart = slot.Parts[1];
         Assert.Equal("long", longPart.Id);
         Assert.False(longPart.IsActionable);
+
+        GunsmithGui.GunsmithGuiPart exclusivePart = slot.Parts[2];
+        Assert.Equal("exclusive", exclusivePart.Status);
+        Assert.False(exclusivePart.IsActionable);
     }
 
     [Fact]

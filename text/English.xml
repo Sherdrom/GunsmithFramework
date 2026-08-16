@@ -20,11 +20,13 @@
   <gunsmith.framework.ui.fabricator_no_compatible_parts>No compatible gunsmith recipes.</gunsmith.framework.ui.fabricator_no_compatible_parts>
   <gunsmith.framework.status.installed>[Installed]</gunsmith.framework.status.installed>
   <gunsmith.framework.status.missing>[Missing]</gunsmith.framework.status.missing>
+  <gunsmith.framework.status.exclusive>[Mutually Exclusive]</gunsmith.framework.status.exclusive>
   <gunsmith.framework.status.incompatible>[Incompatible]</gunsmith.framework.status.incompatible>
   <gunsmith.framework.status.disabled>[Disabled]</gunsmith.framework.status.disabled>
   <gunsmith.framework.status.available>[Available]</gunsmith.framework.status.available>
   <gunsmith.framework.action.installed>Installed</gunsmith.framework.action.installed>
   <gunsmith.framework.action.missing>Missing item</gunsmith.framework.action.missing>
+  <gunsmith.framework.action.exclusive>Mutually exclusive</gunsmith.framework.action.exclusive>
   <gunsmith.framework.action.incompatible>Incompatible</gunsmith.framework.action.incompatible>
   <gunsmith.framework.action.disabled>Unavailable</gunsmith.framework.action.disabled>
   <gunsmith.framework.action.remove>Remove</gunsmith.framework.action.remove>

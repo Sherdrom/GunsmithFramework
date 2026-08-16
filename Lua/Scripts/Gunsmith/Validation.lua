@@ -29,11 +29,13 @@ local frameworkLocalizationKeySuffixes = {
     "ui.weapon_root",
     "status.installed",
     "status.missing",
+    "status.exclusive",
     "status.incompatible",
     "status.disabled",
     "status.available",
     "action.installed",
     "action.missing",
+    "action.exclusive",
     "action.incompatible",
     "action.disabled",
     "action.remove",
@@ -254,10 +256,12 @@ function Validation.Run(configOverride, label)
     local platforms = config.platforms
     local weapons = config.weapons
     local parts = config.parts
+    local exclusiveGroups = config.exclusiveGroups or {}
     local profiles = config.npcPresets and config.npcPresets.profiles or {}
     if type(platforms) ~= "table" then table.insert(errors, "Missing Gunsmith.Config.platforms.") end
     if type(weapons) ~= "table" then table.insert(errors, "Missing Gunsmith.Config.weapons.") end
     if type(parts) ~= "table" then table.insert(errors, "Missing Gunsmith.Config.parts.") end
+    if type(exclusiveGroups) ~= "table" then table.insert(errors, "Gunsmith.Config.exclusiveGroups must be a table when declared.") end
     if #errors > 0 then
         printReport(errors, warnings, label)
         return false
@@ -711,6 +715,19 @@ function Validation.Run(configOverride, label)
                     end
                 end
             end
+            if part.groups ~= nil then
+                if not hasStringArray(part.groups) then
+                    table.insert(errors, "Part '" .. partId .. "' groups must be a non-empty string array when declared.")
+                else
+                    local seenGroups = {}
+                    for _, group in ipairs(part.groups) do
+                        if seenGroups[group] then
+                            table.insert(errors, "Part '" .. partId .. "' groups contains duplicate group '" .. group .. "'.")
+                        end
+                        seenGroups[group] = true
+                    end
+                end
+            end
 
             for _, field in ipairs(oldPartFields) do
                 if part[field] ~= nil then
@@ -891,6 +908,24 @@ function Validation.Run(configOverride, label)
         end
     end
 
+    for group, excludedGroups in pairs(exclusiveGroups) do
+        if type(group) ~= "string" or group == "" then
+            table.insert(errors, "Gunsmith.Config.exclusiveGroups keys must be non-empty group strings.")
+        elseif not hasStringArray(excludedGroups) then
+            table.insert(errors, "Exclusive group '" .. group .. "' must exclude a non-empty string array.")
+        else
+            local seenExcludedGroups = {}
+            for _, excludedGroup in ipairs(excludedGroups) do
+                if excludedGroup == group then
+                    table.insert(errors, "Exclusive group '" .. group .. "' excludes itself.")
+                elseif seenExcludedGroups[excludedGroup] then
+                    table.insert(errors, "Exclusive group '" .. group .. "' excludes duplicate group '" .. excludedGroup .. "'.")
+                end
+                seenExcludedGroups[excludedGroup] = true
+            end
+        end
+    end
+
     for provided, _ in pairs(providedTypes) do
         if not acceptedTypes[provided] then
             local acceptedByRoot = false
@@ -961,6 +996,12 @@ end
 
 function Validation.RunSelfTest()
     local badConfig = {
+        exclusiveGroups = {
+            [42] = { "test:other" },
+            ["test:self"] = { "test:self" },
+            ["test:duplicate"] = { "test:other", "test:other" },
+            ["test:bad"] = "bad_excluded_groups"
+        },
         platforms = {
             broken = {
                 rootSlots = {
@@ -1063,6 +1104,7 @@ function Validation.RunSelfTest()
                 nameKey = "gunsmith.framework.test.part.bad_type",
                 provides = { "test_barrel" },
                 excludes = { 42 },
+                groups = { "test:clearance", "test:clearance" },
                 item = { virtual = true },
                 visual = {
                     texture = "bad_type",
@@ -1097,6 +1139,7 @@ function Validation.RunSelfTest()
                 name = "Old Field Part",
                 provides = { "test_receiver" },
                 excludes = "bad_excludes",
+                groups = "bad_groups",
                 texture = "removed_field"
             },
             bad_visual_part = {

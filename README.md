@@ -441,6 +441,7 @@ GunsmithFramework.Config.parts.my_handguard = {
     nameKey = "my.gunsmith.part.handguard",
     provides = { "my_ar_handguard" },
     excludes = { "my_conflicting_part" },
+    groups = { "my_mod:long_handguard" },
     item = {
         identifier = "my_handguard_item"
     },
@@ -482,7 +483,8 @@ GunsmithFramework.Config.parts.my_handguard = {
 | `nameKey` | string | 是 | UI 显示名本地化 key。 |
 | `uiOrder` | number | 否，默认 `0` | 配件列表排序权重，越小越靠前；相同权重按 part id 排序。`[空]` 始终位于最前。 |
 | `provides` | string array | 是 | 兼容性标签。必须和目标 mount 的 `accepts` 至少有一个交集。 |
-| `excludes` | string array | 否 | 与这些 part id 互斥。任一方向声明都会互斥。 |
+| `excludes` | string array | 否 | 与这些 part id 互斥。任一方向声明都会互斥，同一配件对只需声明一次。 |
+| `groups` | string array | 否 | 配件所属的分类组。组本身不会导致冲突；冲突关系由 `Config.exclusiveGroups` 定义。 |
 | `item.identifier` | string | 条件必填 | 真实 XML 部件物品 identifier。非默认部件必须有 `item.identifier` 或 `item.virtual = true`。 |
 | `item.virtual` | boolean | 条件必填 | `true` 表示不需要真实物品。 |
 | `visual` | table | 否 | 视觉图层。缺少 visual 的部件仍可参与兼容性/默认树/属性，但不会绘制图层。 |
@@ -495,6 +497,40 @@ GunsmithFramework.Config.parts.my_handguard = {
 | `stats` | table | 否 | 数值修正。键见“Stats 附录”，值必须是 number。 |
 | `mounts` | array | 否 | 此部件安装后提供的子挂点。 |
 | `quickAttachmentTransform.muzzleOutletOffset` | point | 否 | 高级可选字段。只对安装在 `muzzle` 或 `lower_rail` Quick Slot 路径上的部件有意义；`lower_rail` 是 Vanilla-Components-Expanded 下挂武器兼容路径。见下方专门说明。 |
+
+### 配件互斥
+
+少量、例外性的配件冲突使用 `excludes`。它按双向关系处理，只需在任意一边列出另一个 part id，不要重复反向声明：
+
+```lua
+parts.my_long_handguard.excludes = {
+    "my_short_barrel"
+}
+```
+
+大量配件形成类别间冲突时，将配件加入分类组，再通过 `Config.exclusiveGroups` 集中声明组间关系。下面的关系只声明一个方向，但运行时按双向互斥处理：
+
+```lua
+parts.my_long_handguard.groups = {
+    "my_mod:long_handguard"
+}
+
+parts.my_short_barrel.groups = {
+    "my_mod:short_barrel"
+}
+
+parts.my_other_short_barrel.groups = {
+    "my_mod:short_barrel"
+}
+
+GunsmithFramework.Config.exclusiveGroups["my_mod:short_barrel"] = {
+    "my_mod:long_handguard"
+}
+```
+
+加入同一组的配件不会彼此互斥；只有两个配件所属的不同组之间声明了关系时才会冲突。以后新增短枪管或长护木时，只需加入相应的 `groups`。同一个配件可以加入多个组。
+
+组名是全局字符串；第三方内容应使用稳定且带模组前缀的名称，例如 `my_mod:short_barrel`。`Config.exclusiveGroups` 的键和值都必须是已约定的组名，并且同一组关系只需声明一次。
 
 `visual` 完整性规则：
 
@@ -1225,6 +1261,7 @@ GunsmithFrameworkValidationSelfTest
 GunsmithFramework.Config.platforms
 GunsmithFramework.Config.weapons
 GunsmithFramework.Config.parts
+GunsmithFramework.Config.exclusiveGroups
 GunsmithFramework.Config.npcPresets.profiles
 ```
 

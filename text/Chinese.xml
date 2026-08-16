@@ -20,11 +20,13 @@
   <gunsmith.framework.ui.fabricator_no_compatible_parts>没有兼容的 Gunsmith 配方。</gunsmith.framework.ui.fabricator_no_compatible_parts>
   <gunsmith.framework.status.installed>[已安装] {0}</gunsmith.framework.status.installed>
   <gunsmith.framework.status.missing>[缺少配件] {0}</gunsmith.framework.status.missing>
+  <gunsmith.framework.status.exclusive>[互斥] {0}</gunsmith.framework.status.exclusive>
   <gunsmith.framework.status.incompatible>[不兼容] {0}</gunsmith.framework.status.incompatible>
   <gunsmith.framework.status.disabled>[不可用] {0}</gunsmith.framework.status.disabled>
   <gunsmith.framework.status.available>[可安装] {0}</gunsmith.framework.status.available>
   <gunsmith.framework.action.installed>已安装</gunsmith.framework.action.installed>
   <gunsmith.framework.action.missing>缺少配件</gunsmith.framework.action.missing>
+  <gunsmith.framework.action.exclusive>互斥</gunsmith.framework.action.exclusive>
   <gunsmith.framework.action.incompatible>不兼容</gunsmith.framework.action.incompatible>
   <gunsmith.framework.action.disabled>不可用</gunsmith.framework.action.disabled>
   <gunsmith.framework.action.remove>拆除该配件</gunsmith.framework.action.remove>
