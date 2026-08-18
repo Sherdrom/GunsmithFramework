@@ -559,7 +559,22 @@ namespace GunsmithFramework
 
             // 属性文本。Vector2.Y 控制属性区域高度；Anchor.BottomLeft 表示贴在右侧文字区域左下方。
             // 如果属性太靠下，可改 Anchor.CenterLeft 或增大/减小此处高度比例。
-            _ = new GunsmithStatsText(new RectTransform(new Vector2(1.0f, 0.76f), right.RectTransform, Anchor.BottomLeft), part.Stats, inline: false);
+            GUIListBox statsList = new(new RectTransform(new Vector2(1.0f, 0.76f), right.RectTransform, Anchor.BottomLeft), style: null);
+            GUIFont? statsFont = GUIStyle.SmallFont ?? GUIStyle.Font;
+            int statsLineHeight = Math.Max((int)Math.Ceiling(statsFont?.MeasureString("Mg").Y + 1.0f ?? 1.0f), 1);
+            foreach (GunsmithStatDisplay stat in FormatStats(part.Stats))
+            {
+                _ = new GUITextBlock(
+                    new RectTransform(new Point(statsList.Content.Rect.Width, statsLineHeight), statsList.Content.RectTransform),
+                    (LocalizedString)stat.Text,
+                    font: GUIStyle.SmallFont,
+                    textAlignment: Alignment.TopLeft)
+                {
+                    TextColor = StatDisplayColor(stat),
+                    Padding = Vector4.Zero,
+                    CanBeFocused = false
+                };
+            }
             string buttonText = InstallButtonText(part, installed);
 
             // 底部安装按钮。Vector2 控制按钮宽高比例；Anchor.BottomCenter 表示固定在详情面板底部居中。
