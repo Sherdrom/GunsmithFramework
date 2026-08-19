@@ -17,7 +17,8 @@ public sealed class GunsmithGuiParsingTests
             "::barrel|deep.part.barrel|short|1|" +
             "short:deep.part.short:available:Ergonomics=1~RangedAttackMultiplier=0.2:item%7Csmg:texture%3Apath:1%2C2%2C3%2C4," +
             "long:deep.part.long:missing," +
-            "exclusive:deep.part.exclusive:exclusive" +
+            "exclusive:deep.part.exclusive:exclusive," +
+            "incompatible:deep.part.incompatible:incompatible" +
             "|slot=2,anchorX=0.25,anchorY=0.75,anchorValid=1,items=smg~rifle";
 
         GunsmithGui.GunsmithGuiSpec parsed = GunsmithGui.ParseSpec(spec);
@@ -61,6 +62,7 @@ public sealed class GunsmithGuiParsingTests
         GunsmithGui.GunsmithGuiPart exclusivePart = slot.Parts[2];
         Assert.Equal("exclusive", exclusivePart.Status);
         Assert.False(exclusivePart.IsActionable);
+        Assert.DoesNotContain(slot.Parts, part => part.Id == "incompatible");
     }
 
     [Fact]

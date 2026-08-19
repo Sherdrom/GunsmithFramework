@@ -52,7 +52,7 @@ namespace GunsmithFramework
                     string.IsNullOrWhiteSpace(parts[1]) ? parts[0] : parts[1],
                     parts[2],
                     parts[3] == "1",
-                    ParseParts(parts[4]).ToList(),
+                    ParseParts(parts[4]).Where(part => part.Status != "incompatible").ToList(),
                     parts.Length > 5 ? ParseQuickMeta(parts[5]) : GunsmithQuickSlotMeta.Empty);
             }
         }
