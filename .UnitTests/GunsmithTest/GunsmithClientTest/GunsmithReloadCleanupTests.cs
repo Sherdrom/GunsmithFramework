@@ -134,7 +134,7 @@ public sealed class GunsmithReloadCleanupTests
     }
 
     [Fact]
-    public void FabricatorResetRestoresHandlersLayoutsAndInventoryState()
+    public void FabricatorResetRestoresHandlersLayoutsAndClearsVirtualSelection()
     {
         GunsmithFabricatorClientPatch.Reset();
 
@@ -163,27 +163,11 @@ public sealed class GunsmithReloadCleanupTests
 
         GUIButton gunsmithButton = CreateGui<GUIButton>(new RectTransform(new Point(36), root.RectTransform));
         GUIFrame weaponArea = CreateGui<GUIFrame>(new RectTransform(new Vector2(0.15f, 1.0f), inputArea.RectTransform));
-        GUIFrame weaponHolder = CreateGui<GUIFrame>(new RectTransform(new Vector2(0.72f, 0.9f), weaponArea.RectTransform));
+        GUIButton openButton = CreateGui<GUIButton>(new RectTransform(new Point(36), weaponArea.RectTransform));
         SetInstanceProperty(state, "GunsmithCategoryButton", gunsmithButton);
         SetInstanceProperty(state, "WeaponArea", weaponArea);
-        SetInstanceProperty(state, "WeaponInventoryHolder", weaponHolder);
-
-        ItemContainer weaponContainer = Uninitialized<ItemContainer>();
-        FieldInfo inventoryField = typeof(ItemContainer).GetField(nameof(ItemContainer.Inventory))!;
-        inventoryField.SetValue(weaponContainer, RuntimeHelpers.GetUninitializedObject(inventoryField.FieldType));
-        RectTransform originalInventoryTransform = new(new Point(20), root.RectTransform);
-        weaponContainer.AllowUIOverlap = false;
-        weaponContainer.DrawInventory = false;
-        weaponContainer.UILabel = "vanilla";
-        weaponContainer.Inventory.DrawWhenEquipped = false;
-        weaponContainer.Inventory.RectTransform = originalInventoryTransform;
-
-        typeof(GunsmithFabricatorClientPatch).GetMethod("CaptureWeaponContainer", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, new[] { state, weaponContainer });
-        typeof(GunsmithFabricatorClientPatch).GetMethod("AttachWeaponContainerToGui", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, new object[] { weaponContainer, weaponHolder });
-        typeof(ItemContainer).BaseType!.GetField("drawable", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
-            .SetValue(weaponContainer, true);
+        SetInstanceProperty(state, "OpenButton", openButton);
+        SetInstanceProperty(state, "SelectedWeapon", Uninitialized<Item>());
 
         GunsmithFabricatorClientPatch.Reset();
         GunsmithFabricatorClientPatch.Reset();
@@ -193,13 +177,8 @@ public sealed class GunsmithReloadCleanupTests
         Assert.Equal(originalInputSize, inputHolder.RectTransform.RelativeSize);
         Assert.Null(gunsmithButton.RectTransform.Parent);
         Assert.Null(weaponArea.RectTransform.Parent);
-        Assert.Null(weaponHolder.RectTransform.Parent);
-        Assert.False(weaponContainer.AllowUIOverlap);
-        Assert.False(weaponContainer.DrawInventory);
-        Assert.False(weaponContainer.HideItems);
-        Assert.Equal("vanilla", weaponContainer.UILabel);
-        Assert.False(weaponContainer.Inventory.DrawWhenEquipped);
-        Assert.Same(originalInventoryTransform, weaponContainer.Inventory.RectTransform);
+        Assert.Null(openButton.RectTransform.Parent);
+        Assert.Null(stateType.GetProperty("SelectedWeapon")!.GetValue(state));
 
         object[] lookup = { fabricator, null! };
         Assert.False((bool)states.GetType().GetMethod("TryGetValue")!.Invoke(states, lookup)!);

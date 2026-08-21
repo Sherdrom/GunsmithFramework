@@ -7,6 +7,10 @@ namespace GunsmithFramework
         [HarmonyPrefix]
         private static bool HandleQuickOverlayDraggingBeforeWorldDrop()
         {
+            if (GunsmithFabricatorClientPatch.TryHandleVirtualWeaponDrop())
+            {
+                return false;
+            }
             if (GunsmithGui.TryHandleQuickOverlayDragging())
             {
                 return false;

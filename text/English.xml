@@ -16,7 +16,8 @@
   <gunsmith.framework.ui.weapon_root>Weapon</gunsmith.framework.ui.weapon_root>
   <gunsmith.framework.ui.fabricator_category>Gunsmith</gunsmith.framework.ui.fabricator_category>
   <gunsmith.framework.ui.fabricator_weapon_slot>Weapon</gunsmith.framework.ui.fabricator_weapon_slot>
-  <gunsmith.framework.ui.fabricator_insert_weapon>Insert a Gunsmith weapon.</gunsmith.framework.ui.fabricator_insert_weapon>
+  <gunsmith.framework.ui.fabricator_insert_weapon>Drag a workbench-only Gunsmith weapon to this virtual slot.</gunsmith.framework.ui.fabricator_insert_weapon>
+  <gunsmith.framework.ui.fabricator_open>Open Gunsmith</gunsmith.framework.ui.fabricator_open>
   <gunsmith.framework.ui.fabricator_no_compatible_parts>No compatible gunsmith recipes.</gunsmith.framework.ui.fabricator_no_compatible_parts>
   <gunsmith.framework.status.installed>[Installed]</gunsmith.framework.status.installed>
   <gunsmith.framework.status.missing>[Missing]</gunsmith.framework.status.missing>

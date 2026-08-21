@@ -567,6 +567,9 @@ function Validation.Run(configOverride, label)
             table.insert(errors, "Weapon '" .. tostring(weaponId) .. "' references missing platform '" .. tostring(platformId) .. "'.")
         else
             validateReference("platforms", platformId, weaponOwner, "Weapon '" .. tostring(weaponId) .. "' platform")
+            if weapon.requiresWorkbench ~= nil and type(weapon.requiresWorkbench) ~= "boolean" then
+                table.insert(errors, "Weapon '" .. tostring(weaponId) .. "' requiresWorkbench must be boolean.")
+            end
             if weapon.defaults ~= nil then table.insert(errors, "Weapon '" .. tostring(weaponId) .. "' uses removed field 'defaults'.") end
             if weapon.rootAccepts ~= nil then table.insert(errors, "Weapon '" .. tostring(weaponId) .. "' uses removed field 'rootAccepts'.") end
             if weapon.quickSlotCalibration ~= nil then table.insert(errors, "Weapon '" .. tostring(weaponId) .. "' uses removed field 'quickSlotCalibration'.") end

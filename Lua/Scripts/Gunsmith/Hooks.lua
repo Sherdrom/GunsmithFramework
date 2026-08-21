@@ -41,14 +41,14 @@ local function readItemsAndStrings(args)
     return items, strings
 end
 
-local function readItemCharacterAndStrings(args)
-    local item = nil
+local function readItemsCharacterAndStrings(args)
+    local items = {}
     local character = nil
     local strings = {}
 
     for _, value in ipairs(args) do
         if LuaUserData.IsTargetType(value, "Barotrauma.Item") then
-            item = value
+            table.insert(items, value)
         elseif LuaUserData.IsTargetType(value, "Barotrauma.Character") then
             character = value
         elseif type(value) == "string" then
@@ -56,7 +56,7 @@ local function readItemCharacterAndStrings(args)
         end
     end
 
-    return item, character, strings
+    return items[1], items[2], character, strings
 end
 
 local function applyGunsmithItem(item, diagnoseNpcPreset, npcPresetName)
@@ -306,6 +306,19 @@ function Hooks.Register()
         return Stats.TooltipSpec(item)
     end)
 
+    Hook.Add("GunsmithFrameworkCanOpenFromWorkbench", "GunsmithFrameworkCanOpenFromWorkbench", function(weapon)
+        if not weapon or Core.WeaponConfig(weapon) == nil then return false end
+        return Core.RequiresWorkbench ~= nil and Core.RequiresWorkbench(weapon) == true
+    end)
+
+    Hook.Add("GunsmithFrameworkOpenFromWorkbench", "GunsmithFrameworkOpenFromWorkbench", function(...)
+        local weapon, workbench, character = readItemsCharacterAndStrings({ ... })
+        if weapon and workbench and character then
+            return Runtime.OpenAtWorkbench(weapon, workbench, character)
+        end
+        return false
+    end)
+
     Hook.Patch("Barotrauma.Item", "OnMapLoaded", function(instance, ptable)
         applyGunsmithItem(instance)
     end, Hook.HookMethodType.After)
@@ -339,9 +352,9 @@ function Hooks.Register()
 
     if not CLIENT then
         Hook.Add("GunsmithFrameworkSetPartFromClient", "GunsmithFrameworkSetPartFromClient", function(...)
-            local item, character, strings = readItemCharacterAndStrings({ ... })
+            local item, workbench, character, strings = readItemsCharacterAndStrings({ ... })
             if item and character and strings[1] and strings[2] then
-                return Runtime.SetPartFromClient(item, character, strings[1], strings[2])
+                return Runtime.SetPartFromClient(item, character, strings[1], strings[2], workbench)
             end
             return false
         end)
@@ -363,6 +376,16 @@ function Hooks.Register()
             local shouldOpenNow = Runtime.SetPart(item, strings[1], strings[2])
             if shouldOpenNow ~= false then
                 Runtime.Open(item)
+            end
+        end
+    end)
+
+    Hook.Add("GunsmithFrameworkSetPartAtWorkbench", "GunsmithFrameworkSetPartAtWorkbench", function(...)
+        local item, workbench, character, strings = readItemsCharacterAndStrings({ ... })
+        if item and workbench and character and strings[1] and strings[2] then
+            local shouldOpenNow = Runtime.SetPartAtWorkbench(item, workbench, character, strings[1], strings[2])
+            if shouldOpenNow ~= false then
+                Runtime.OpenAtWorkbench(item, workbench, character)
             end
         end
     end)
@@ -411,7 +434,7 @@ function Hooks.Register()
         if item then
             if shiftDown and QuickMod and QuickMod.IsQuickItem(item) then
                 Runtime.OpenQuick(item)
-            else
+            elseif not (Core.RequiresWorkbench and Core.RequiresWorkbench(item)) then
                 Runtime.SetCurrentUiPath(item, Runtime.GetCurrentUiPath(item))
                 Runtime.Open(item)
             end

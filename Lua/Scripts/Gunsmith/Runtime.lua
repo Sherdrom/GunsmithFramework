@@ -17,13 +17,15 @@ Gunsmith.State = Gunsmith.State or {
     appliedSignatures = {},
     appliedConfigSignatures = {},
     uiPaths = {},
-    loadedStates = {}
+    loadedStates = {},
+    workbenchActors = {}
 }
 
 local State = Gunsmith.State
 State.selections = State.selections or {}
 State.uiPaths = State.uiPaths or {}
 State.loadedStates = State.loadedStates or {}
+State.workbenchActors = State.workbenchActors or {}
 setmetatable(State.selections, nil)
 setmetatable(State.uiPaths, nil)
 setmetatable(State.loadedStates, nil)
@@ -37,6 +39,14 @@ setmetatable(State.savedSignatures, { __mode = "k" })
 setmetatable(State.pendingPartsRefresh, { __mode = "k" })
 local finishQuickModChange
 local saveSelectionIfChanged
+
+local function requiresWorkbench(item)
+    return Core.RequiresWorkbench and Core.RequiresWorkbench(item) == true or false
+end
+
+local function workbenchModeMatches(item, workbench)
+    return requiresWorkbench(item) == (workbench ~= nil)
+end
 
 local function isGunsmithUiOpen(item, mode)
     if not Hook or not Hook.Call or not item then return false end
@@ -148,7 +158,8 @@ function Runtime.RefreshParts(item, alreadySynced)
         Runtime.SetCurrentUiPath(item, currentPath)
     end
 
-    Hook.Call("GunsmithFrameworkRefreshParts", item, UiSpec.Build(item, selection, platform, currentPath))
+    local actor = State.workbenchActors[Core.ItemKey(item)]
+    Hook.Call("GunsmithFrameworkRefreshParts", item, UiSpec.Build(item, selection, platform, currentPath, actor))
 end
 
 function Runtime.RefreshQuick(item, alreadySynced)
@@ -648,7 +659,13 @@ local function returnSelectionSubtree(character, sourceItem, selection, platform
     return pending
 end
 
-function Runtime.SetPart(item, slotPath, partId, refreshMode, character)
+function Runtime.SetPart(item, slotPath, partId, refreshMode, character, workbench)
+    if not item then return end
+
+    local quickSlotIndex = QuickMod and QuickMod.SlotForPath(item, slotPath) or nil
+    local quickUiWithoutWorkbench = workbench == nil and refreshMode == "quick" and quickSlotIndex ~= nil
+    if not quickUiWithoutWorkbench and not workbenchModeMatches(item, workbench) then return end
+
     local selection = Runtime.GetSelection(item)
     local platform = Core.PlatformConfig(item)
     local weapon = Core.WeaponConfig(item)
@@ -659,7 +676,6 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode, character)
     local emptyPartId = partId == Gunsmith.EmptyPartId and Core.EmptyPartForPath(selection, slotPath) or nil
     if emptyPartId and not Core.IsPartCompatible(selection, platform, slotPath, emptyPartId, ownerId) then return end
 
-    local quickSlotIndex = QuickMod and QuickMod.SlotForPath(item, slotPath) or nil
     if quickSlotIndex ~= nil then
         local refreshQuick = refreshMode == "quick"
         local slotIndex = quickSlotIndex
@@ -704,6 +720,8 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode, character)
         if not item or item.removed then return end
         if SERVER then
             Persistence.Save(item)
+        elseif workbench then
+            Runtime.OpenAtWorkbench(item, workbench, character)
         else
             Runtime.Open(item)
         end
@@ -737,8 +755,9 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode, character)
     return true
 end
 
-function Runtime.SetPartFromClient(item, character, slotPath, partId)
+function Runtime.SetPartFromClient(item, character, slotPath, partId, workbench)
     if not SERVER or not item or not character or type(slotPath) ~= "string" or type(partId) ~= "string" then return false end
+    if not workbenchModeMatches(item, workbench) then return false end
     if QuickMod and QuickMod.SlotForPath(item, slotPath) ~= nil then return false end
 
     local selection = Runtime.GetSelection(item)
@@ -746,9 +765,17 @@ function Runtime.SetPartFromClient(item, character, slotPath, partId)
     if not selection or not platform then return false end
 
     local before = buildSignature(item, selection, platform, true)
-    Runtime.SetPart(item, slotPath, partId, nil, character)
+    Runtime.SetPart(item, slotPath, partId, nil, character, workbench)
     if before == buildSignature(item, selection, platform, true) then return false end
     return Persistence.Encode(selection, platform, Core.WeaponConfig(item))
+end
+
+function Runtime.SetPartAtWorkbench(item, workbench, character, slotPath, partId)
+    if SERVER or not item or not workbench or not character then return false end
+    if type(slotPath) ~= "string" or type(partId) ~= "string" or not workbenchModeMatches(item, workbench) then
+        return false
+    end
+    return Runtime.SetPart(item, slotPath, partId, nil, character, workbench)
 end
 
 function Runtime.InstallQuickItem(item, slotPath, draggedItem)
@@ -872,8 +899,9 @@ function Runtime.FabricatorPartItemIds(item)
 end
 
 function Runtime.Open(item)
-    if SERVER then return end
-    if not item or not Core.PlatformConfig(item) then return end
+    if SERVER or not item then return end
+    if requiresWorkbench(item) then return end
+    if not Core.PlatformConfig(item) then return end
 
     local platform = Core.PlatformConfig(item)
     local selection = Runtime.GetSelection(item)
@@ -896,9 +924,43 @@ function Runtime.Open(item)
     Hook.Call("GunsmithFrameworkOpen", item, Core.FrameworkLocalizationKey("ui.title"), UiSpec.Build(item, selection, platform, currentPath))
 end
 
+function Runtime.OpenAtWorkbench(item, workbench, character)
+    if SERVER or not item or not workbench or not character then return false end
+    if not requiresWorkbench(item) or not Core.PlatformConfig(item) then return false end
+
+    local itemKey = Core.ItemKey(item)
+    if itemKey then State.workbenchActors[itemKey] = character end
+
+    local platform = Core.PlatformConfig(item)
+    local selection = Runtime.GetSelection(item)
+    if not Hook or not Hook.Call then
+        print("[GunsmithFramework] Hook.Call is unavailable; cannot open C# gunsmith workbench UI.")
+        return false
+    end
+
+    if QuickMod and QuickMod.SyncFromContainer(item, selection, platform) then
+        saveSelectionIfChanged(item, selection, platform, Core.WeaponConfig(item))
+    end
+
+    local currentPath = Runtime.GetCurrentUiPath(item)
+    if currentPath ~= "" and #Core.SlotsForPath(selection, platform, currentPath) == 0 then
+        currentPath = Core.UiParentPath(platform, currentPath)
+        Runtime.SetCurrentUiPath(item, currentPath)
+    end
+
+    Runtime.Apply(item)
+    Hook.Call(
+        "GunsmithFrameworkOpenAtWorkbench",
+        item,
+        workbench,
+        Core.FrameworkLocalizationKey("ui.title"),
+        UiSpec.Build(item, selection, platform, currentPath, character))
+    return true
+end
+
 function Runtime.OpenQuick(item)
-    if SERVER then return end
-    if not item or not Core.PlatformConfig(item) or not QuickMod or not QuickMod.IsQuickItem(item) then return end
+    if SERVER or not item then return end
+    if not Core.PlatformConfig(item) or not QuickMod or not QuickMod.IsQuickItem(item) then return end
 
     local platform = Core.PlatformConfig(item)
     local selection = Runtime.GetSelection(item)
@@ -925,6 +987,7 @@ function Runtime.Cleanup(item)
     State.selections[key] = nil
     State.uiPaths[key] = nil
     State.loadedStates[key] = nil
+    State.workbenchActors[key] = nil
     State.savedSignatures[item] = nil
     State.pendingPartsRefresh[item] = nil
     Core.InvalidateQuickSlotsCache(item)

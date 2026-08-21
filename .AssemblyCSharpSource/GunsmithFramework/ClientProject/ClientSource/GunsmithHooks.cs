@@ -1,4 +1,5 @@
 using static GunsmithFramework.GunsmithHookArgs;
+using System.Linq;
 
 namespace GunsmithFramework
 {
@@ -54,6 +55,18 @@ namespace GunsmithFramework
                 if (item != null && title != null && slotSpec != null)
                 {
                     GunsmithGui.OpenFromLua(item, title, slotSpec);
+                }
+                return null;
+            });
+
+            GunsmithLuaHooks.Add(hook, "GunsmithFrameworkOpenAtWorkbench", args =>
+            {
+                Item[] items = args.OfType<Item>().Take(2).ToArray();
+                string? title = FindStringArg(args, 0);
+                string? slotSpec = FindStringArg(args, 1);
+                if (items.Length == 2 && title != null && slotSpec != null)
+                {
+                    GunsmithGui.OpenAtWorkbenchFromLua(items[0], items[1], title, slotSpec);
                 }
                 return null;
             });

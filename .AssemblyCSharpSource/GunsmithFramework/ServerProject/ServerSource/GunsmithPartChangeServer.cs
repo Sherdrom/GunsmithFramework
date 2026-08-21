@@ -5,7 +5,7 @@ namespace GunsmithFramework
 {
     internal static class GunsmithPartChangeServer
     {
-        private const string RequestMessageId = "GunsmithFramework.SetPart.v1";
+        private const string RequestMessageId = "GunsmithFramework.SetPart.v2";
         private const string StateRequestMessageId = "GunsmithFramework.GetPartState.v1";
         private const string StateMessageId = "GunsmithFramework.PartState.v1";
 
@@ -43,31 +43,62 @@ namespace GunsmithFramework
         {
             try
             {
-                ushort itemId = message.ReadUInt16();
+                ushort weaponItemId = message.ReadUInt16();
+                ushort workbenchItemId = message.ReadUInt16();
                 string slotPath = message.ReadString();
                 string partId = message.ReadString();
-                if (Entity.FindEntityByID(itemId) is not Item item ||
-                    item.Removed ||
+                if (Entity.FindEntityByID(weaponItemId) is not Item weapon ||
+                    weapon.Removed ||
                     client.Character is not { } character ||
-                    !GunsmithData.IsValidPartChange(slotPath, partId) ||
-                    !GunsmithData.CanClientSubmitPartChange(item.IsOwnedBy(character), item.CanClientAccess(client)))
+                    !GunsmithData.IsValidPartChange(slotPath, partId))
                 {
                     return;
                 }
 
-                object? result = GunsmithLuaHooks.Call(
-                    "GunsmithFrameworkSetPartFromClient",
-                    item,
-                    character,
-                    slotPath,
-                    partId);
+                bool hasWorkbench = workbenchItemId != 0;
+                Item? workbench = hasWorkbench ? Entity.FindEntityByID(workbenchItemId) as Item : null;
+                if (!hasWorkbench)
+                {
+                    if (!GunsmithData.CanClientSubmitPartChange(weapon.IsOwnedBy(character), weapon.CanClientAccess(client)))
+                    {
+                        return;
+                    }
+                }
+                else
+                {
+                    bool workbenchResolved = workbench is { Removed: false };
+                    Fabricator? fabricator = workbenchResolved ? workbench!.GetComponent<Fabricator>() : null;
+                    if (!CanClientSubmitPartChangeAtWorkbench(
+                        weapon.IsOwnedBy(character),
+                        workbenchResolved,
+                        fabricator != null && GunsmithFabricatorRecipeFilterPatch.IsEnabledFabricator(fabricator),
+                        workbenchResolved && workbench!.CanClientAccess(client)))
+                    {
+                        return;
+                    }
+                }
+
+                object? result = hasWorkbench
+                    ? GunsmithLuaHooks.Call(
+                        "GunsmithFrameworkSetPartFromClient",
+                        weapon,
+                        workbench!,
+                        character,
+                        slotPath,
+                        partId)
+                    : GunsmithLuaHooks.Call(
+                        "GunsmithFrameworkSetPartFromClient",
+                        weapon,
+                        character,
+                        slotPath,
+                        partId);
                 if (result is not string state || !GunsmithData.IsValidSavedState(state))
                 {
                     return;
                 }
 
-                GunsmithDataAccess.SetSavedState(item, state);
-                SendState(item, state);
+                GunsmithDataAccess.SetSavedState(weapon, state);
+                SendState(weapon, state);
             }
             catch (Exception ex)
             {
@@ -82,5 +113,12 @@ namespace GunsmithFramework
             response.WriteString(state);
             LuaCsSetup.Instance.Networking.SendToClient(response, connection, DeliveryMethod.Reliable);
         }
+
+        internal static bool CanClientSubmitPartChangeAtWorkbench(
+            bool weaponOwnedByCharacter,
+            bool workbenchResolved,
+            bool workbenchEnabled,
+            bool canClientAccessWorkbench)
+            => weaponOwnedByCharacter && workbenchResolved && workbenchEnabled && canClientAccessWorkbench;
     }
 }

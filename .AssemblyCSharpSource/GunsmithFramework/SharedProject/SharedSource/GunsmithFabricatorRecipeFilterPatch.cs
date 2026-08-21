@@ -1,7 +1,6 @@
 using Barotrauma;
 using Barotrauma.Items.Components;
 using HarmonyLib;
-using Microsoft.Xna.Framework;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -11,11 +10,9 @@ using System.Xml.Linq;
 
 namespace GunsmithFramework
 {
-    [HarmonyPatch]
     internal static class GunsmithFabricatorRecipeFilterPatch
     {
         internal const string EnableAttributeName = "gunsmithframeworkbutton";
-        internal const string GeneratedContainerAttributeName = "gunsmithframeworkweaponcontainer";
         internal const string LuaHookName = "GunsmithFrameworkGetFabricatorPartItemIds";
 
         private static readonly HashSet<string> DefaultEnabledFabricatorPrefabIdentifiers = new(StringComparer.OrdinalIgnoreCase)
@@ -26,42 +23,6 @@ namespace GunsmithFramework
         private static readonly Type? FabricationRecipeType = AccessTools.TypeByName("Barotrauma.FabricationRecipe");
         private static readonly PropertyInfo? RecipeTargetItemProperty = FabricationRecipeType == null ? null : AccessTools.Property(FabricationRecipeType, "TargetItem");
         private static readonly FieldInfo? RecipeTargetItemPrefabIdentifierField = FabricationRecipeType == null ? null : AccessTools.Field(FabricationRecipeType, "TargetItemPrefabIdentifier");
-
-        [HarmonyPatch(typeof(Item), MethodType.Constructor, typeof(Rectangle), typeof(ItemPrefab), typeof(Submarine), typeof(bool), typeof(ushort))]
-        [HarmonyPrefix]
-        private static void InjectWeaponContainer(ItemPrefab itemPrefab)
-        {
-            if (!IsEnabledPrefab(itemPrefab))
-            {
-                return;
-            }
-
-            XElement configElement = itemPrefab.ConfigElement.Element;
-            XElement? generatedContainerElement = configElement.Elements().FirstOrDefault(IsGeneratedWeaponContainerElement);
-            if (generatedContainerElement != null)
-            {
-                ConfigureGeneratedWeaponContainerElement(generatedContainerElement);
-                return;
-            }
-
-            var weaponContainerElement = new XElement("ItemContainer");
-            ConfigureGeneratedWeaponContainerElement(weaponContainerElement);
-            configElement.Add(weaponContainerElement);
-        }
-
-        [HarmonyPatch(typeof(Fabricator), "StartFabricating")]
-        [HarmonyPrefix]
-        private static bool ValidateStartFabricating(Fabricator __instance, object selectedItem)
-        {
-            if (IsRecipeAllowedForFabricator(__instance, selectedItem))
-            {
-                return true;
-            }
-
-            LuaCsSetup.PrintCsMessage(
-                $"[GunsmithFramework] Rejected incompatible gunsmith fabricator recipe in {__instance.Item?.Prefab?.Identifier.Value ?? "unknown"}.");
-            return false;
-        }
 
         internal static bool IsEnabledFabricator(Fabricator? fabricator)
             => IsEnabledPrefab(fabricator?.Item?.Prefab);
@@ -92,31 +53,6 @@ namespace GunsmithFramework
             }
 
             return configElement.Elements().Any(IsEnabledFabricatorElement);
-        }
-
-        internal static bool TryGetWeaponContainer(Fabricator? fabricator, out ItemContainer? weaponContainer)
-        {
-            weaponContainer = null;
-            if (!IsEnabledFabricator(fabricator) || fabricator?.Item == null)
-            {
-                return false;
-            }
-
-            List<ItemContainer> containers = fabricator.Item.GetComponents<ItemContainer>().ToList();
-            if (containers.Count < 3)
-            {
-                return false;
-            }
-
-            weaponContainer = containers[^1];
-            return weaponContainer.Capacity == 1;
-        }
-
-        internal static Item? GetWeaponItem(Fabricator? fabricator)
-        {
-            return TryGetWeaponContainer(fabricator, out ItemContainer? weaponContainer) && weaponContainer != null
-                ? weaponContainer.Inventory.GetItemAt(0)
-                : null;
         }
 
         internal static HashSet<string> GetAllowedPartItemIdentifiers(Item? weapon)
@@ -150,33 +86,6 @@ namespace GunsmithFramework
             return identifiers;
         }
 
-        internal static bool IsRecipeAllowedForFabricator(Fabricator? fabricator, object? recipe)
-        {
-            if (!IsEnabledFabricator(fabricator))
-            {
-                return true;
-            }
-
-            Item? weapon = GetWeaponItem(fabricator);
-            if (weapon == null)
-            {
-                return true;
-            }
-
-            if (recipe == null || !TryGetRecipeTargetIdentifier(recipe, out string targetIdentifier))
-            {
-                return false;
-            }
-
-            HashSet<string> allowedIdentifiers = GetAllowedPartItemIdentifiers(weapon);
-            if (allowedIdentifiers.Count == 0)
-            {
-                return true;
-            }
-
-            return allowedIdentifiers.Contains(targetIdentifier);
-        }
-
         internal static bool TryGetRecipeTargetIdentifier(object? recipe, out string identifier)
         {
             identifier = string.Empty;
@@ -199,25 +108,6 @@ namespace GunsmithFramework
             }
 
             return false;
-        }
-
-        private static bool IsGeneratedWeaponContainerElement(XElement element)
-        {
-            return string.Equals(element.Name.LocalName, "itemcontainer", StringComparison.OrdinalIgnoreCase) &&
-                   string.Equals((string?)element.Attribute(GeneratedContainerAttributeName), "true", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static void ConfigureGeneratedWeaponContainerElement(XElement element)
-        {
-            element.SetAttributeValue(GeneratedContainerAttributeName, "true");
-            element.SetAttributeValue("capacity", "1");
-            element.SetAttributeValue("slotsperrow", "1");
-            element.SetAttributeValue("maxstacksize", "1");
-            element.SetAttributeValue("canbeselected", "true");
-            element.SetAttributeValue("allowuioverlap", "true");
-            element.SetAttributeValue("drawinventory", "true");
-            element.SetAttributeValue("uilabel", string.Empty);
-            element.SetAttributeValue("hideitems", "true");
         }
 
         private static bool IsEnabledFabricatorElement(XElement element)

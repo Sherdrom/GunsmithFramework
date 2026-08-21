@@ -56,6 +56,22 @@ public sealed class GunsmithQuickDragTests : IDisposable
     }
 
     [Fact]
+    public void VirtualDropCancellationKeepsWeaponInSourceInventory()
+    {
+        Item weapon = Uninitialized<Item>();
+        ItemInventory source = CreateInventory(1);
+        PutInSlot(source, weapon, 0);
+        Inventory.DraggingItems.Add(weapon);
+
+        GunsmithFabricatorClientPatch.CancelVirtualWeaponDrag();
+
+        Assert.Same(source, weapon.ParentInventory);
+        Assert.True(source.Contains(weapon));
+        Assert.DoesNotContain(weapon, Inventory.DraggingItems);
+        Assert.Null(Inventory.DraggingSlot);
+    }
+
+    [Fact]
     public void UnrelatedItemAndInvalidTargetAreNotIntercepted()
     {
         Item weapon = Uninitialized<Item>();

@@ -89,6 +89,11 @@ function Core.WeaponConfig(item)
     return config.weapons[identifier]
 end
 
+function Core.RequiresWorkbench(item)
+    local weapon = Core.WeaponConfig(item)
+    return type(weapon) == "table" and weapon.requiresWorkbench == true
+end
+
 function Core.PlatformConfigForWeaponId(identifier)
     local config = Gunsmith.Config
     if not config or type(identifier) ~= "string" then return nil end

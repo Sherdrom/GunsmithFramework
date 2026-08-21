@@ -389,6 +389,7 @@ GunsmithFramework.Config.weapons.my_rifle = {
 | --- | --- | --- | --- |
 | `platform` | string | 是 | 引用 `Config.platforms[platformId]`。 |
 | `localizationPrefix` | string | 否 | 可选。覆盖此 weapon 的完整/快速改装 UI 文案前缀；大多数第三方模组可以不写。 |
+| `requiresWorkbench` | boolean | 否，默认 `false` | 为 `true` 时只限制完整 GunsmithUI；普通 `G` 入口需工作台，`Shift+G` QuickUI 仍可用。 |
 | `roots` | table | 是 | 每个 platform root slot 都必须有对应 root 配置。 |
 | `roots[path].part` | string | 是 | 默认 root part id。该 part 的 `type` 必须等于 root path。 |
 | `roots[path].socket` | point | 是 | root part 在 canvas 上的连接点 `{ x, y }`。 |
@@ -760,9 +761,28 @@ receiver/handguard/top_rail/optic_mount
 
 安装时框架按 identifier 找物品，不按 name 找。若 XML item 不存在，校验器会警告。
 
+### 工作台专用改装
+
+需要限制改装入口的武器可以写 `requiresWorkbench = true`：
+
+```lua
+GunsmithFramework.Config.weapons.my_workbench_rifle = {
+    platform = "my_platform",
+    requiresWorkbench = true,
+    roots = {
+        receiver = {
+            part = "my_receiver",
+            socket = { x = 256, y = 80 }
+        }
+    }
+}
+```
+
+工作台页面使用客户端私有的虚拟枪械槽：玩家将这类枪拖入枪械槽后，当前客户端只保存该枪的引用并过滤配方；点击独立的打开按钮才会打开完整改装页。枪本身不会离开玩家背包，也不会进入工作台容器，其他玩家也看不到该选择或改装页。普通 `G` 入口对这类武器不显示完整 UI；`Shift+G` 仍可打开 QuickUI 并修改 Quick Slot，完整改装仍必须由工作台入口打开。Fabricator 制造队列仍使用原版共享队列，制造出的部件不会自动安装。
+
 ### Fabricator 配方过滤
 
-GunsmithFramework 可以在加工台左侧分类栏中加入一个 Gunsmith 分类按钮。玩家点击该按钮后，底部会显示一个专用枪械槽；放入 Gunsmith 枪械后，配方列表只显示这把枪理论上可安装的部件物品。
+GunsmithFramework 可以在加工台左侧分类栏中加入一个 Gunsmith 分类按钮。玩家点击该按钮后，底部会显示一个客户端私有的枪械槽；将 `requiresWorkbench = true` 的 Gunsmith 枪械拖入枪械槽后，配方列表只显示这把枪理论上可安装的部件物品。独立的打开按钮只负责打开完整改装页，不影响配方选择和制造。
 
 原版 `fabricator` 默认启用此按钮。自定义 Fabricator 需要在自己的 `<Fabricator>` 组件上加一个属性：
 
@@ -774,7 +794,7 @@ GunsmithFramework 可以在加工台左侧分类栏中加入一个 Gunsmith 分�
 </Item>
 ```
 
-第三方作者不需要为枪械槽额外写 `ItemContainer`。框架会在加载启用的 Fabricator prefab 时自动注入一个隐藏的 1 格容器，专门用于放入 Gunsmith 枪械。这个枪械槽只在 Gunsmith 分类页显示；切回原版分类后，加工台会恢复原版输入栏和原版配方列表。
+第三方作者不需要为枪械槽额外写 `ItemContainer`。这个枪械槽只是当前客户端的 UI 状态，不创建物品、容器或网络实体；切回原版分类或关闭加工台后会清除选择，加工台恢复原版输入栏和原版配方列表。
 
 可显示的配方必须已经是 Barotrauma 原版 Fabricate 配方。GunsmithFramework 只负责过滤，不会凭空生成配方：
 
@@ -792,11 +812,11 @@ GunsmithFramework 可以在加工台左侧分类栏中加入一个 Gunsmith 分�
 
 - 目标配方的 item identifier 必须等于某个可安装 part 的 `part.item.identifier`。
 - 该配方仍必须适用于当前 Fabricator，也就是 `<Fabricate suitablefabricators="...">` 中包含当前加工台 identifier。
-- 枪械槽为空，或放入的不是 Gunsmith 武器时，Gunsmith 分类页不会显示可制造配方。
-- 放入 Gunsmith 武器后，框架从 weapon 的 root parts 出发，递归扫描这些 part 声明的 `mounts`，用候选 part 的 `provides` 和 mount 的 `accepts` 判断兼容性。
-- 第一版列出的是“这把枪理论上可安装的所有部件”，不会根据当前已安装部件动态缩窄。
+- 尚未选择枪械时，Gunsmith 分类页不会显示可制造配方。
+- 选择工作台专用枪械后，框架从 weapon 的 root parts 出发，递归扫描这些 part 声明的 `mounts`，用候选 part 的 `provides` 和 mount 的 `accepts` 判断兼容性。
+- 配方列表显示“这把枪理论上可安装的所有部件”，不会根据当前已安装部件动态缩窄。
 - 制造结果只产出部件物品，不会自动安装到枪上。
-- 服务端会用同一套枪械槽和兼容性结果校验客户端请求；客户端伪造不兼容 recipe 时会被拒绝。
+- 枪械改装请求由服务端校验枪械归属、工作台可用性和配置模式；Fabricator 配方与制造队列仍由原版共享逻辑处理。
 
 如果 Gunsmith 分类页为空，优先检查三件事：
 

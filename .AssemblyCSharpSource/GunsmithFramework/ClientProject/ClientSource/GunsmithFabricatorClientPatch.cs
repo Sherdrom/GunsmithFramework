@@ -37,9 +37,9 @@ namespace GunsmithFramework
             public GUIComponent? InputInventoryHolder { get; set; }
             public Vector2? OriginalInputInventoryHolderSize { get; set; }
             public GUIComponent? WeaponArea { get; set; }
-            public GUIComponent? WeaponInventoryHolder { get; set; }
-            public ItemContainer? WeaponContainer { get; set; }
-            public (bool AllowUIOverlap, bool DrawInventory, bool HideItems, string? UILabel, bool DrawWhenEquipped, RectTransform? InventoryRectTransform)? OriginalWeaponContainerState { get; set; }
+            public GUIButton? WeaponSlot { get; set; }
+            public GUIButton? OpenButton { get; set; }
+            public Item? SelectedWeapon { get; set; }
             public string LastWeaponKey { get; set; } = "\0";
         }
 
@@ -58,20 +58,20 @@ namespace GunsmithFramework
                 {
                     state.GunsmithCategoryButton.RectTransform.Parent = null;
                 }
-                if (state.WeaponInventoryHolder != null)
-                {
-                    state.WeaponInventoryHolder.RectTransform.Parent = null;
-                }
                 if (state.WeaponArea != null)
                 {
                     state.WeaponArea.RectTransform.Parent = null;
+                }
+                if (state.OpenButton != null)
+                {
+                    state.OpenButton.RectTransform.Parent = null;
                 }
                 if (state.InputInventoryHolder != null && state.OriginalInputInventoryHolderSize is Vector2 originalInputSize)
                 {
                     state.InputInventoryHolder.RectTransform.RelativeSize = originalInputSize;
                 }
 
-                RestoreWeaponContainer(state);
+                ClearSelectedWeapon(pair.Key, state);
                 if (state.InputInventoryHolder?.Parent is GUILayoutGroup inputLayout)
                 {
                     inputLayout.Recalculate();
@@ -85,14 +85,19 @@ namespace GunsmithFramework
         [HarmonyPostfix]
         private static void AddWeaponSlot(Fabricator __instance)
         {
-            if (!GunsmithFabricatorRecipeFilterPatch.IsEnabledFabricator(__instance) ||
-                !GunsmithFabricatorRecipeFilterPatch.TryGetWeaponContainer(__instance, out ItemContainer? weaponContainer) ||
-                weaponContainer == null)
+            if (!GunsmithFabricatorRecipeFilterPatch.IsEnabledFabricator(__instance))
             {
                 return;
             }
 
             ClientState state = States.GetOrCreateValue(__instance);
+            ClearSelectedWeapon(__instance, state);
+            state.WeaponSlot?.RectTransform.Parent = null;
+            state.OpenButton?.RectTransform.Parent = null;
+            state.WeaponArea?.RectTransform.Parent = null;
+            state.WeaponSlot = null;
+            state.OpenButton = null;
+            state.WeaponArea = null;
             state.GunsmithCategoryButton = null;
             state.GunsmithCategorySelected = false;
 
@@ -118,36 +123,103 @@ namespace GunsmithFramework
                 RelativeSpacing = 0.04f
             };
 
-            var weaponInventoryHolder = new GUIFrame(
-                new RectTransform(new Vector2(0.72f, 0.9f), weaponArea.RectTransform, Anchor.Center, scaleBasis: ScaleBasis.BothHeight),
-                style: null);
+            var weaponSlot = new GUIButton(
+                new RectTransform(new Vector2(0.65f, 0.65f), weaponArea.RectTransform, Anchor.Center, scaleBasis: ScaleBasis.BothHeight),
+                style: null)
+            {
+                ToolTip = TextManager.Get("gunsmith.framework.ui.fabricator_weapon_slot").Fallback("Weapon"),
+                Color = Color.Black * 0.35f,
+                OutlineColor = Color.Cyan * 0.65f,
+                CanBeFocused = false
+            };
+            var openButton = new GUIButton(
+                new RectTransform(new Vector2(0.95f, 0.2f), weaponArea.RectTransform, Anchor.BottomCenter),
+                (LocalizedString)TextManager.Get("gunsmith.framework.ui.fabricator_open").Fallback("Open Gunsmith"),
+                Alignment.Center)
+            {
+                ToolTip = TextManager.Get("gunsmith.framework.ui.fabricator_open").Fallback("Open Gunsmith")
+            };
+            openButton.OnClicked = (_, _) =>
+            {
+                OpenSelectedWeapon(__instance, state);
+                return true;
+            };
             weaponArea.SetAsFirstChild();
             inputInventoryHolder.SetAsFirstChild();
 
             state.WeaponArea = weaponArea;
-            state.WeaponInventoryHolder = weaponInventoryHolder;
-            state.LastWeaponKey = GetWeaponKey(__instance);
-
-            CaptureWeaponContainer(state, weaponContainer);
-            AttachWeaponContainerToGui(weaponContainer, weaponInventoryHolder);
+            state.WeaponSlot = weaponSlot;
+            state.OpenButton = openButton;
+            state.LastWeaponKey = GetWeaponKey(state.SelectedWeapon);
+            UpdateVirtualWeaponSlot(state);
             UpdateWeaponSlotVisibility(__instance);
+        }
+
+        internal static bool TryHandleVirtualWeaponDrop()
+        {
+            if (GUI.InputBlockingMenuOpen ||
+                GunsmithGui.IsGunsmithWindowBlockingInput ||
+                !Inventory.DraggingItems.Any() ||
+                !PlayerInput.PrimaryMouseButtonReleased())
+            {
+                return false;
+            }
+
+            foreach (KeyValuePair<Fabricator, ClientState> pair in States)
+            {
+                ClientState state = pair.Value;
+                if (pair.Key.GuiFrame?.Parent == null ||
+                    !state.GunsmithCategorySelected ||
+                    state.WeaponSlot is not { Visible: true } weaponSlot ||
+                    !weaponSlot.Rect.Contains(PlayerInput.MousePosition))
+                {
+                    continue;
+                }
+
+                Item? draggedItem = Inventory.DraggingItems.FirstOrDefault();
+                bool accepted = CanOpenFromWorkbench(draggedItem, Character.Controlled);
+                CancelVirtualWeaponDrag();
+                if (accepted)
+                {
+                    state.SelectedWeapon = draggedItem;
+                    state.LastWeaponKey = GetWeaponKey(draggedItem);
+                    UpdateVirtualWeaponSlot(state);
+                    RefreshRecipeList(pair.Key);
+                    SoundPlayer.PlayUISound(GUISoundType.PickItem);
+                }
+                else
+                {
+                    SoundPlayer.PlayUISound(GUISoundType.PickItemFail);
+                }
+
+                return true;
+            }
+
+            return false;
         }
 
         [HarmonyPatch(typeof(Fabricator), "InitInventoryUIs")]
         [HarmonyPostfix]
-        private static void ReattachWeaponSlotInventory(Fabricator __instance)
+        private static void RefreshVirtualWeaponSlot(Fabricator __instance)
         {
-            if (!GunsmithFabricatorRecipeFilterPatch.TryGetWeaponContainer(__instance, out ItemContainer? weaponContainer) ||
-                weaponContainer == null ||
-                !States.TryGetValue(__instance, out ClientState? state) ||
-                state.WeaponInventoryHolder == null)
+            if (!States.TryGetValue(__instance, out ClientState? state))
             {
                 return;
             }
 
-            CaptureWeaponContainer(state, weaponContainer);
-            AttachWeaponContainerToGui(weaponContainer, state.WeaponInventoryHolder);
+            EnsureSelectedWeaponValid(__instance, state);
+            UpdateVirtualWeaponSlot(state);
             UpdateWeaponSlotVisibility(__instance);
+        }
+
+        [HarmonyPatch(typeof(Fabricator), "RemoveComponentSpecific")]
+        [HarmonyPostfix]
+        private static void ClearWhenFabricatorRemoved(Fabricator __instance)
+        {
+            if (States.TryGetValue(__instance, out ClientState? state))
+            {
+                ClearSelectedWeapon(__instance, state);
+            }
         }
 
         [HarmonyPatch(typeof(Fabricator), "CreateSelectedItemUI")]
@@ -218,7 +290,29 @@ namespace GunsmithFramework
             }
 
             ClientState state = States.GetOrCreateValue(__instance);
-            string weaponKey = GetWeaponKey(__instance);
+            if ((state.WeaponArea != null &&
+                    (state.WeaponArea.Parent == null || __instance.GuiFrame?.Parent == null)) ||
+                __instance.Item?.Removed == true)
+            {
+                bool wasSelected = state.SelectedWeapon != null;
+                bool wasCategorySelected = state.GunsmithCategorySelected;
+                state.GunsmithCategorySelected = false;
+                ClearSelectedWeapon(__instance, state);
+                if (wasSelected && wasCategorySelected)
+                {
+                    RefreshRecipeList(__instance);
+                }
+                return;
+            }
+
+            bool hadSelectedWeapon = state.SelectedWeapon != null;
+            bool selectedWeaponValid = EnsureSelectedWeaponValid(__instance, state);
+            if (!selectedWeaponValid && hadSelectedWeapon && state.GunsmithCategorySelected)
+            {
+                RefreshRecipeList(__instance);
+            }
+
+            string weaponKey = GetWeaponKey(state.SelectedWeapon);
             if (!string.Equals(state.LastWeaponKey, weaponKey, StringComparison.Ordinal))
             {
                 state.LastWeaponKey = weaponKey;
@@ -227,6 +321,7 @@ namespace GunsmithFramework
                     RefreshRecipeList(__instance);
                 }
             }
+            UpdateVirtualWeaponSlot(state);
         }
 
         [HarmonyPatch(typeof(Fabricator), "StartButtonClicked")]
@@ -240,15 +335,16 @@ namespace GunsmithFramework
                 return true;
             }
 
-            object? selectedItem = SelectedItemField?.GetValue(__instance);
-            if (GunsmithFabricatorRecipeFilterPatch.IsRecipeAllowedForFabricator(__instance, selectedItem))
+            if (!States.TryGetValue(__instance, out ClientState? state) ||
+                !EnsureSelectedWeaponValid(__instance, state) ||
+                !IsRecipeAllowedForSelectedWeapon(state.SelectedWeapon, SelectedItemField?.GetValue(__instance)))
             {
-                return true;
+                __result = false;
+                ClearSelectedRecipe(__instance);
+                return false;
             }
 
-            __result = false;
-            ClearSelectedRecipe(__instance);
-            return false;
+            return true;
         }
 
         private static void AddGunsmithCategoryButton(Fabricator fabricator, ClientState state)
@@ -284,6 +380,10 @@ namespace GunsmithFramework
                 OnClicked = (button, _) =>
                 {
                     state.GunsmithCategorySelected = !button.Selected;
+                    if (!state.GunsmithCategorySelected)
+                    {
+                        ClearSelectedWeapon(fabricator, state);
+                    }
                     SelectedItemCategoryField?.SetValue(fabricator, null);
 
                     if (state.GunsmithCategorySelected && ItemFilterBoxField?.GetValue(fabricator) is GUITextBox filterBox)
@@ -323,6 +423,7 @@ namespace GunsmithFramework
                     if (States.TryGetValue(fabricator, out ClientState? state))
                     {
                         state.GunsmithCategorySelected = false;
+                        ClearSelectedWeapon(fabricator, state);
                     }
 
                     bool result = originalOnClicked(button, userData);
@@ -330,6 +431,7 @@ namespace GunsmithFramework
                     if (States.TryGetValue(fabricator, out state))
                     {
                         state.GunsmithCategorySelected = false;
+                        ClearSelectedWeapon(fabricator, state);
                     }
                     UpdateCategoryButtonSelection(fabricator);
                     return result;
@@ -380,50 +482,99 @@ namespace GunsmithFramework
             UpdateCategoryButtonSelection(fabricator);
         }
 
-        private static void AttachWeaponContainerToGui(ItemContainer weaponContainer, GUIComponent holder)
+        private static void OpenSelectedWeapon(Fabricator fabricator, ClientState state)
         {
-            weaponContainer.AllowUIOverlap = true;
-            weaponContainer.DrawInventory = true;
-            weaponContainer.HideItems = true;
-            weaponContainer.UILabel = string.Empty;
-            weaponContainer.Inventory.DrawWhenEquipped = true;
-            weaponContainer.Inventory.RectTransform = holder.RectTransform;
+            if (!EnsureSelectedWeaponValid(fabricator, state) ||
+                Character.Controlled is not { } character ||
+                fabricator.Item is not { Removed: false } workbench)
+            {
+                return;
+            }
+            GunsmithApi.CallLuaHook(
+                "GunsmithFrameworkOpenFromWorkbench",
+                state.SelectedWeapon!,
+                workbench,
+                character);
         }
 
-        private static void CaptureWeaponContainer(ClientState state, ItemContainer weaponContainer)
+        private static bool EnsureSelectedWeaponValid(Fabricator fabricator, ClientState state)
         {
-            if (ReferenceEquals(state.WeaponContainer, weaponContainer) && state.OriginalWeaponContainerState != null)
+            if (state.SelectedWeapon == null)
+            {
+                return false;
+            }
+
+            Character? character = Character.Controlled;
+            if (CanOpenFromWorkbench(state.SelectedWeapon, character))
+            {
+                return true;
+            }
+
+            ClearSelectedWeapon(fabricator, state);
+            return false;
+        }
+
+        private static bool CanOpenFromWorkbench(Item? weapon, Character? character)
+            => weapon != null &&
+               character != null &&
+               !weapon.Removed &&
+               weapon.IsOwnedBy(character) &&
+               GunsmithLuaHooks.Call("GunsmithFrameworkCanOpenFromWorkbench", weapon) is true;
+
+        private static bool IsRecipeAllowedForSelectedWeapon(Item? weapon, object? recipe)
+        {
+            if (weapon == null ||
+                recipe == null ||
+                !GunsmithFabricatorRecipeFilterPatch.TryGetRecipeTargetIdentifier(recipe, out string targetIdentifier))
+            {
+                return false;
+            }
+
+            HashSet<string> allowedIdentifiers = GunsmithFabricatorRecipeFilterPatch.GetAllowedPartItemIdentifiers(weapon);
+            return allowedIdentifiers.Count > 0 && allowedIdentifiers.Contains(targetIdentifier);
+        }
+
+        private static void ClearSelectedWeapon(Fabricator fabricator, ClientState state)
+        {
+            state.SelectedWeapon = null;
+            state.LastWeaponKey = string.Empty;
+            UpdateVirtualWeaponSlot(state);
+            if (fabricator.Item is { } workbench)
+            {
+                GunsmithGui.CloseForWorkbench(workbench);
+            }
+        }
+
+        internal static void CancelVirtualWeaponDrag()
+        {
+            Inventory.DraggingItems.Clear();
+            Inventory.DraggingSlot = null;
+        }
+
+        private static void UpdateVirtualWeaponSlot(ClientState state)
+        {
+            if (state.WeaponSlot == null)
             {
                 return;
             }
 
-            RestoreWeaponContainer(state);
-            state.WeaponContainer = weaponContainer;
-            state.OriginalWeaponContainerState = (
-                weaponContainer.AllowUIOverlap,
-                weaponContainer.DrawInventory,
-                weaponContainer.HideItems,
-                weaponContainer.UILabel,
-                weaponContainer.Inventory.DrawWhenEquipped,
-                weaponContainer.Inventory.RectTransform);
-        }
-
-        private static void RestoreWeaponContainer(ClientState state)
-        {
-            if (state.WeaponContainer is not ItemContainer weaponContainer ||
-                state.OriginalWeaponContainerState is not { } original)
+            if (state.SelectedWeapon is { Removed: false } weapon)
             {
-                return;
+                state.WeaponSlot.Text = (LocalizedString)weapon.Name;
+                state.WeaponSlot.ToolTip = (LocalizedString)weapon.Name;
+                state.WeaponSlot.Selected = true;
+            }
+            else
+            {
+                state.WeaponSlot.Text = TextManager.Get("gunsmith.framework.ui.fabricator_weapon_slot").Fallback("Weapon");
+                state.WeaponSlot.ToolTip = TextManager.Get("gunsmith.framework.ui.fabricator_insert_weapon").Fallback("Drag a workbench-only Gunsmith weapon to this virtual slot.");
+                state.WeaponSlot.Selected = false;
             }
 
-            weaponContainer.AllowUIOverlap = original.AllowUIOverlap;
-            weaponContainer.DrawInventory = original.DrawInventory;
-            weaponContainer.HideItems = original.HideItems;
-            weaponContainer.UILabel = original.UILabel!;
-            weaponContainer.Inventory.DrawWhenEquipped = original.DrawWhenEquipped;
-            weaponContainer.Inventory.RectTransform = original.InventoryRectTransform!;
-            state.WeaponContainer = null;
-            state.OriginalWeaponContainerState = null;
+            if (state.OpenButton != null)
+            {
+                state.OpenButton.Enabled = state.SelectedWeapon != null && CanOpenFromWorkbench(state.SelectedWeapon, Character.Controlled);
+            }
         }
 
         private static void ApplyGunsmithFilter(Fabricator fabricator)
@@ -440,7 +591,13 @@ namespace GunsmithFramework
                 return;
             }
 
-            Item? weapon = GunsmithFabricatorRecipeFilterPatch.GetWeaponItem(fabricator);
+            States.TryGetValue(fabricator, out ClientState? state);
+            if (state != null)
+            {
+                EnsureSelectedWeaponValid(fabricator, state);
+            }
+
+            Item? weapon = state?.SelectedWeapon;
             HashSet<string> allowedPartItemIdentifiers = GunsmithFabricatorRecipeFilterPatch.GetAllowedPartItemIdentifiers(weapon);
             bool hasAllowedWeapon = weapon != null && allowedPartItemIdentifiers.Count > 0;
             bool anyVisible = false;
@@ -467,7 +624,7 @@ namespace GunsmithFramework
             object? selectedItem = SelectedItemField?.GetValue(fabricator);
             if (selectedItem != null &&
                 FabricatedItemField?.GetValue(fabricator) == null &&
-                !GunsmithFabricatorRecipeFilterPatch.IsRecipeAllowedForFabricator(fabricator, selectedItem))
+                !IsRecipeAllowedForSelectedWeapon(weapon, selectedItem))
             {
                 ClearSelectedRecipe(fabricator);
             }
@@ -528,6 +685,11 @@ namespace GunsmithFramework
         {
             bool visible = state.GunsmithCategorySelected;
 
+            if (!visible)
+            {
+                ClearSelectedWeapon(fabricator, state);
+            }
+
             if (state.InputInventoryHolder != null)
             {
                 state.InputInventoryHolder.RectTransform.RelativeSize = visible ? new Vector2(0.55f, 1f) : new Vector2(0.70f, 1f);
@@ -539,16 +701,15 @@ namespace GunsmithFramework
                 state.WeaponArea.IgnoreLayoutGroups = !visible;
             }
 
-            if (state.WeaponInventoryHolder != null)
+            if (state.WeaponSlot != null)
             {
-                state.WeaponInventoryHolder.Visible = visible;
+                state.WeaponSlot.Visible = visible;
+                state.WeaponSlot.Enabled = visible;
             }
-
-            if (GunsmithFabricatorRecipeFilterPatch.TryGetWeaponContainer(fabricator, out ItemContainer? weaponContainer) &&
-                weaponContainer != null)
+            if (state.OpenButton != null)
             {
-                weaponContainer.DrawInventory = visible;
-                weaponContainer.Inventory.DrawWhenEquipped = visible;
+                state.OpenButton.Visible = visible;
+                state.OpenButton.Enabled = visible && state.SelectedWeapon != null && CanOpenFromWorkbench(state.SelectedWeapon, Character.Controlled);
             }
 
             if (state.InputInventoryHolder?.Parent is GUILayoutGroup inputLayout)
@@ -557,17 +718,14 @@ namespace GunsmithFramework
             }
         }
 
-        private static string GetWeaponKey(Fabricator fabricator)
-        {
-            Item? weapon = GunsmithFabricatorRecipeFilterPatch.GetWeaponItem(fabricator);
-            return weapon == null ? string.Empty : $"{weapon.ID}:{weapon.Prefab.Identifier.Value}";
-        }
+        private static string GetWeaponKey(Item? weapon)
+            => weapon == null ? string.Empty : $"{weapon.ID}:{weapon.Prefab.Identifier.Value}";
 
         private static LocalizedString GetEmptyStateText(Item? weapon, int allowedPartCount)
         {
             if (weapon == null)
             {
-                return TextManager.Get("gunsmith.framework.ui.fabricator_insert_weapon").Fallback("Insert a Gunsmith weapon.");
+                return TextManager.Get("gunsmith.framework.ui.fabricator_insert_weapon").Fallback("Drag a workbench-only Gunsmith weapon to this virtual slot.");
             }
 
             return allowedPartCount <= 0

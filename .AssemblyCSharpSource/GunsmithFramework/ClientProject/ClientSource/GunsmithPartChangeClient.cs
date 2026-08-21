@@ -4,18 +4,19 @@ namespace GunsmithFramework
 {
     internal static class GunsmithPartChangeClient
     {
-        internal const string RequestMessageId = "GunsmithFramework.SetPart.v1";
+        internal const string RequestMessageId = "GunsmithFramework.SetPart.v2";
         internal const string StateRequestMessageId = "GunsmithFramework.GetPartState.v1";
         internal const string StateMessageId = "GunsmithFramework.PartState.v1";
 
         internal static void Register()
             => LuaCsSetup.Instance.Networking.Receive(StateMessageId, ReceiveState);
 
-        internal static bool Submit(Item item, string slotPath, string partId)
+        internal static bool Submit(Item item, Item? workbench, string slotPath, string partId)
         {
             if (GameMain.Client == null ||
                 item == null ||
                 item.Removed ||
+                workbench?.Removed == true ||
                 !Barotrauma.Items.Components.GunsmithData.IsValidPartChange(slotPath, partId))
             {
                 return false;
@@ -25,6 +26,7 @@ namespace GunsmithFramework
             {
                 IWriteMessage message = LuaCsSetup.Instance.Networking.Start(RequestMessageId);
                 message.WriteUInt16(item.ID);
+                message.WriteUInt16(workbench?.ID ?? 0);
                 message.WriteString(slotPath);
                 message.WriteString(partId);
                 LuaCsSetup.Instance.Networking.SendToServer(message, DeliveryMethod.Reliable);

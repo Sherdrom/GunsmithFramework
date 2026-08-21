@@ -7,6 +7,7 @@ namespace GunsmithFramework
 
         private static GUIFrame? activeWindow;
         private static Item? activeItem;
+        private static Item? activeWorkbench;
         private static string activeLocalizationPrefix = DefaultLocalizationPrefix;
         private static string? selectedSlot;
         private static GunsmithGuiContext activeContext = GunsmithGuiContext.Empty;
@@ -31,20 +32,24 @@ namespace GunsmithFramework
         private static readonly Dictionary<string, Rectangle> partIconSourceCache = new(StringComparer.Ordinal);
 
         public static void OpenFromLua(Item item, string title, string slotSpec)
-            => OpenInternal(item, title, slotSpec, quickMode: false);
+            => OpenInternal(item, null, title, slotSpec, quickMode: false);
+
+        public static void OpenAtWorkbenchFromLua(Item item, Item workbench, string title, string slotSpec)
+            => OpenInternal(item, workbench, title, slotSpec, quickMode: false);
 
         public static void OpenQuickFromLua(Item item, string title, string slotSpec)
-            => OpenInternal(item, title, slotSpec, quickMode: true);
+            => OpenInternal(item, null, title, slotSpec, quickMode: true);
 
-        private static void OpenInternal(Item item, string title, string slotSpec, bool quickMode)
+        private static void OpenInternal(Item item, Item? workbench, string title, string slotSpec, bool quickMode)
         {
-            if (GUI.InputBlockingMenuOpen || item == null || item.Removed) { return; }
+            if (GUI.InputBlockingMenuOpen || item == null || item.Removed || workbench?.Removed == true) { return; }
 
             GunsmithGuiSpec spec = ParseSpec(slotSpec);
             if (spec.Slots.Count == 0) { return; }
             activeLocalizationPrefix = LocalizationPrefixFromTitle(title);
 
-            if (activeWindow != null && ReferenceEquals(activeItem, item) && activeQuickMode != quickMode)
+            if (activeWindow != null && ReferenceEquals(activeItem, item) &&
+                (activeQuickMode != quickMode || !ReferenceEquals(activeWorkbench, workbench)))
             {
                 CloseWindow();
             }
@@ -78,6 +83,7 @@ namespace GunsmithFramework
             CloseWindow();
 
             activeItem = item;
+            activeWorkbench = workbench;
             activeQuickMode = quickMode;
             activeContext = spec.Context;
             activeSlots = spec.Slots;
@@ -613,7 +619,24 @@ namespace GunsmithFramework
             {
                 if (!installed && part.IsActionable && activeItem != null && !activeItem.Removed)
                 {
-                    if (activeQuickMode)
+                    if (activeWorkbench != null)
+                    {
+                        if (GameMain.Client != null && slot.QuickMeta.SlotIndex < 0)
+                        {
+                            GunsmithPartChangeClient.Submit(activeItem, activeWorkbench, slot.Path, part.Id);
+                        }
+                        else
+                        {
+                            GunsmithApi.CallLuaHook(
+                                "GunsmithFrameworkSetPartAtWorkbench",
+                                activeItem,
+                                activeWorkbench,
+                                Character.Controlled,
+                                slot.Path,
+                                part.Id);
+                        }
+                    }
+                    else if (activeQuickMode)
                     {
                         GunsmithApi.CallLuaHook("GunsmithFrameworkSetQuickPart", activeItem, slot.Path, part.Id);
                     }
@@ -623,7 +646,7 @@ namespace GunsmithFramework
                     }
                     else if (GameMain.Client != null)
                     {
-                        GunsmithPartChangeClient.Submit(activeItem, slot.Path, part.Id);
+                        GunsmithPartChangeClient.Submit(activeItem, null, slot.Path, part.Id);
                     }
                     else
                     {
@@ -657,6 +680,7 @@ namespace GunsmithFramework
 
             activeWindow = null;
             activeItem = null;
+            activeWorkbench = null;
             activeLocalizationPrefix = DefaultLocalizationPrefix;
             selectedSlot = null;
             activeContext = GunsmithGuiContext.Empty;
@@ -689,6 +713,7 @@ namespace GunsmithFramework
             activeWindow.RectTransform.Parent = null;
             activeWindow = null;
             activeItem = null;
+            activeWorkbench = null;
             slotList = null;
             previewPanel = null;
             detailPanel = null;
@@ -717,6 +742,14 @@ namespace GunsmithFramework
                ReferenceEquals(activeItem, item) &&
                activeQuickMode == quickMode;
 
+        internal static void CloseForWorkbench(Item workbench)
+        {
+            if (workbench != null && ReferenceEquals(activeWorkbench, workbench))
+            {
+                CloseWindow();
+            }
+        }
+
         internal static GUIComponent? ActiveWindowForInputBlock => activeWindow;
 
         internal static bool IsMouseOnQuickBufferInventory
@@ -743,6 +776,11 @@ namespace GunsmithFramework
         internal static void RefreshWindow()
         {
             if (activeWindow == null) { return; }
+            if (activeItem?.Removed != false || activeWorkbench?.Removed == true)
+            {
+                CloseWindow();
+                return;
+            }
             if (GUI.InputBlockingMenuOpen)
             {
                 GunsmithQuickDrag.Reset();
