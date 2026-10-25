@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WindowsClient", "ClientProj
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WindowsServer", "ServerProject\WindowsServer.csproj", "{918708B2-21AA-4151-A9C1-403B8E422411}"
 EndProject
-Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "SharedSource", "SharedProject\SharedSource.shproj", "{3C1540C8-8235-4E85-8BFF-9AF5FE32FE99}"
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "SharedSource", "SharedProject\SharedProject.shproj", "{3C1540C8-8235-4E85-8BFF-9AF5FE32FE99}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LinuxClient", "ClientProject\LinuxClient.csproj", "{DE15522F-1F5E-4055-BD43-8BABAD659532}"
 EndProject
