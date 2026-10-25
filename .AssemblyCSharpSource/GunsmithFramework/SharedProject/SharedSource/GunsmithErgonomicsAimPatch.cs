@@ -19,7 +19,8 @@ namespace GunsmithFramework
             => (MaximumAimFollowDegrees - BaseAimFollowDegrees) / AimFollowDegreesPerErgonomics;
 
         internal static float ClampErgonomics(float ergonomics)
-            => MathHelper.Clamp(ergonomics, MinimumErgonomics, MaximumErgonomics);
+            // Negative part penalties must remain visible even though aim speed has a minimum.
+            => Math.Min(ergonomics, MaximumErgonomics);
 
         private sealed class AimRaiseRuntime
         {

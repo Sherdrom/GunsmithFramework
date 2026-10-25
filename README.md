@@ -1153,8 +1153,10 @@ GunsmithFramework.Config.weapons.my_rifle = {
 `part.stats` 中可写以下数值键。值必须是 number。
 
 `Ergonomics` 是 GunsmithFramework 自己使用的操控值，会影响瞄准抬枪速度，并显示在 UI 中。
+负值会在改枪界面和物品提示中显示；实际抬枪速度仍受原有最低速度限制。
 
 其他键会作为 Barotrauma `StatTypes` 加到持有该 Gunsmith 武器的角色身上。UI 中大部分 StatTypes 按百分比显示；技能 bonus/override 和少数计数型字段按平值显示。
+百分比属性在显示时最低为 -100%；生效时先与角色原有属性相加，再将结果限制为不低于 -100%，避免伤害等倍率变成负数。平值属性不受此限制。
 
 ```lua
 stats = {

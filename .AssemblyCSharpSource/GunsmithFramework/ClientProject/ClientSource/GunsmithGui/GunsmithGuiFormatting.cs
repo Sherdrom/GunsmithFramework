@@ -91,8 +91,9 @@ namespace GunsmithFramework
 
         private static void AddNonZeroStatTypeLine(List<GunsmithStatDisplay> entries, StatTypes statType, float value)
         {
+            value = GunsmithRuntimeStats.ClampStatValue(statType, value);
             if (Math.Abs(value) < 0.0001f) { return; }
-            if (IsFlatStat(statType))
+            if (GunsmithRuntimeStats.IsFlatStat(statType))
             {
                 entries.Add(new GunsmithStatDisplay($"{LocalizeStatType(statType)}: {value:+0.#;-0.#;0}", value));
             }
@@ -113,16 +114,6 @@ namespace GunsmithFramework
             string key = Key($"stattypes.{statType}");
             return TextManager.Get(key).Fallback(statType.ToString()).Value;
         }
-
-        private static bool IsFlatStat(StatTypes statType)
-            => statType.ToString().EndsWith("SkillBonus", StringComparison.Ordinal) ||
-               statType.ToString().EndsWith("SkillOverride", StringComparison.Ordinal) ||
-               statType is StatTypes.ExtraLevelGain or
-                   StatTypes.ExtraMissionCount or
-                   StatTypes.ExtraSpecialSalesCount or
-                   StatTypes.MaxAttachableCount or
-                   StatTypes.LockedTalents or
-                   StatTypes.InventoryExtraStackSize;
 
         private static Color StatDisplayColor(GunsmithStatDisplay stat)
         {

@@ -151,6 +151,19 @@ namespace GunsmithFramework
         public bool TryGet(StatTypes statType, out float value)
             => Values.TryGetValue(statType, out value) && value != 0.0f;
 
+        internal static bool IsFlatStat(StatTypes statType)
+            => statType.ToString().EndsWith("SkillBonus", StringComparison.Ordinal) ||
+               statType.ToString().EndsWith("SkillOverride", StringComparison.Ordinal) ||
+               statType is StatTypes.ExtraLevelGain or
+                   StatTypes.ExtraMissionCount or
+                   StatTypes.ExtraSpecialSalesCount or
+                   StatTypes.MaxAttachableCount or
+                   StatTypes.LockedTalents or
+                   StatTypes.InventoryExtraStackSize;
+
+        internal static float ClampStatValue(StatTypes statType, float value)
+            => IsFlatStat(statType) ? value : Math.Max(value, -1.0f);
+
         public static GunsmithRuntimeStats Empty { get; } = new();
     }
 }

@@ -1,6 +1,8 @@
 using Barotrauma;
 using GunsmithFramework;
 using Microsoft.Xna.Framework;
+using System.Collections;
+using System.Reflection;
 using Xunit;
 
 namespace GunsmithClientTest;
@@ -136,6 +138,46 @@ public sealed class GunsmithGuiParsingTests
         Assert.Equal(
             $"‖color:{XMLExtensions.ToStringHex(GUIStyle.Green)}‖+30%‖color:end‖ 火力",
             GunsmithGui.FormatTooltipStat("+30%", "火力", 0.3f, indent: string.Empty));
+    }
+
+    [Theory]
+    [InlineData("Ergonomics=-25", -25.0f, "-25")]
+    [InlineData("Ergonomics=25", 25.0f, "+25")]
+    [InlineData("Ergonomics=250", 200.0f, "+200")]
+    [InlineData("TeamAttackMultiplier=-1.5", -1.0f, "-100%")]
+    [InlineData("TeamAttackMultiplier=-1", -1.0f, "-100%")]
+    [InlineData("RangedAttackMultiplier=-0.15", -0.15f, "-15%")]
+    [InlineData("RangedAttackMultiplier=0.2", 0.2f, "+20%")]
+    [InlineData("WeaponsSkillBonus=-15", -15.0f, "-15")]
+    [InlineData("ExtraMissionCount=-3", -3.0f, "-3")]
+    public void StatFormattingShowsSignedErgonomicsAndClampsOnlyPercentages(
+        string spec, float expectedValue, string expectedText)
+    {
+        GunsmithGui.GunsmithStats stats = GunsmithGui.ParseSpec("root::" + spec + "::").WeaponStats;
+        const BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Static;
+        IEnumerable entries = (IEnumerable)typeof(GunsmithGui).GetMethod("FormatStats", flags)!.Invoke(null, [stats])!;
+        object entry = Assert.Single(entries.Cast<object>());
+        Assert.Equal(expectedValue, entry.GetType().GetProperty("Value")!.GetValue(entry));
+        Assert.Contains(expectedText, (string)entry.GetType().GetProperty("Text")!.GetValue(entry)!);
+        Assert.Equal(
+            expectedValue < 0.0f ? Color.IndianRed : Color.LightGreen,
+            typeof(GunsmithGui).GetMethod("StatDisplayColor", flags)!.Invoke(null, [entry]));
+
+        string tooltip = (string)typeof(GunsmithGui).GetMethod("FormatTooltipStats", flags)!.Invoke(
+            null, [stats, "gunsmith.framework", "  "])!;
+        string color = XMLExtensions.ToStringHex(expectedValue < 0.0f ? GUIStyle.Red : GUIStyle.Green);
+        Assert.Contains($"‖color:{color}‖{expectedText}‖color:end‖", tooltip);
+    }
+
+    [Fact]
+    public void StatFormattingOmitsZeroErgonomics()
+    {
+        GunsmithGui.GunsmithStats stats = GunsmithGui.ParseSpec("root::Ergonomics=0::").WeaponStats;
+        const BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Static;
+        string tooltip = (string)typeof(GunsmithGui).GetMethod("FormatTooltipStats", flags)!.Invoke(
+            null, [stats, "gunsmith.framework", "  "])!;
+
+        Assert.DoesNotContain("‖color:", tooltip);
     }
 
     [Theory]

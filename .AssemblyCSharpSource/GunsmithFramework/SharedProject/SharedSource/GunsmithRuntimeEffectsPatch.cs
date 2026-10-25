@@ -17,7 +17,7 @@ namespace GunsmithFramework
                 return;
             }
 
-            __result += value;
+            __result = GunsmithRuntimeStats.ClampStatValue(statType, __result + value);
         }
 
         internal static void InvalidateItem(Item item)

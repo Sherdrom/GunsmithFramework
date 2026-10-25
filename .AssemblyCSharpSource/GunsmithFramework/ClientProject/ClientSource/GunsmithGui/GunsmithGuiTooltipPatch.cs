@@ -64,12 +64,13 @@ namespace GunsmithFramework
 
             foreach (KeyValuePair<StatTypes, float> stat in stats.Values.OrderBy(stat => stat.Key))
             {
-                if (Math.Abs(stat.Value) < 0.0001f) { continue; }
+                float statValue = GunsmithRuntimeStats.ClampStatValue(stat.Key, stat.Value);
+                if (Math.Abs(statValue) < 0.0001f) { continue; }
                 string name = LocalizeTooltipStat(localizationPrefix, $"stattypes.{stat.Key}", stat.Key.ToString());
-                string value = IsFlatStat(stat.Key)
-                    ? $"{stat.Value:+0.#;-0.#;0}"
-                    : $"{stat.Value * 100:+0.#;-0.#;0}%";
-                entries.Add(FormatTooltipStat(value, name, stat.Value, indent));
+                string value = GunsmithRuntimeStats.IsFlatStat(stat.Key)
+                    ? $"{statValue:+0.#;-0.#;0}"
+                    : $"{statValue * 100:+0.#;-0.#;0}%";
+                entries.Add(FormatTooltipStat(value, name, statValue, indent));
             }
 
             if (entries.Count == 0)
