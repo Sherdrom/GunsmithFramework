@@ -33,7 +33,7 @@ namespace GunsmithFramework
             public float StartAngle;
         }
 
-        private static readonly Dictionary<Character, AimRaiseRuntime> runtimes = new();
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Character, AimRaiseRuntime> runtimes = new();
         private static readonly AccessTools.FieldRef<Pickable, Character> pickerRef = AccessTools.FieldRefAccess<Pickable, Character>("picker");
 
         internal static void Reset()
@@ -205,14 +205,7 @@ namespace GunsmithFramework
         }
 
         private static AimRaiseRuntime RuntimeFor(Character character)
-        {
-            if (!runtimes.TryGetValue(character, out AimRaiseRuntime? runtime))
-            {
-                runtime = new AimRaiseRuntime();
-                runtimes[character] = runtime;
-            }
-            return runtime;
-        }
+            => runtimes.GetValue(character, _ => new AimRaiseRuntime());
 
         private static void ClearIfOwned(Character? character, Item item)
         {

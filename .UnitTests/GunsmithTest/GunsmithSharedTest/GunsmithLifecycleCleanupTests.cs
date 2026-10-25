@@ -43,7 +43,7 @@ public sealed class GunsmithLifecycleCleanupTests
         SeedRegistry(typeof(GunsmithQuickAttachmentBarrelTransforms), "ActiveProjectileSelectionByItem", item);
         SeedRegistry(typeof(GunsmithQuickAttachmentBarrelTransforms), "CachedLocalPositions", item);
         SeedRegistry(typeof(GunsmithQuickAttachmentBarrelTransforms), "ReportedMissingRuleSignatureByItem", item);
-        SeedRegistry(typeof(GunsmithErgonomicsAimPatch), "runtimes", character);
+        object aimRuntime = AimRuntimeFor(character);
         SeedNpcPreset(item);
 
         GunsmithQuickSlotCapacityPatch.Reset();
@@ -63,7 +63,8 @@ public sealed class GunsmithLifecycleCleanupTests
         AssertRegistryEmpty(typeof(GunsmithQuickAttachmentBarrelTransforms), "ActiveProjectileSelectionByItem");
         AssertRegistryEmpty(typeof(GunsmithQuickAttachmentBarrelTransforms), "CachedLocalPositions");
         AssertRegistryEmpty(typeof(GunsmithQuickAttachmentBarrelTransforms), "ReportedMissingRuleSignatureByItem");
-        AssertRegistryEmpty(typeof(GunsmithErgonomicsAimPatch), "runtimes");
+        Assert.NotSame(aimRuntime, AimRuntimeFor(character));
+        GunsmithErgonomicsAimPatch.Reset();
         AssertRegistryEmpty(typeof(GunsmithNpcPresetPatch), "PendingItemPresets");
         Assert.Equal(string.Empty, GunsmithNpcPresetPatch.GetPreset(item));
     }
@@ -163,6 +164,33 @@ public sealed class GunsmithLifecycleCleanupTests
         AssertRegistryEmpty(typeof(GunsmithQuickSlotCapacityPatch), "MaxQuickSlotByItemIdentifier");
         Assert.Null(GunsmithQuickPartItemSpawner.BeginQuickSlotMutation);
     }
+
+    [Fact]
+    public void AimCacheDoesNotKeepCharacterOrWeaponAlive()
+    {
+        var (character, weapon) = SeedCollectibleAimRuntime();
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        Assert.False(character.IsAlive);
+        Assert.False(weapon.IsAlive);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static (WeakReference Character, WeakReference Weapon) SeedCollectibleAimRuntime()
+    {
+        Character character = Uninitialized<Character>();
+        Item weapon = Uninitialized<Item>();
+        weapon.Equipper = character;
+        object runtime = AimRuntimeFor(character);
+        runtime.GetType().GetField("Item")!.SetValue(runtime, weapon);
+        Assert.Same(runtime, AimRuntimeFor(character));
+        return (new WeakReference(character), new WeakReference(weapon));
+    }
+
+    private static object AimRuntimeFor(Character character)
+        => typeof(GunsmithErgonomicsAimPatch).GetMethod("RuntimeFor", BindingFlags.Static | BindingFlags.NonPublic)!
+            .Invoke(null, new object[] { character })!;
 
     private static void SeedNpcPreset(Item item)
     {

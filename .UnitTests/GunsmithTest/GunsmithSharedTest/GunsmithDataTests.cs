@@ -1,4 +1,5 @@
 using Barotrauma.Items.Components;
+using Barotrauma.Networking;
 using GunsmithFramework;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -9,6 +10,26 @@ namespace GunsmithSharedTest;
 
 public sealed class GunsmithDataTests
 {
+    [Theory]
+    [InlineData("{\"v\":1,\"parts\":{\"receiver\":\"unpaid_part\"}}")]
+    [InlineData("")]
+    [InlineData("invalid")]
+    public void LegacyClientSnapshotCannotReplaceServerState(string submittedState)
+    {
+        var component = (GunsmithData)RuntimeHelpers.GetUninitializedObject(typeof(GunsmithData));
+        component.SavedState = "{\"v\":1,\"parts\":{\"receiver\":\"owned_part\"}}";
+        string original = component.SavedState;
+        var message = new ReadWriteMessage();
+        message.WriteByte(1);
+        message.WriteString(submittedState);
+        message.BitPosition = 0;
+
+        component.ServerEventRead(message, null!);
+
+        Assert.Equal(original, component.SavedState);
+        Assert.Equal(message.LengthBits, message.BitPosition);
+    }
+
     [Fact]
     public void NormalizeSavedState_ReturnsEmptyStringForNull()
     {

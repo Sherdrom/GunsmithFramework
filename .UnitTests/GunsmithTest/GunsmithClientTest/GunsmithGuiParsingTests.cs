@@ -10,6 +10,22 @@ namespace GunsmithClientTest;
 public sealed class GunsmithGuiParsingTests
 {
     [Fact]
+    public void QuickSpecAllowsEmptyPartListAndInstalledOnlyPartList()
+    {
+        const string spec = "|ui.quick_root|::::::" +
+            "barrel|path.barrel||0||slot=0,anchorValid=1,items=barrel_item;" +
+            "scope|path.scope|installed|0|installed:part.installed:installed:Ergonomics=1:scope_item::0%2C0%2C0%2C0|slot=1,anchorValid=1,items=scope_item";
+        var slots = GunsmithGui.ParseSpec(spec).Slots;
+        Assert.Equal(2, slots.Count);
+        Assert.Empty(slots[0].Parts);
+        Assert.Equal("", slots[0].CurrentPartId);
+        Assert.Contains("barrel_item", slots[0].QuickMeta.AllowedItemIdentifiers);
+        Assert.Equal("installed", Assert.Single(slots[1].Parts).Id);
+        Assert.Equal("installed", slots[1].CurrentPartId);
+        Assert.Contains("scope_item", slots[1].QuickMeta.AllowedItemIdentifiers);
+    }
+
+    [Fact]
     public void ParseSpec_ParsesContextPreviewStatsSlotsAndQuickMeta()
     {
         const string spec =

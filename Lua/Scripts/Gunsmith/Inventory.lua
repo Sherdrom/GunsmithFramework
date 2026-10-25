@@ -74,7 +74,7 @@ local function findItemInInventory(inventory, identifier, sourceItem, visited)
 
             if not isSourceInventory(inv, sourceItem) then
                 for item in inv.AllItemsMod do
-                    if item and not item.removed and item ~= sourceItem and not isInSourceItemInventory(item, sourceItem) then
+                    if item and not item.removed and not item.IsInRemoveQueue and item ~= sourceItem and not isInSourceItemInventory(item, sourceItem) then
                         if Core.ItemIdentifier(item) == identifier then
                             return item
                         end
@@ -179,7 +179,7 @@ function Inventory.CollectAvailableItemIds(character, sourceItem)
 
             if not isSourceInventory(inv, sourceItem) then
                 for slotItem in inv.AllItemsMod do
-                    if slotItem and not slotItem.removed and slotItem ~= sourceItem and not isInSourceItemInventory(slotItem, sourceItem) then
+                    if slotItem and not slotItem.removed and not slotItem.IsInRemoveQueue and slotItem ~= sourceItem and not isInSourceItemInventory(slotItem, sourceItem) then
                         local id = Core.ItemIdentifier(slotItem)
                         if id then ids[id] = true end
                         if slotItem.OwnInventory then

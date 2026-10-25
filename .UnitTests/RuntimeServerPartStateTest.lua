@@ -6,6 +6,7 @@ local selection = {
 }
 local returned = {}
 local consumed
+local saves = 0
 
 GunsmithFramework = {
     Config = {
@@ -45,7 +46,7 @@ GunsmithFramework = {
         InvalidateQuickSlotsCache = function() end
     },
     Persistence = {
-        Save = function() end,
+        Save = function() saves = saves + 1 end,
         Encode = function(value)
             if value[stockMountPath] == nil then
                 assert(value[stockPath] == nil)
@@ -79,9 +80,11 @@ local state = GunsmithFramework.Runtime.SetPartFromClient(
 
 assert(state == [[{"v":1,"parts":{"receiver/stock_mount":"__empty"}}]])
 assert(returned.hket_buffer_tube_item and returned.hket_stock_item)
+assert(saves == 1, "a successful client change must save and broadcast exactly once")
 
 local installedState = GunsmithFramework.Runtime.SetPartFromClient(
     { removed = false }, {}, stockMountPath, "hket_buffer_tube")
 assert(installedState == [[{"v":1,"parts":{"receiver/stock_mount":"hket_buffer_tube","receiver/stock_mount/stock":"__empty"}}]])
 assert(consumed == "hket_buffer_tube_item" and selection[stockPath] == nil)
+assert(saves == 2, "reinstallation must add only one immediate save")
 print("Server stock-mount removal returns the subtree and reinstalling the tube leaves its stock slot empty")

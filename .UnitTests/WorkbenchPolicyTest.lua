@@ -125,9 +125,10 @@ GunsmithFramework.Core.SlotsForPath = function()
     return { { path = "slot", partType = "slot", nameKey = "slot" } }
 end
 GunsmithFramework.Core.UiParentPath = function() return "" end
-GunsmithFramework.Inventory.HasPartItem = function(actualActor)
+GunsmithFramework.Inventory.CollectAvailableItemIds = function(actualActor, sourceItem)
     assert(actualActor == actor, "UiSpec must use the explicit actor")
-    return true
+    assert(sourceItem == workbenchItem, "UiSpec must exclude the weapon inventory")
+    return {}
 end
 
 local spec = GunsmithFramework.UiSpec.Build(workbenchItem, { slot = "old" }, {}, "", actor)

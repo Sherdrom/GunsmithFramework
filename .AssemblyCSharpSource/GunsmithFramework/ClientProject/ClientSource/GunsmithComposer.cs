@@ -60,30 +60,52 @@ namespace GunsmithFramework
         }
 
         private static Texture2D ComposeTexture(IReadOnlyList<GunsmithLayer> layers, int width, int height)
+            => RenderTexture(width, height, batch =>
+            {
+                foreach (GunsmithLayer layer in layers)
+                {
+                    Texture2D texture = GetTexture(layer.TexturePath);
+                    batch.Draw(texture, layer.Offset, layer.SourceRect, Color.White, 0.0f, Vector2.Zero, layer.Scale, SpriteEffects.None, 0.0f);
+                }
+            });
+
+        private static Texture2D RenderTexture(int width, int height, Action<SpriteBatch> draw)
         {
             GraphicsDevice graphics = graphicsDevice!;
             SpriteBatch batch = spriteBatch!;
             RenderTargetBinding[] previousTargets = graphics.GetRenderTargets();
             RenderTarget2D target = new(graphics, width, height, false, SurfaceFormat.Color, DepthFormat.None);
-
-            graphics.SetRenderTarget(target);
-            graphics.Clear(Color.Transparent);
-            batch.Begin(SpriteSortMode.Deferred, null, SamplerState.PointClamp, null, null);
-            foreach (GunsmithLayer layer in layers)
+            try
             {
-                Texture2D texture = GetTexture(layer.TexturePath);
-                batch.Draw(texture, layer.Offset, layer.SourceRect, Color.White, 0.0f, Vector2.Zero, layer.Scale, SpriteEffects.None, 0.0f);
+                try
+                {
+                    graphics.SetRenderTarget(target);
+                    graphics.Clear(Color.Transparent);
+                    batch.Begin(SpriteSortMode.Deferred, null, SamplerState.PointClamp, null, null);
+                    try
+                    {
+                        draw(batch);
+                    }
+                    finally
+                    {
+                        batch.End();
+                    }
+                }
+                finally
+                {
+                    graphics.SetRenderTargets(previousTargets);
+                }
+                return target;
             }
-            batch.End();
-
-            graphics.SetRenderTargets(previousTargets);
-            return target;
+            catch
+            {
+                target.Dispose();
+                throw;
+            }
         }
 
         private static Texture2D CreateInventoryTexture(Texture2D texture, Rectangle contentBounds, GunsmithInventorySettings settings)
         {
-            GraphicsDevice graphics = graphicsDevice!;
-            SpriteBatch batch = spriteBatch!;
             float scale = Math.Max(settings.Scale, 0.01f);
             float rotation = MathHelper.ToRadians(settings.RotationDegrees);
             float padding = Math.Max(settings.Padding, 0.0f);
@@ -101,13 +123,7 @@ namespace GunsmithFramework
             int targetWidth = Math.Max((int)Math.Ceiling(scaledWidth * cos + scaledHeight * sin + padding * 2.0f), 1);
             int targetHeight = Math.Max((int)Math.Ceiling(scaledWidth * sin + scaledHeight * cos + padding * 2.0f), 1);
 
-            RenderTargetBinding[] previousTargets = graphics.GetRenderTargets();
-            RenderTarget2D target = new(graphics, targetWidth, targetHeight, false, SurfaceFormat.Color, DepthFormat.None);
-
-            graphics.SetRenderTarget(target);
-            graphics.Clear(Color.Transparent);
-            batch.Begin(SpriteSortMode.Deferred, null, SamplerState.PointClamp, null, null);
-            batch.Draw(
+            return RenderTexture(targetWidth, targetHeight, batch => batch.Draw(
                 texture,
                 new Vector2(targetWidth * 0.5f, targetHeight * 0.5f),
                 sourceRect,
@@ -116,17 +132,11 @@ namespace GunsmithFramework
                 new Vector2(sourceRect.Width * 0.5f, sourceRect.Height * 0.5f),
                 scale,
                 SpriteEffects.None,
-                0.0f);
-            batch.End();
-
-            graphics.SetRenderTargets(previousTargets);
-            return target;
+                0.0f));
         }
 
         private static Texture2D CreateWorldTexture(Texture2D texture, Rectangle contentBounds, GunsmithWorldSettings settings, Vector2 canvasOrigin, out Vector2 worldOrigin)
         {
-            GraphicsDevice graphics = graphicsDevice!;
-            SpriteBatch batch = spriteBatch!;
             float scale = Math.Max(settings.Scale, 0.01f);
             float rotation = MathHelper.ToRadians(settings.RotationDegrees);
             float padding = Math.Max(settings.Padding, 0.0f);
@@ -150,13 +160,7 @@ namespace GunsmithFramework
             Vector2 localOrigin = (originInSource - sourceOrigin) * scale;
             worldOrigin = targetCenter + Rotate(localOrigin, rotation);
 
-            RenderTargetBinding[] previousTargets = graphics.GetRenderTargets();
-            RenderTarget2D target = new(graphics, targetWidth, targetHeight, false, SurfaceFormat.Color, DepthFormat.None);
-
-            graphics.SetRenderTarget(target);
-            graphics.Clear(Color.Transparent);
-            batch.Begin(SpriteSortMode.Deferred, null, SamplerState.PointClamp, null, null);
-            batch.Draw(
+            return RenderTexture(targetWidth, targetHeight, batch => batch.Draw(
                 texture,
                 targetCenter + offset,
                 sourceRect,
@@ -165,11 +169,7 @@ namespace GunsmithFramework
                 sourceOrigin,
                 scale,
                 SpriteEffects.None,
-                0.0f);
-            batch.End();
-
-            graphics.SetRenderTargets(previousTargets);
-            return target;
+                0.0f));
         }
 
         private static Vector2 Rotate(Vector2 value, float radians)

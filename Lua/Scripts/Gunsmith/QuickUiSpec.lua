@@ -2,7 +2,6 @@ GunsmithFramework = GunsmithFramework or {}
 
 local Gunsmith = GunsmithFramework
 local Core = Gunsmith.Core
-local Inventory = Gunsmith.Inventory
 local Stats = Gunsmith.Stats
 local QuickMod = Gunsmith.QuickMod
 local QuickUiSpec = {}
@@ -16,28 +15,6 @@ end
 local function quickSlotHasItem(item, quickSlotIndex)
     if not QuickMod or not QuickMod.HasSlotItem or quickSlotIndex == nil then return false end
     return QuickMod.HasSlotItem(item, quickSlotIndex) == true
-end
-
-local function appendPartEntry(entries, item, selection, platform, slotPath, partId, quickSlotIndex, availableIds, ownerId)
-    local part = Gunsmith.Config.parts[partId]
-    if not part then return end
-
-    local identifier = part.item and part.item.identifier or nil
-    local status = "available"
-    local replacingExisting = quickSlotHasItem(item, quickSlotIndex)
-    if selection[slotPath] == partId then
-        status = "installed"
-    elseif Core.PartConflictsWithSelection(selection, slotPath, partId) then
-        status = "exclusive"
-    elseif not Core.IsPartCompatible(selection, platform, slotPath, partId, ownerId) then
-        status = "incompatible"
-    elseif identifier and identifier ~= "" and not replacingExisting and not canQuickSlotAccept(item, quickSlotIndex, identifier) then
-        status = "incompatible"
-    elseif availableIds and identifier and identifier ~= "" and not availableIds[identifier] then
-        status = "missing"
-    end
-
-    table.insert(entries, Gunsmith.UiSpec.EncodePartEntry(partId, part, status))
 end
 
 local function quickSlotsForItem(item, selection, platform)
@@ -97,34 +74,24 @@ function QuickUiSpec.Build(item, selection, platform)
 
     local weapon = Core.WeaponConfig(item)
     local ownerId = Core.OwnerForWeapon(weapon)
-    local character = Inventory and Inventory.ActorForItem(item) or nil
-    local availableIds = Inventory and Inventory.CollectAvailableItemIds(character, item) or {}
     local entries = {}
 
     for _, quickSlot in ipairs(quickSlotsForItem(item, selection, platform)) do
         if Core.IsValidPath(selection, platform, quickSlot.path) then
-            local partType = Core.PartTypeForPath(selection, quickSlot.path)
             local emptyPartId = Core.EmptyPartForPath(selection, quickSlot.path)
-            local emptyStatus = "available"
-            if not selection[quickSlot.path] or selection[quickSlot.path] == emptyPartId then
-                emptyStatus = "installed"
-            end
-
-            local emptyNameKey = Core.FrameworkLocalizationKey(
-                Core.IsRequiredSlot(platform, quickSlot.path) and "ui.empty_required_part" or "ui.empty_part")
-            local partEntries = { Gunsmith.EmptyPartId .. ":" .. emptyNameKey .. ":" .. emptyStatus }
-            for _, partId in ipairs(Core.GetPartsForType(partType, ownerId)) do
-                if partId ~= emptyPartId then
-                    appendPartEntry(partEntries, item, selection, platform, quickSlot.path, partId, quickSlot.slot, availableIds, ownerId)
-                end
+            local currentPartId = selection[quickSlot.path]
+            local currentPart = currentPartId and Gunsmith.Config.parts[currentPartId]
+            local partEntry = ""
+            if currentPart and currentPartId ~= emptyPartId then
+                partEntry = Gunsmith.UiSpec.EncodePartEntry(currentPartId, currentPart, "installed")
             end
 
             table.insert(entries, table.concat({
                 quickSlot.path,
                 quickSlot.nameKey or Core.PathNameKey(platform, quickSlot.path),
-                tostring(selection[quickSlot.path] == emptyPartId and "" or selection[quickSlot.path] or ""),
+                tostring(currentPartId == emptyPartId and "" or currentPartId or ""),
                 "0",
-                table.concat(partEntries, ","),
+                partEntry,
                 quickMeta(item, selection, platform, weapon, quickSlot, ownerId)
             }, "|"))
         end

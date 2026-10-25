@@ -22,9 +22,10 @@ function UiSpec.EncodePartEntry(partId, part, status)
     }, ":")
 end
 
-local function appendPartEntry(entries, item, selection, platform, slotPath, partId, ownerId, actor)
+local function appendPartEntry(entries, selection, platform, slotPath, partId, ownerId, availableIds)
     local part = Gunsmith.Config.parts[partId]
     if part then
+        local identifier = part.item and part.item.identifier
         local status = "available"
         if selection[slotPath] == partId then
             status = "installed"
@@ -32,7 +33,7 @@ local function appendPartEntry(entries, item, selection, platform, slotPath, par
             status = "exclusive"
         elseif not Core.IsPartCompatible(selection, platform, slotPath, partId, ownerId) then
             status = "incompatible"
-        elseif Inventory and not Inventory.HasPartItem(actor, part, item) then
+        elseif availableIds and identifier and not availableIds[identifier] then
             status = "missing"
         end
         table.insert(entries, UiSpec.EncodePartEntry(partId, part, status))
@@ -43,6 +44,7 @@ function UiSpec.Build(item, selection, platform, currentPath, actor)
     local path = Core.NormalizeUiPath(platform, currentPath or "")
     local ownerId = Core.OwnerForWeaponId(Core.ItemIdentifier(item))
     actor = actor or (Inventory and Inventory.ActorForItem(item) or nil)
+    local availableIds = Inventory and Inventory.CollectAvailableItemIds(actor, item)
     local entries = {}
 
     for _, slot in ipairs(Core.SlotsForPath(selection, platform, path)) do
@@ -58,12 +60,12 @@ function UiSpec.Build(item, selection, platform, currentPath, actor)
         for _, partId in ipairs(Core.GetPartsForType(slot.partType, ownerId)) do
             if partId ~= emptyPartId then
                 includedPartIds[partId] = true
-                appendPartEntry(partEntries, item, selection, platform, slot.path, partId, ownerId, actor)
+                appendPartEntry(partEntries, selection, platform, slot.path, partId, ownerId, availableIds)
             end
         end
         local currentPartId = selection[slot.path]
         if currentPartId and currentPartId ~= emptyPartId and not includedPartIds[currentPartId] then
-            appendPartEntry(partEntries, item, selection, platform, slot.path, currentPartId, ownerId, actor)
+            appendPartEntry(partEntries, selection, platform, slot.path, currentPartId, ownerId, availableIds)
         end
 
         local slotPath = slot.path

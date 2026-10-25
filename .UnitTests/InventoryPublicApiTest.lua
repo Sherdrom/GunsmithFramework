@@ -40,4 +40,19 @@ local Inventory = GunsmithFramework.Inventory
 assert(Inventory.FindPartItem(character, "grip", sourceItem) == availablePart)
 local ids = Inventory.CollectAvailableItemIds(character, sourceItem)
 assert(ids.grip and ids.backpack and not ids.weapon)
+local removals = 0
+Entity = { Spawner = { AddItemToRemoveQueue = function(item)
+    if item.IsInRemoveQueue then return end
+    item.IsInRemoveQueue = true
+    removals = removals + 1
+end } }
+local part = { item = { identifier = "grip" } }
+assert(Inventory.ConsumePartItem(character, part, sourceItem))
+assert(not Inventory.ConsumePartItem(character, part, sourceItem))
+assert(removals == 1)
+assert(not Inventory.CollectAvailableItemIds(character, sourceItem).grip)
+availablePart.IsInRemoveQueue = false
+backpack.IsInRemoveQueue = true
+assert(not Inventory.FindPartItem(character, "grip", sourceItem))
+assert(not Inventory.CollectAvailableItemIds(character, sourceItem).grip)
 print("Inventory uses public Barotrauma inventory enumeration")

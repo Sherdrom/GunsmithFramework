@@ -1899,45 +1899,57 @@
       if (window.showOpenFilePicker) {
         const [handle] = await showJsonOpenPicker();
         const file = await handle.getFile();
-        state.projectHandle = handle;
-        state.projectName = handle.name || file.name || "";
-        await rememberPickerHandle("projectJson", handle);
-        loadProject(file, { handle });
+        await loadProject(file, { handle });
         return;
       }
       el.loadProject.click();
     }
 
-    function loadProject(file, options = {}) {
+    async function loadProject(file, options = {}) {
       if (!file) return;
-      state.projectHandle = options.handle || null;
-      const reader = new FileReader();
-      reader.onload = () => {
-        (async () => {
-          const data = JSON.parse(reader.result);
-          const detectedRoot = await applyProjectRootFromJsonFile(file);
-          state.projectName = file.name || state.projectName;
-          state.background = data.background || state.background;
-          el.backgroundColor.value = state.background;
-          state.canvas = data.canvas || state.canvas;
-          state.preview.fitted = false;
-          state.rootSocket = data.rootSocket || state.rootSocket;
-          state.parts = Array.isArray(data.parts) ? data.parts : state.parts;
-          state.selected = Math.min(data.selected || 0, state.parts.length - 1);
-          state.saveImageMode = data.imageMode || (migrateProjectImages(data).some(entry => entry.dataUrl) ? "embedded" : "paths");
-          loadImageEntries(migrateProjectImages(data), () => {
-            state.activeImageIndex = Math.min(data.activeImageIndex || 0, Math.max(state.images.length - 1, 0));
-            state.parts.forEach(normalizePart);
-            refreshImageSelects();
-            const rootStatus = detectedRoot ? `项目根目录：${detectedRoot.name || "已识别"}。` : "";
-            setProjectStatus(`已打开 ${state.projectName || "工程 JSON"}。${rootStatus}${imageLoadStatusSuffix()}`);
-            if (state.images.some(entry => entry.image)) fitImage();
-            else draw();
-          });
-        })().catch(error => setProjectStatus(`打开失败：${error.message}`));
-      };
-      reader.onerror = () => setProjectStatus(`打开失败：${reader.error?.message || "无法读取工程 JSON"}`);
-      reader.readAsText(file);
+      try {
+        const data = JSON.parse(await file.text());
+        if (!data || !Array.isArray(data.parts) ||
+            !Number.isFinite(data.canvas?.w) || data.canvas.w <= 0 ||
+            !Number.isFinite(data.canvas?.h) || data.canvas.h <= 0 ||
+            !Number.isFinite(data.rootSocket?.x) || !Number.isFinite(data.rootSocket?.y) ||
+            data.parts.some(part => !part ||
+              typeof part.id !== "string" || typeof part.name !== "string" || typeof part.type !== "string" ||
+              !Number.isFinite(part.source?.x) || !Number.isFinite(part.source?.y) ||
+              !Number.isFinite(part.source?.w) || !Number.isFinite(part.source?.h) ||
+              !Number.isFinite(part.attachPoint?.x) || !Number.isFinite(part.attachPoint?.y) ||
+              !Number.isFinite(part.anchor?.x) || !Number.isFinite(part.anchor?.y) ||
+              !Number.isFinite(part.scale) || !Number.isFinite(part.order))) {
+          throw new Error("工程 JSON 缺少有效的画布、部件或坐标数据。");
+        }
+        const images = migrateProjectImages(data);
+        if (images.some(entry => !entry || [entry.name, entry.path, entry.dataUrl].some(value => value != null && typeof value !== "string"))) {
+          throw new Error("工程 JSON 的图片数据无效。");
+        }
+        const detectedRoot = await applyProjectRootFromJsonFile(file);
+        state.projectHandle = options.handle || null;
+        state.projectName = file.name || state.projectName;
+        state.background = data.background || state.background;
+        el.backgroundColor.value = state.background;
+        state.canvas = data.canvas;
+        state.preview.fitted = false;
+        state.rootSocket = data.rootSocket;
+        state.parts = data.parts;
+        state.selected = Math.min(data.selected || 0, state.parts.length - 1);
+        state.saveImageMode = data.imageMode || (images.some(entry => entry.dataUrl) ? "embedded" : "paths");
+        loadImageEntries(images, () => {
+          state.activeImageIndex = Math.min(data.activeImageIndex || 0, Math.max(state.images.length - 1, 0));
+          state.parts.forEach(normalizePart);
+          refreshImageSelects();
+          const rootStatus = detectedRoot ? `项目根目录：${detectedRoot.name || "已识别"}。` : "";
+          setProjectStatus(`已打开 ${state.projectName || "工程 JSON"}。${rootStatus}${imageLoadStatusSuffix()}`);
+          if (state.images.some(entry => entry.image)) fitImage();
+          else draw();
+        });
+        if (options.handle) await rememberPickerHandle("projectJson", options.handle);
+      } catch (error) {
+        setProjectStatus(`打开失败：${error.message}`);
+      }
     }
 
     function loadM4Example() {

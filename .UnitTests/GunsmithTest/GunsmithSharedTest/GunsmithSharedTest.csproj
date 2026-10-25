@@ -18,6 +18,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="Lidgren.NetStandard">
+      <HintPath>$(RepoRoot).Tools/Refs/Lidgren.NetStandard.dll</HintPath>
+    </Reference>
     <Reference Include="DedicatedServer">
       <HintPath>$(GunSmithRefDir)/DedicatedServer.dll</HintPath>
     </Reference>

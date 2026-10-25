@@ -29,7 +29,7 @@ GunsmithFramework = {
     },
     Inventory = {
         ActorForItem = function() return nil end,
-        HasPartItem = function() return true end
+        CollectAvailableItemIds = function() return {} end
     },
     Stats = {
         Encode = function() return "" end,

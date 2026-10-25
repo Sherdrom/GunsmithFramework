@@ -112,18 +112,8 @@ namespace Barotrauma.Items.Components
                     BroadcastState();
                     break;
                 case ClientEventType.SaveState:
-                    string rawState = msg.ReadString();
-                    if (!IsValidSavedState(rawState) || !item.CanClientAccess(c))
-                    {
-                        BroadcastState();
-                        return;
-                    }
-
-                    SavedState = NormalizeSavedState(rawState);
-#if SERVER
-                    global::GunsmithFramework.GunsmithLuaHooks.Call("GunsmithFrameworkReceiveState", item, SavedState);
-#endif
-                    BroadcastState();
+                    // Consume legacy packets without trusting client-authored snapshots.
+                    _ = msg.ReadString();
                     break;
                 case ClientEventType.SetPart:
                     string slotPath = msg.ReadString();
@@ -143,7 +133,8 @@ namespace Barotrauma.Items.Components
                         object? result = global::GunsmithFramework.GunsmithLuaHooks.Call("GunsmithFrameworkSetPartFromClient", item, character, slotPath, partId);
                         if (result is string updatedState && IsValidSavedState(updatedState))
                         {
-                            SavedState = updatedState;
+                            // The Lua save hook already published the authoritative state.
+                            return;
                         }
                     }
 #endif

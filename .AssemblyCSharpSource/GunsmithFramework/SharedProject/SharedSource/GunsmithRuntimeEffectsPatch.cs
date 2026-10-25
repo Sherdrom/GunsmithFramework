@@ -1,5 +1,3 @@
-using Barotrauma.Items.Components;
-
 namespace GunsmithFramework
 {
     [HarmonyPatch]
@@ -25,49 +23,6 @@ namespace GunsmithFramework
 
         internal static void ClearCaches()
             => HeldStateCacheByCharacter.Clear();
-
-        internal static bool ShouldSuppressManagedQuickSlotAfflictions(StatusEffect statusEffect, ISerializableEntity target)
-        {
-            if (!CanSuppressManagedQuickSlotAfflictions(statusEffect))
-            {
-                return false;
-            }
-
-            return TryGetTargetItem(target, out Item? item) && IsContainedInGunsmithItem(item);
-        }
-
-        internal static bool ShouldSuppressManagedQuickSlotAfflictions(StatusEffect statusEffect, IReadOnlyList<ISerializableEntity> targets)
-        {
-            if (!CanSuppressManagedQuickSlotAfflictions(statusEffect) || targets == null || targets.Count == 0)
-            {
-                return false;
-            }
-
-            foreach (ISerializableEntity target in targets)
-            {
-                if (TryGetTargetItem(target, out Item? item) && IsContainedInGunsmithItem(item))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool CanSuppressManagedQuickSlotAfflictions(StatusEffect statusEffect)
-        {
-            if (!GunsmithRuntimeStates.HasManagedRuntimeItems)
-            {
-                return false;
-            }
-
-            if (statusEffect.Afflictions == null || statusEffect.Afflictions.Count == 0)
-            {
-                return false;
-            }
-
-            return true;
-        }
 
         private static bool TryGetHeldGunsmithState(Character character, out GunsmithRuntimeState state)
         {
@@ -109,58 +64,6 @@ namespace GunsmithFramework
             HeldStateCacheByCharacter.Add(character, new HeldGunsmithStateCacheBox(value));
         }
 
-        private static bool TryGetTargetItem(ISerializableEntity target, out Item item)
-        {
-            item = null!;
-            switch (target)
-            {
-                case Item targetItem:
-                    item = targetItem;
-                    return true;
-                case ItemComponent itemComponent when itemComponent.Item != null:
-                    item = itemComponent.Item;
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        private static bool IsContainedInGunsmithItem(Item item)
-        {
-            string itemIdentifier = item.Prefab.Identifier.Value;
-            Inventory? inventory = item.ParentInventory;
-            HashSet<Inventory>? visited = null;
-            int depth = 0;
-            while (inventory != null)
-            {
-                if (++depth > 16)
-                {
-                    visited ??= new HashSet<Inventory>();
-                    if (!visited.Add(inventory))
-                    {
-                        return false;
-                    }
-                }
-                else if (ReferenceEquals(inventory.Owner, item))
-                {
-                    return false;
-                }
-
-                if (inventory.Owner is Item ownerItem && IsManagedByGunsmithState(ownerItem, itemIdentifier))
-                {
-                    return true;
-                }
-
-                inventory = inventory.Owner is Item parentItem ? parentItem.ParentInventory : null;
-            }
-
-            return false;
-        }
-
-        private static bool IsManagedByGunsmithState(Item ownerItem, string itemIdentifier)
-            => GunsmithRuntimeStates.TryGet(ownerItem, out GunsmithRuntimeState? state) &&
-               state.ManagedItemIdentifiers.Contains(itemIdentifier);
-
         private sealed class HeldGunsmithStateCacheBox
         {
             public HeldGunsmithStateCacheBox(HeldGunsmithStateCache value)
@@ -172,33 +75,4 @@ namespace GunsmithFramework
         private readonly record struct HeldGunsmithStateCache(double TotalTime, bool Found, GunsmithRuntimeState? State);
     }
 
-    [HarmonyPatch(typeof(StatusEffect), nameof(StatusEffect.Apply), new[]
-    {
-        typeof(ActionType),
-        typeof(float),
-        typeof(Entity),
-        typeof(ISerializableEntity),
-        typeof(Vector2?)
-    })]
-    public static class GunsmithManagedSingleItemAfflictionSuppressionPatch
-    {
-        [HarmonyPrefix]
-        private static bool Prefix(StatusEffect __instance, ISerializableEntity target)
-            => !GunsmithRuntimeEffectsPatch.ShouldSuppressManagedQuickSlotAfflictions(__instance, target);
-    }
-
-    [HarmonyPatch(typeof(StatusEffect), nameof(StatusEffect.Apply), new[]
-    {
-        typeof(ActionType),
-        typeof(float),
-        typeof(Entity),
-        typeof(IReadOnlyList<ISerializableEntity>),
-        typeof(Vector2?)
-    })]
-    public static class GunsmithManagedTargetListAfflictionSuppressionPatch
-    {
-        [HarmonyPrefix]
-        private static bool Prefix(StatusEffect __instance, IReadOnlyList<ISerializableEntity> targets)
-            => !GunsmithRuntimeEffectsPatch.ShouldSuppressManagedQuickSlotAfflictions(__instance, targets);
-    }
 }

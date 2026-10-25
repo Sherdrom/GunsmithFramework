@@ -78,7 +78,8 @@ namespace GunsmithFramework
                     }
                 }
 
-                object? result = hasWorkbench
+                // Lua saves and broadcasts successful changes, including asynchronous returns.
+                _ = hasWorkbench
                     ? GunsmithLuaHooks.Call(
                         "GunsmithFrameworkSetPartFromClient",
                         weapon,
@@ -92,13 +93,6 @@ namespace GunsmithFramework
                         character,
                         slotPath,
                         partId);
-                if (result is not string state || !GunsmithData.IsValidSavedState(state))
-                {
-                    return;
-                }
-
-                GunsmithDataAccess.SetSavedState(weapon, state);
-                SendState(weapon, state);
             }
             catch (Exception ex)
             {

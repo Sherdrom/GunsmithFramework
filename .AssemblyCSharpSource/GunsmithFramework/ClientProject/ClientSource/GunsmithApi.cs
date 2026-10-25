@@ -70,48 +70,51 @@ namespace GunsmithFramework
                 ReferenceEquals(item.activeSprite, item.Prefab.Sprite) ||
                 (existing != null && ReferenceEquals(item.activeSprite, existing.WorldSprite));
 
-            Texture2D texture;
+            Texture2D? texture = null;
+            Texture2D? worldTexture = null;
+            Texture2D? inventoryTexture = null;
+            Sprite? worldSprite = null;
+            Sprite? inventorySprite = null;
+            GunsmithSpriteState state;
             try
             {
                 texture = ComposeTexture(layers, Math.Max(width, 1), Math.Max(height, 1));
+                Rectangle contentBounds = CalculateContentBounds(layers, Math.Max(width, 1), Math.Max(height, 1));
+                Sprite? originalWorldSprite = item.Prefab.Sprite;
+                Vector2 canvasOrigin = originalWorldSprite != null
+                    ? new Vector2(texture.Width * originalWorldSprite.RelativeOrigin.X, texture.Height * originalWorldSprite.RelativeOrigin.Y)
+                    : new Vector2(texture.Width * 0.5f, texture.Height * 0.5f);
+                worldTexture = CreateWorldTexture(texture, contentBounds, worldSettings, canvasOrigin, out Vector2 worldOrigin);
+                inventoryTexture = CreateInventoryTexture(texture, contentBounds, inventorySettings);
+                worldSprite = CreateWorldSprite(originalWorldSprite, worldTexture, worldOrigin);
+                inventorySprite = CreateInventorySprite(item.Prefab.InventoryIcon ?? item.Prefab.Sprite, inventoryTexture);
+                if (worldSprite == null || inventorySprite == null)
+                {
+                    throw new InvalidOperationException($"Missing source sprites for '{item.Prefab.Identifier.Value}'.");
+                }
+
+                state = new GunsmithSpriteState
+                {
+                    Signature = spriteSignature,
+                    Texture = texture,
+                    WorldTexture = worldTexture,
+                    InventoryTexture = inventoryTexture,
+                    WorldSprite = worldSprite,
+                    InventorySprite = inventorySprite,
+                    ContentBounds = contentBounds,
+                    Layers = layers,
+                    CanvasOrigin = canvasOrigin,
+                    WorldSettings = worldSettings
+                };
             }
             catch (Exception ex)
             {
+                if (worldSprite != null) { worldSprite.Remove(); } else { worldTexture?.Dispose(); }
+                if (inventorySprite != null) { inventorySprite.Remove(); } else { inventoryTexture?.Dispose(); }
+                texture?.Dispose();
                 LuaCsSetup.PrintCsMessage($"[GunsmithFramework] Failed to compose runtime texture: {ex.Message}");
                 return false;
             }
-
-            Rectangle contentBounds = CalculateContentBounds(layers, Math.Max(width, 1), Math.Max(height, 1));
-            Sprite? originalWorldSprite = item.Prefab.Sprite;
-            Vector2 canvasOrigin = originalWorldSprite != null
-                ? new Vector2(texture.Width * originalWorldSprite.RelativeOrigin.X, texture.Height * originalWorldSprite.RelativeOrigin.Y)
-                : new Vector2(texture.Width * 0.5f, texture.Height * 0.5f);
-            Texture2D worldTexture = CreateWorldTexture(texture, contentBounds, worldSettings, canvasOrigin, out Vector2 worldOrigin);
-            Texture2D inventoryTexture = CreateInventoryTexture(texture, contentBounds, inventorySettings);
-            Sprite? worldSprite = CreateWorldSprite(originalWorldSprite, worldTexture, worldOrigin);
-            Sprite? inventorySprite = CreateInventorySprite(item.Prefab.InventoryIcon ?? item.Prefab.Sprite, inventoryTexture);
-            if (worldSprite == null || inventorySprite == null)
-            {
-                LuaCsSetup.PrintCsMessage($"[GunsmithFramework] Failed to create runtime sprites for '{item.Prefab.Identifier.Value}'.");
-                texture.Dispose();
-                if (worldSprite != null) { worldSprite.Remove(); } else { worldTexture.Dispose(); }
-                if (inventorySprite != null) { inventorySprite.Remove(); } else { inventoryTexture.Dispose(); }
-                return false;
-            }
-
-            GunsmithSpriteState state = new()
-            {
-                Signature = spriteSignature,
-                Texture = texture,
-                WorldTexture = worldTexture,
-                InventoryTexture = inventoryTexture,
-                WorldSprite = worldSprite,
-                InventorySprite = inventorySprite,
-                ContentBounds = contentBounds,
-                Layers = layers,
-                CanvasOrigin = canvasOrigin,
-                WorldSettings = worldSettings
-            };
 
             spriteStates[item] = state;
             SetRuntimeState(item, runtimeState);
