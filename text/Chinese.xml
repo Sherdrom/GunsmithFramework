@@ -16,7 +16,9 @@
   <gunsmith.framework.ui.weapon_root>枪械</gunsmith.framework.ui.weapon_root>
   <gunsmith.framework.ui.fabricator_category>枪匠</gunsmith.framework.ui.fabricator_category>
   <gunsmith.framework.ui.fabricator_weapon_slot>枪械</gunsmith.framework.ui.fabricator_weapon_slot>
-  <gunsmith.framework.ui.fabricator_insert_weapon>将需要工作台的 Gunsmith 枪械拖到虚拟槽。</gunsmith.framework.ui.fabricator_insert_weapon>
+  <gunsmith.framework.ui.fabricator_insert_weapon>拖入 Gunsmith 枪械以选择改装目标，枪械仍留在背包中。</gunsmith.framework.ui.fabricator_insert_weapon>
+  <gunsmith.framework.ui.fabricator_selected_weapon>改装目标（枪械仍在背包中）。拖出框外松手可取消选择，拖入另一把枪可切换目标。</gunsmith.framework.ui.fabricator_selected_weapon>
+  <gunsmith.framework.ui.fabricator_clear_selection>松开以取消选择</gunsmith.framework.ui.fabricator_clear_selection>
   <gunsmith.framework.ui.fabricator_open>打开改装</gunsmith.framework.ui.fabricator_open>
   <gunsmith.framework.ui.fabricator_no_compatible_parts>没有兼容的 Gunsmith 配方。</gunsmith.framework.ui.fabricator_no_compatible_parts>
   <gunsmith.framework.status.installed>[已安装] {0}</gunsmith.framework.status.installed>

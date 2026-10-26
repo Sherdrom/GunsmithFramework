@@ -764,7 +764,7 @@ receiver/handguard/top_rail/optic_mount
 
 ### 工作台专用改装
 
-需要限制改装入口的武器可以写 `requiresWorkbench = true`：
+工作台默认接受所有 Gunsmith 枪械。需要限制完整改装入口的武器可以写 `requiresWorkbench = true`：
 
 ```lua
 GunsmithFramework.Config.weapons.my_workbench_rifle = {
@@ -779,11 +779,11 @@ GunsmithFramework.Config.weapons.my_workbench_rifle = {
 }
 ```
 
-工作台页面使用客户端私有的虚拟枪械槽：玩家将这类枪拖入枪械槽后，当前客户端只保存该枪的引用并过滤配方；点击独立的打开按钮才会打开完整改装页。枪本身不会离开玩家背包，也不会进入工作台容器，其他玩家也看不到该选择或改装页。普通 `G` 入口对这类武器不显示完整 UI；`Shift+G` 仍可打开 QuickUI 并修改 Quick Slot，完整改装仍必须由工作台入口打开。Fabricator 制造队列仍使用原版共享队列，制造出的部件不会自动安装。
+工作台页面使用客户端私有的虚拟枪械槽：玩家将这类枪拖入枪械槽后，当前客户端只保存该枪的引用并过滤配方；点击独立的打开按钮才会打开完整改装页。枪本身不会离开玩家背包，也不会进入工作台容器，其他玩家也看不到该选择或改装页。从框中拖出并在框外松手可取消选择，拖回框内松手则保留；这不会移动或丢弃背包中的枪械。拖入另一把枪可直接切换改装目标。普通 `G` 入口对这类武器不显示完整 UI；`Shift+G` 仍可打开 QuickUI 并修改 Quick Slot，完整改装仍必须由工作台入口打开。Fabricator 制造队列仍使用原版共享队列，制造出的部件不会自动安装。
 
 ### Fabricator 配方过滤
 
-GunsmithFramework 可以在加工台左侧分类栏中加入一个 Gunsmith 分类按钮。玩家点击该按钮后，底部会显示一个客户端私有的枪械槽；将 `requiresWorkbench = true` 的 Gunsmith 枪械拖入枪械槽后，配方列表只显示这把枪理论上可安装的部件物品。独立的打开按钮只负责打开完整改装页，不影响配方选择和制造。
+GunsmithFramework 可以在加工台左侧分类栏中加入一个 Gunsmith 分类按钮。玩家点击该按钮后，底部会显示一个客户端私有的枪械槽；将背包中的任意 Gunsmith 枪械拖入枪械槽后，配方列表只显示这把枪理论上可安装的部件物品。`requiresWorkbench` 不影响工作台接收枪械，只限制离开工作台后的完整改装入口。独立的打开按钮只负责打开完整改装页，不影响配方选择和制造。
 
 原版 `fabricator` 默认启用此按钮。自定义 Fabricator 需要在自己的 `<Fabricator>` 组件上加一个属性：
 

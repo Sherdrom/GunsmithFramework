@@ -104,8 +104,9 @@ assert(selection.quick == "new", "QuickUI quick slots must allow workbench-only 
 local ordinaryItem = item("ordinary_weapon")
 ordinaryItem.weaponConfig = GunsmithFramework.Config.weapons.ordinary_weapon
 selection.slot = "old"
-assert(GunsmithFramework.Runtime.SetPart(ordinaryItem, "slot", "new", nil, actor, workbench) == nil)
-assert(selection.slot == "old", "ordinary weapons must reject workbench writes")
+assert(GunsmithFramework.Runtime.SetPartAtWorkbench(ordinaryItem, workbench, actor, "slot", "new") == true)
+assert(selection.slot == "new", "ordinary weapons must also accept workbench writes")
+selection.slot = "old"
 assert(GunsmithFramework.Runtime.SetPart(ordinaryItem, "slot", "new", nil, actor) == true)
 assert(selection.slot == "new")
 
@@ -134,4 +135,54 @@ end
 local spec = GunsmithFramework.UiSpec.Build(workbenchItem, { slot = "old" }, {}, "", actor)
 assert(spec:find("new:part.new:available", 1, true))
 assert(saved > 0)
+
+SERVER = true
+GunsmithFramework.Persistence.Encode = function() return "encoded" end
+selection.slot = "old"
+assert(GunsmithFramework.Runtime.SetPartFromClient(workbenchItem, actor, "slot", "new") == false)
+assert(selection.slot == "old", "server must reject workbench-only changes without a workbench")
+assert(GunsmithFramework.Runtime.SetPartFromClient(workbenchItem, actor, "slot", "new", workbench) == "encoded")
+selection.slot = "old"
+assert(GunsmithFramework.Runtime.SetPartFromClient(ordinaryItem, actor, "slot", "new", workbench) == "encoded")
+selection.slot = "old"
+assert(GunsmithFramework.Runtime.SetPartFromClient(ordinaryItem, actor, "slot", "new") == "encoded")
+assert(GunsmithFramework.Runtime.SetPartFromClient(ordinaryItem, actor, "quick", "new", workbench) == false)
+
+CLIENT = true
+SERVER = false
+local callbacks = {}
+Hook = {
+    Add = function(name, _, callback) callbacks[name] = callback end,
+    Patch = function() end,
+    HookMethodType = { After = 1 }
+}
+LuaUserData = {
+    IsTargetType = function(value, typeName)
+        return typeName == "Barotrauma.Item" and type(value) == "table" and value.Prefab ~= nil
+    end
+}
+dofile("Lua/Scripts/Gunsmith/Hooks.lua")
+GunsmithFramework.Hooks.Register()
+assert(callbacks.GunsmithFrameworkCanOpenFromWorkbench(ordinaryItem))
+assert(callbacks.GunsmithFrameworkCanOpenFromWorkbench(workbenchItem))
+assert(not callbacks.GunsmithFrameworkCanOpenFromWorkbench({}))
+assert(not callbacks.GunsmithFrameworkCanOpenFromWorkbench(nil))
+
+local calls = {}
+Hook.Call = function(name)
+    if name == "GunsmithFrameworkIsOpen" then return true end
+    table.insert(calls, name)
+end
+GunsmithFramework.UiSpec.Build = function(_, _, _, path, actualActor)
+    assert(actualActor == actor)
+    return path
+end
+assert(GunsmithFramework.Runtime.OpenAtWorkbench(ordinaryItem, workbench, actor))
+assert(GunsmithFramework.Runtime.OpenAtWorkbench(workbenchItem, workbench, actor))
+assert(table.concat(calls, ",") == "GunsmithFrameworkOpenAtWorkbench,GunsmithFrameworkOpenAtWorkbench")
+GunsmithFramework.Runtime.Open(workbenchItem)
+assert(#calls == 2, "workbench-only weapons must not open through the ordinary shortcut")
+callbacks.GunsmithFrameworkEnterPath(workbenchItem, "slot")
+assert(calls[3] == "GunsmithFrameworkRefreshParts", "navigation must retain the current workbench window")
+assert(GunsmithFramework.Runtime.GetCurrentUiPath(workbenchItem) == "slot")
 print("Workbench policy and explicit actor self-test passed")

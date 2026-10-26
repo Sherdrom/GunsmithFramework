@@ -45,7 +45,7 @@ local function requiresWorkbench(item)
 end
 
 local function workbenchModeMatches(item, workbench)
-    return requiresWorkbench(item) == (workbench ~= nil)
+    return workbench ~= nil or not requiresWorkbench(item)
 end
 
 local function isGunsmithUiOpen(item, mode)
@@ -934,7 +934,7 @@ end
 
 function Runtime.OpenAtWorkbench(item, workbench, character)
     if SERVER or not item or not workbench or not character then return false end
-    if not requiresWorkbench(item) or not Core.PlatformConfig(item) then return false end
+    if not Core.PlatformConfig(item) then return false end
 
     local itemKey = Core.ItemKey(item)
     if itemKey then State.workbenchActors[itemKey] = character end

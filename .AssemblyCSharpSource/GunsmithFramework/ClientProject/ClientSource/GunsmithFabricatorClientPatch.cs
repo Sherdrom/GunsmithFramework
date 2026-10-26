@@ -2,6 +2,7 @@ using Barotrauma;
 using Barotrauma.Items.Components;
 using HarmonyLib;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,7 +38,10 @@ namespace GunsmithFramework
             public GUIComponent? InputInventoryHolder { get; set; }
             public Vector2? OriginalInputInventoryHolderSize { get; set; }
             public GUIComponent? WeaponArea { get; set; }
-            public GUIButton? WeaponSlot { get; set; }
+            public GUIComponent? WeaponSlot { get; set; }
+            public VisualSlot WeaponVisualSlot { get; } = new(Rectangle.Empty);
+            public Inventory.SlotReference? WeaponTooltipSlot { get; set; }
+            public bool DraggingWeaponSelection { get; set; }
             public GUIButton? OpenButton { get; set; }
             public Item? SelectedWeapon { get; set; }
             public string LastWeaponKey { get; set; } = "\0";
@@ -115,29 +119,27 @@ namespace GunsmithFramework
             inputInventoryHolder.RectTransform.RelativeSize = new Vector2(0.55f, 1f);
 
             var weaponArea = new GUILayoutGroup(
-                new RectTransform(new Vector2(0.15f, 1f), inputArea.RectTransform),
-                childAnchor: Anchor.Center,
+                new RectTransform(new Vector2(0.15f, 0.8f), inputArea.RectTransform),
+                childAnchor: Anchor.TopCenter,
                 isHorizontal: false)
             {
-                Stretch = true,
                 RelativeSpacing = 0.04f
             };
 
-            var weaponSlot = new GUIButton(
+            var weaponSlot = new GUICustomComponent(
                 new RectTransform(new Vector2(0.65f, 0.65f), weaponArea.RectTransform, Anchor.Center, scaleBasis: ScaleBasis.BothHeight),
-                style: null)
+                (spriteBatch, component) => DrawWeaponSlot(spriteBatch, component, state))
             {
-                ToolTip = TextManager.Get("gunsmith.framework.ui.fabricator_weapon_slot").Fallback("Weapon"),
-                Color = Color.Black * 0.35f,
-                OutlineColor = Color.Cyan * 0.65f,
-                CanBeFocused = false
+                OnDrawToolTip = _ => UpdateWeaponSlotTooltip(state),
+                HoverCursor = CursorState.Hand
             };
             var openButton = new GUIButton(
-                new RectTransform(new Vector2(0.95f, 0.2f), weaponArea.RectTransform, Anchor.BottomCenter),
+                new RectTransform(new Vector2(0.85f, 0.28f), weaponArea.RectTransform, Anchor.BottomCenter),
                 (LocalizedString)TextManager.Get("gunsmith.framework.ui.fabricator_open").Fallback("Open Gunsmith"),
                 Alignment.Center)
             {
-                ToolTip = TextManager.Get("gunsmith.framework.ui.fabricator_open").Fallback("Open Gunsmith")
+                ToolTip = TextManager.Get("gunsmith.framework.ui.fabricator_open").Fallback("Open Gunsmith"),
+                Font = GUIStyle.SmallFont
             };
             openButton.OnClicked = (_, _) =>
             {
@@ -157,24 +159,55 @@ namespace GunsmithFramework
 
         internal static bool TryHandleVirtualWeaponDrop()
         {
-            if (GUI.InputBlockingMenuOpen ||
-                GunsmithGui.IsGunsmithWindowBlockingInput ||
-                !Inventory.DraggingItems.Any() ||
-                !PlayerInput.PrimaryMouseButtonReleased())
+            if (Character.Controlled?.SelectedItem is not { } selectedItem ||
+                GUI.InputBlockingMenuOpen ||
+                GunsmithGui.IsGunsmithWindowBlockingInput)
             {
+                foreach (var pair in States) { pair.Value.DraggingWeaponSelection = false; }
                 return false;
             }
 
             foreach (KeyValuePair<Fabricator, ClientState> pair in States)
             {
                 ClientState state = pair.Value;
-                if (pair.Key.GuiFrame?.Parent == null ||
+                // MouseOn stays captured by the drag origin through the release frame.
+                if (pair.Key.GuiFrame is not { Visible: true } frame ||
+                    frame.RectTransform.Parent == null ||
+                    !selectedItem.ActiveHUDs.Contains(pair.Key) ||
                     !state.GunsmithCategorySelected ||
-                    state.WeaponSlot is not { Visible: true } weaponSlot ||
-                    !weaponSlot.Rect.Contains(PlayerInput.MousePosition))
+                    state.WeaponSlot is not { Visible: true } weaponSlot)
                 {
+                    state.DraggingWeaponSelection = false;
                     continue;
                 }
+
+                bool mouseOnSlot = weaponSlot.Rect.Contains(PlayerInput.MousePosition);
+                if (state.DraggingWeaponSelection)
+                {
+                    if (!PlayerInput.PrimaryMouseButtonHeld())
+                    {
+                        state.DraggingWeaponSelection = false;
+                        if (PlayerInput.PrimaryMouseButtonClicked() && !mouseOnSlot)
+                        {
+                            ClearSelectedWeapon(pair.Key, state);
+                            RefreshRecipeList(pair.Key);
+                        }
+                    }
+                    return true;
+                }
+
+                if (!Inventory.DraggingItems.Any())
+                {
+                    if (state.SelectedWeapon is { Removed: false } && mouseOnSlot &&
+                        GUI.IsMouseOn(weaponSlot) && PlayerInput.PrimaryMouseButtonDown())
+                    {
+                        // Only drag the selection; never expose the real weapon to inventory drop handlers.
+                        state.DraggingWeaponSelection = true;
+                        return true;
+                    }
+                    continue;
+                }
+                if (!mouseOnSlot || !PlayerInput.PrimaryMouseButtonReleased()) { continue; }
 
                 Item? draggedItem = Inventory.DraggingItems.FirstOrDefault();
                 bool accepted = CanOpenFromWorkbench(draggedItem, Character.Controlled);
@@ -291,7 +324,7 @@ namespace GunsmithFramework
 
             ClientState state = States.GetOrCreateValue(__instance);
             if ((state.WeaponArea != null &&
-                    (state.WeaponArea.Parent == null || __instance.GuiFrame?.Parent == null)) ||
+                    (state.WeaponArea.Parent == null || __instance.GuiFrame?.RectTransform.Parent == null)) ||
                 __instance.Item?.Removed == true)
             {
                 bool wasSelected = state.SelectedWeapon != null;
@@ -536,6 +569,7 @@ namespace GunsmithFramework
 
         private static void ClearSelectedWeapon(Fabricator fabricator, ClientState state)
         {
+            state.DraggingWeaponSelection = false;
             state.SelectedWeapon = null;
             state.LastWeaponKey = string.Empty;
             UpdateVirtualWeaponSlot(state);
@@ -553,27 +587,86 @@ namespace GunsmithFramework
 
         private static void UpdateVirtualWeaponSlot(ClientState state)
         {
-            if (state.WeaponSlot == null)
+            if (state.WeaponTooltipSlot?.Item != state.SelectedWeapon)
             {
-                return;
-            }
-
-            if (state.SelectedWeapon is { Removed: false } weapon)
-            {
-                state.WeaponSlot.Text = (LocalizedString)weapon.Name;
-                state.WeaponSlot.ToolTip = (LocalizedString)weapon.Name;
-                state.WeaponSlot.Selected = true;
-            }
-            else
-            {
-                state.WeaponSlot.Text = TextManager.Get("gunsmith.framework.ui.fabricator_weapon_slot").Fallback("Weapon");
-                state.WeaponSlot.ToolTip = TextManager.Get("gunsmith.framework.ui.fabricator_insert_weapon").Fallback("Drag a workbench-only Gunsmith weapon to this virtual slot.");
-                state.WeaponSlot.Selected = false;
+                state.WeaponTooltipSlot = null;
             }
 
             if (state.OpenButton != null)
             {
                 state.OpenButton.Enabled = state.SelectedWeapon != null && CanOpenFromWorkbench(state.SelectedWeapon, Character.Controlled);
+            }
+        }
+
+        private static void DrawWeaponSlot(SpriteBatch spriteBatch, GUIComponent component, ClientState state)
+        {
+            VisualSlot slot = state.WeaponVisualSlot;
+            slot.Rect = slot.InteractRect = component.Rect;
+            Item? weapon = state.SelectedWeapon is { Removed: false } selected ? selected : null;
+            Item? dragged = Inventory.DraggingItems.FirstOrDefault();
+            bool hovered = !GUI.InputBlockingMenuOpen && component.Rect.Contains(PlayerInput.MousePosition) &&
+                (dragged != null || GUI.IsMouseOn(component));
+            slot.HighlightColor = !hovered ? Color.Transparent : dragged == null ? Color.White * 0.35f :
+                CanOpenFromWorkbench(dragged, Character.Controlled) ? GUIStyle.Green : GUIStyle.Red;
+            Inventory.DrawSlot(spriteBatch, null, slot, weapon, -1,
+                drawItem: !state.DraggingWeaponSelection || component.Rect.Contains(PlayerInput.MousePosition));
+            if (!hovered || dragged != null)
+            {
+                state.WeaponTooltipSlot = null;
+            }
+        }
+
+        private static void UpdateWeaponSlotTooltip(ClientState state)
+        {
+            if (state.WeaponSlot == null) { return; }
+            state.WeaponSlot.ToolTip = string.Empty;
+            if (state.DraggingWeaponSelection || Inventory.DraggingItems.Any()) { return; }
+            if (state.SelectedWeapon is not { Removed: false, ParentInventory: { } inventory } weapon)
+            {
+                state.WeaponSlot.ToolTip = TextManager.Get("gunsmith.framework.ui.fabricator_insert_weapon")
+                    .Fallback("Drag a Gunsmith weapon here to select it. The weapon stays in your inventory.");
+                return;
+            }
+
+            int slotIndex = inventory.FindIndex(weapon);
+            if (slotIndex < 0) { return; }
+            if (state.WeaponTooltipSlot == null || state.WeaponTooltipSlot.Item != weapon ||
+                state.WeaponTooltipSlot.ParentInventory != inventory || state.WeaponTooltipSlot.SlotIndex != slotIndex)
+            {
+                state.WeaponTooltipSlot = new Inventory.SlotReference(inventory, state.WeaponVisualSlot, slotIndex, isSubSlot: false);
+            }
+            else if (state.WeaponTooltipSlot.TooltipNeedsRefresh())
+            {
+                state.WeaponTooltipSlot.RefreshTooltip();
+            }
+            state.WeaponSlot.ToolTip = RichString.Rich(
+                TextManager.Get("gunsmith.framework.ui.fabricator_selected_weapon")
+                    .Fallback("Modding target (still in your inventory). Drag outside this box to clear the selection.") +
+                "\n\n" + state.WeaponTooltipSlot.Tooltip.NestedStr);
+        }
+
+        [HarmonyPatch(typeof(Inventory), nameof(Inventory.DrawFront))]
+        [HarmonyPostfix]
+        private static void DrawWeaponSelectionDrag(SpriteBatch spriteBatch)
+        {
+            if (GUI.InputBlockingMenuOpen || GunsmithGui.IsGunsmithWindowBlockingInput) { return; }
+            foreach (var pair in States)
+            {
+                ClientState state = pair.Value;
+                if (!state.DraggingWeaponSelection || state.SelectedWeapon is not { Removed: false } weapon ||
+                    state.WeaponSlot is not { Visible: true } slot || slot.Rect.Contains(PlayerInput.MousePosition) ||
+                    Character.Controlled?.SelectedItem?.ActiveHUDs.Contains(pair.Key) != true)
+                {
+                    continue;
+                }
+                Sprite? sprite = weapon.OverrideInventorySprite ?? weapon.Prefab.InventoryIcon ?? weapon.Sprite;
+                if (sprite == null) { continue; }
+                float size = 64 * GUI.Scale;
+                float scale = Math.Min(Math.Min(size / sprite.size.X, size / sprite.size.Y), 1.5f);
+                sprite.Draw(spriteBatch, PlayerInput.MousePosition, weapon.GetInventoryIconColor(), scale: scale);
+                GUI.DrawString(spriteBatch, PlayerInput.MousePosition + new Vector2(size * 0.5f, 0),
+                    TextManager.Get("gunsmith.framework.ui.fabricator_clear_selection").Fallback("Release to clear selection"),
+                    Color.LightYellow, Color.Black * 0.65f, 0, GUIStyle.SmallFont);
             }
         }
 
@@ -725,7 +818,7 @@ namespace GunsmithFramework
         {
             if (weapon == null)
             {
-                return TextManager.Get("gunsmith.framework.ui.fabricator_insert_weapon").Fallback("Drag a workbench-only Gunsmith weapon to this virtual slot.");
+                return TextManager.Get("gunsmith.framework.ui.fabricator_insert_weapon").Fallback("Drag a Gunsmith weapon from your inventory to this virtual slot.");
             }
 
             return allowedPartCount <= 0

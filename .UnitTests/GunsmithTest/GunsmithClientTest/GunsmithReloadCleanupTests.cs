@@ -5,7 +5,9 @@ using System.Runtime.Loader;
 using Barotrauma;
 using Barotrauma.Items.Components;
 using GunsmithFramework;
+using HarmonyLib;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
 using Xunit;
 
 namespace GunsmithClientTest;
@@ -183,6 +185,91 @@ public sealed class GunsmithReloadCleanupTests
         object[] lookup = { fabricator, null! };
         Assert.False((bool)states.GetType().GetMethod("TryGetValue")!.Invoke(states, lookup)!);
     }
+
+    [Theory]
+    [InlineData("outside")]
+    [InlineData("inside")]
+    [InlineData("closed")]
+    [InlineData("hidden")]
+    [InlineData("other-category")]
+    public void DraggingWorkbenchSelectionOnlyClearsReferenceOnOutsideRelease(string finish)
+    {
+        AssemblyLoadContext.Default.Resolving += ResolveGameDependency;
+        var harmony = new Harmony(nameof(DraggingWorkbenchSelectionOnlyClearsReferenceOnOutsideRelease));
+        FieldInfo controlled = AccessTools.Field(typeof(Character), "controlled");
+        FieldInfo mouse = AccessTools.Field(typeof(PlayerInput), "mouseState");
+        FieldInfo oldMouse = AccessTools.Field(typeof(PlayerInput), "oldMouseState");
+        object previousCharacter = controlled.GetValue(null)!;
+        object previousMouse = mouse.GetValue(null)!;
+        object previousOldMouse = oldMouse.GetValue(null)!;
+        GUIComponent previousMouseOn = GUI.MouseOn;
+        try
+        {
+            harmony.Patch(AccessTools.PropertyGetter(typeof(PlayerInput), "AllowInput"),
+                prefix: new HarmonyMethod(typeof(GunsmithReloadCleanupTests), nameof(AllowSelectionTestInput)));
+            harmony.Patch(AccessTools.PropertyGetter(typeof(GUI), nameof(GUI.InputBlockingMenuOpen)),
+                prefix: new HarmonyMethod(typeof(GunsmithReloadCleanupTests), nameof(NoSelectionTestMenu)));
+            harmony.Patch(AccessTools.Method(typeof(GunsmithFabricatorClientPatch), "RefreshRecipeList"),
+                prefix: new HarmonyMethod(typeof(GunsmithReloadCleanupTests), nameof(SkipSelectionTestRecipeUi)));
+            GunsmithFabricatorClientPatch.Reset();
+            Character character = Uninitialized<Character>();
+            controlled.SetValue(null, character);
+            Fabricator fabricator = Uninitialized<Fabricator>();
+            Item workbench = Uninitialized<Item>();
+            AccessTools.Field(typeof(Item), "activeHUDs").SetValue(workbench, new List<ItemComponent> { fabricator });
+            AccessTools.Field(typeof(Character), "_selectedItem").SetValue(character, workbench);
+            GUIFrame frame = CreateGui<GUIFrame>(new RectTransform(new Point(600, 400), new RectTransform(new Point(800, 600))));
+            frame.Visible = true;
+            GUICustomComponent slot = CreateGui<GUICustomComponent>(new RectTransform(new Point(60, 60), frame.RectTransform));
+            slot.Visible = true;
+            fabricator.GuiFrame = frame;
+            object states = GetStaticField(typeof(GunsmithFabricatorClientPatch), "States")!;
+            object state = states.GetType().GetMethod("GetOrCreateValue")!.Invoke(states, [fabricator])!;
+            Item weapon = Uninitialized<Item>();
+            Inventory source = Uninitialized<ItemInventory>();
+            AccessTools.Field(typeof(Item), "parentInventory").SetValue(weapon, source);
+            SetInstanceProperty(state, "SelectedWeapon", weapon);
+            SetInstanceProperty(state, "WeaponSlot", slot);
+            SetInstanceProperty(state, "GunsmithCategorySelected", true);
+            GUI.ForceMouseOn(slot);
+            Inventory.DraggingItems.Clear();
+            oldMouse.SetValue(null, new MouseState());
+            mouse.SetValue(null, SelectionTestMouse(slot.Rect.Center, ButtonState.Pressed));
+
+            Assert.True(GunsmithFabricatorClientPatch.TryHandleVirtualWeaponDrop());
+            Assert.True((bool)state.GetType().GetProperty("DraggingWeaponSelection")!.GetValue(state)!);
+            Assert.Empty(Inventory.DraggingItems);
+
+            if (finish == "closed") { AccessTools.Field(typeof(Character), "_selectedItem").SetValue(character, null); }
+            if (finish == "hidden") { frame.Visible = false; }
+            if (finish == "other-category") { SetInstanceProperty(state, "GunsmithCategorySelected", false); }
+            oldMouse.SetValue(null, mouse.GetValue(null));
+            mouse.SetValue(null, SelectionTestMouse(
+                finish == "inside" ? slot.Rect.Center : new Point(slot.Rect.Right + 20, slot.Rect.Bottom + 20), ButtonState.Released));
+            GunsmithFabricatorClientPatch.TryHandleVirtualWeaponDrop();
+
+            Assert.Same(finish == "outside" ? null : weapon, state.GetType().GetProperty("SelectedWeapon")!.GetValue(state));
+            Assert.False((bool)state.GetType().GetProperty("DraggingWeaponSelection")!.GetValue(state)!);
+            Assert.Same(source, weapon.ParentInventory);
+            Assert.Empty(Inventory.DraggingItems);
+        }
+        finally
+        {
+            GunsmithFabricatorClientPatch.Reset();
+            harmony.UnpatchSelf();
+            controlled.SetValue(null, previousCharacter);
+            mouse.SetValue(null, previousMouse);
+            oldMouse.SetValue(null, previousOldMouse);
+            GUI.ForceMouseOn(previousMouseOn);
+            AssemblyLoadContext.Default.Resolving -= ResolveGameDependency;
+        }
+    }
+
+    private static MouseState SelectionTestMouse(Point point, ButtonState left)
+        => new(point.X, point.Y, 0, left, ButtonState.Released, ButtonState.Released, ButtonState.Released, ButtonState.Released);
+    private static bool AllowSelectionTestInput(ref bool __result) { __result = true; return false; }
+    private static bool NoSelectionTestMenu(ref bool __result) { __result = false; return false; }
+    private static bool SkipSelectionTestRecipeUi() => false;
 
     private static T CreateGui<T>(RectTransform rectTransform) where T : GUIComponent
     {

@@ -16,7 +16,9 @@
   <gunsmith.framework.ui.weapon_root>Weapon</gunsmith.framework.ui.weapon_root>
   <gunsmith.framework.ui.fabricator_category>Gunsmith</gunsmith.framework.ui.fabricator_category>
   <gunsmith.framework.ui.fabricator_weapon_slot>Weapon</gunsmith.framework.ui.fabricator_weapon_slot>
-  <gunsmith.framework.ui.fabricator_insert_weapon>Drag a workbench-only Gunsmith weapon to this virtual slot.</gunsmith.framework.ui.fabricator_insert_weapon>
+  <gunsmith.framework.ui.fabricator_insert_weapon>Drag a Gunsmith weapon here to select it. The weapon stays in your inventory.</gunsmith.framework.ui.fabricator_insert_weapon>
+  <gunsmith.framework.ui.fabricator_selected_weapon>Modding target (still in your inventory). Drag outside this box to clear the selection, or drag in another weapon to switch targets.</gunsmith.framework.ui.fabricator_selected_weapon>
+  <gunsmith.framework.ui.fabricator_clear_selection>Release to clear selection</gunsmith.framework.ui.fabricator_clear_selection>
   <gunsmith.framework.ui.fabricator_open>Open Gunsmith</gunsmith.framework.ui.fabricator_open>
   <gunsmith.framework.ui.fabricator_no_compatible_parts>No compatible gunsmith recipes.</gunsmith.framework.ui.fabricator_no_compatible_parts>
   <gunsmith.framework.status.installed>[Installed]</gunsmith.framework.status.installed>

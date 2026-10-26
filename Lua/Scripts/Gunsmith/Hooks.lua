@@ -311,8 +311,7 @@ function Hooks.Register()
     end)
 
     Hook.Add("GunsmithFrameworkCanOpenFromWorkbench", "GunsmithFrameworkCanOpenFromWorkbench", function(weapon)
-        if not weapon or Core.WeaponConfig(weapon) == nil then return false end
-        return Core.RequiresWorkbench ~= nil and Core.RequiresWorkbench(weapon) == true
+        return weapon ~= nil and Core.WeaponConfig(weapon) ~= nil
     end)
 
     Hook.Add("GunsmithFrameworkOpenFromWorkbench", "GunsmithFrameworkOpenFromWorkbench", function(...)
@@ -424,7 +423,7 @@ function Hooks.Register()
         local item, strings = readItemAndStrings({ ... })
         if item and strings[1] then
             Runtime.SetCurrentUiPath(item, strings[1])
-            Runtime.Open(item)
+            Runtime.RefreshParts(item)
         end
     end)
 
