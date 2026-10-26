@@ -10,6 +10,21 @@ namespace GunsmithClientTest;
 public sealed class GunsmithGuiParsingTests
 {
     [Fact]
+    public void FabricatorPartCategoriesDecodeMetadataAndRejectMalformedEntries()
+    {
+        var categories = GunsmithFabricatorClientPatch.ParsePartCategories(
+            "scope%3Aid:optic_mount:pack.path.optic_mount|muzzle:muzzle_mount:pack.path.muzzle_mount|" +
+            "untyped::|literal%257C:type%7Cpart:name%3Akey|broken|:type:name|too:many:fields:here");
+
+        Assert.Equal(4, categories.Count);
+        Assert.Equal(("optic_mount", "pack.path.optic_mount"), categories["SCOPE:ID"]);
+        Assert.Equal(("muzzle_mount", "pack.path.muzzle_mount"), categories["muzzle"]);
+        Assert.Equal(("", ""), categories["untyped"]);
+        Assert.Equal(("type|part", "name:key"), categories["literal%7C"]);
+        Assert.Empty(GunsmithFabricatorClientPatch.ParsePartCategories(null));
+    }
+
+    [Fact]
     public void QuickSpecAllowsEmptyPartListAndInstalledOnlyPartList()
     {
         const string spec = "|ui.quick_root|::::::" +

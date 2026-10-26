@@ -186,3 +186,40 @@ callbacks.GunsmithFrameworkEnterPath(workbenchItem, "slot")
 assert(calls[3] == "GunsmithFrameworkRefreshParts", "navigation must retain the current workbench window")
 assert(GunsmithFramework.Runtime.GetCurrentUiPath(workbenchItem) == "slot")
 print("Workbench policy and explicit actor self-test passed")
+
+GunsmithFramework.Config = {
+    platforms = { grouped = {
+        rootSlots = { { path = "receiver", hidden = true } },
+        pathNameKeys = { optic_mount = "test.category.optics" }
+    } },
+    weapons = { grouped_weapon = { platform = "grouped", roots = { receiver = { part = "receiver" } } } },
+    parts = {
+        receiver = { type = "receiver", mounts = {
+            { path = "top", partType = "optic_mount", accepts = { "scope" } },
+            { path = "muzzle_mount", accepts = { "muzzle" } }
+        } },
+        scope = { type = "optic_mount", provides = { "scope" }, item = { identifier = "scope:item" },
+            mounts = { { path = "adapter", accepts = { "adapter" } } } },
+        scope_duplicate = { type = "z_other", provides = { "scope" }, item = { identifier = "scope:item" } },
+        adapter = { type = "adapter", provides = { "adapter" }, item = { identifier = "adapter_item" },
+            mounts = { { path = "optic_mount", accepts = { "scope" } } } },
+        muzzle = { type = "muzzle_mount", provides = { "muzzle" }, item = { identifier = "muzzle_item" } },
+        foreign_scope = { type = "optic_mount", provides = { "scope" }, item = { identifier = "foreign_item" } }
+    }
+}
+GunsmithFramework.Owners = {
+    platforms = { grouped = "test" }, weapons = { grouped_weapon = "test" },
+    parts = { receiver = "test", scope = "test", scope_duplicate = "test", adapter = "test", muzzle = "test", foreign_scope = "foreign" }
+}
+GunsmithFramework.Packages = { test = { _importSet = {}, localizationPrefix = "test" } }
+dofile("Lua/Scripts/Gunsmith/Core.lua")
+dofile("Lua/Scripts/Gunsmith/Runtime.lua")
+dofile("Lua/Scripts/Gunsmith/Hooks.lua")
+GunsmithFramework.Hooks.Register()
+local groupedItem = item("grouped_weapon")
+assert(callbacks.GunsmithFrameworkGetFabricatorPartItemIds(groupedItem) == "adapter_item,muzzle_item,scope:item")
+assert(callbacks.GunsmithFrameworkGetFabricatorPartItemIds(groupedItem, true) ==
+    "adapter_item:adapter:test.path.adapter|muzzle_item:muzzle_mount:test.path.muzzle_mount|scope%3Aitem:optic_mount:test.category.optics",
+    "categories must reuse compatible traversal, localize types, deduplicate items and preserve owner isolation")
+assert(GunsmithFramework.Runtime.FabricatorPartItemIds(nil, true) == "")
+print("Workbench part category self-test passed")

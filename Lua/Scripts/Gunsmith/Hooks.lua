@@ -298,8 +298,8 @@ function Hooks.Register()
         end
     end)
 
-    Hook.Add("GunsmithFrameworkGetFabricatorPartItemIds", "GunsmithFrameworkGetFabricatorPartItemIds", function(item)
-        return Runtime.FabricatorPartItemIds(item)
+    Hook.Add("GunsmithFrameworkGetFabricatorPartItemIds", "GunsmithFrameworkGetFabricatorPartItemIds", function(item, includeCategories)
+        return Runtime.FabricatorPartItemIds(item, includeCategories)
     end)
 
     Hook.Add("GunsmithFrameworkHasLowerRailBarrel", "GunsmithFrameworkHasLowerRailBarrel", function(item)

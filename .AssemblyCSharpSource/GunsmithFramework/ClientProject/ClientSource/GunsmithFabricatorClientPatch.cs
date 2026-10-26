@@ -19,6 +19,8 @@ namespace GunsmithFramework
         private static readonly FieldInfo? ItemCategoryButtonsField = AccessTools.Field(typeof(Fabricator), "itemCategoryButtons");
         private static readonly FieldInfo? SelectedItemCategoryField = AccessTools.Field(typeof(Fabricator), "selectedItemCategory");
         private static readonly FieldInfo? ItemFilterBoxField = AccessTools.Field(typeof(Fabricator), "itemFilterBox");
+        private static readonly FieldInfo? SortByDropdownField = AccessTools.Field(typeof(Fabricator), "sortByDropdown");
+        private static readonly FieldInfo? RequiresRecipeTextField = AccessTools.Field(typeof(Fabricator), "requiresRecipeText");
         private static readonly FieldInfo? InputInventoryHolderField = AccessTools.Field(typeof(Fabricator), "inputInventoryHolder");
         private static readonly FieldInfo? ActivateButtonField = AccessTools.Field(typeof(Fabricator), "activateButton");
         private static readonly FieldInfo? NothingToShowTextField = AccessTools.Field(typeof(Fabricator), "nothingToShowText");
@@ -35,6 +37,8 @@ namespace GunsmithFramework
             public Dictionary<GUIButton, (GUIButton.OnClickedHandler? OnClicked, Point Size)> OriginalCategoryButtons { get; } = new();
             public bool GunsmithCategorySelected { get; set; }
             public bool RefreshingGunsmithList { get; set; }
+            public object? OriginalSortMode { get; set; }
+            public Dictionary<(bool MissingRecipe, string PartType), GUITextBlock> PartCategoryHeaders { get; } = new();
             public GUIComponent? InputInventoryHolder { get; set; }
             public Vector2? OriginalInputInventoryHolderSize { get; set; }
             public GUIComponent? WeaponArea { get; set; }
@@ -52,6 +56,9 @@ namespace GunsmithFramework
             foreach (KeyValuePair<Fabricator, ClientState> pair in States)
             {
                 ClientState state = pair.Value;
+                state.GunsmithCategorySelected = false;
+                ClearPartCategoryHeaders(state);
+                RestoreSortMode(pair.Key, state);
                 foreach (KeyValuePair<GUIButton, (GUIButton.OnClickedHandler? OnClicked, Point Size)> original in state.OriginalCategoryButtons)
                 {
                     original.Key.OnClicked = original.Value.OnClicked;
@@ -95,6 +102,8 @@ namespace GunsmithFramework
             }
 
             ClientState state = States.GetOrCreateValue(__instance);
+            ClearPartCategoryHeaders(state);
+            state.OriginalSortMode = null;
             ClearSelectedWeapon(__instance, state);
             state.WeaponSlot?.RectTransform.Parent = null;
             state.OpenButton?.RectTransform.Parent = null;
@@ -313,6 +322,18 @@ namespace GunsmithFramework
             ApplyGunsmithFilter(__instance);
         }
 
+        [HarmonyPatch(typeof(Fabricator), "SortItems")]
+        [HarmonyPostfix]
+        private static void GroupPartsAfterVanillaSorting(Fabricator __instance)
+        {
+            if (IsGunsmithCategorySelected(__instance)) { ApplyGunsmithFilter(__instance); }
+        }
+
+        [HarmonyPatch(typeof(Fabricator), "HideEmptyItemListCategories")]
+        [HarmonyPrefix]
+        private static bool KeepPartCategoryHeaders(Fabricator __instance)
+            => !IsGunsmithCategorySelected(__instance) || !IsSortingByCategory(__instance);
+
         [HarmonyPatch(typeof(Fabricator), "UpdateHUDComponentSpecific")]
         [HarmonyPostfix]
         private static void RefreshWhenWeaponSlotChanges(Fabricator __instance)
@@ -422,6 +443,11 @@ namespace GunsmithFramework
                     if (state.GunsmithCategorySelected && ItemFilterBoxField?.GetValue(fabricator) is GUITextBox filterBox)
                     {
                         filterBox.Text = string.Empty;
+                    }
+                    if (state.GunsmithCategorySelected && SortByDropdownField?.GetValue(fabricator) is GUIDropDown sortBy)
+                    {
+                        state.OriginalSortMode = sortBy.SelectedData;
+                        sortBy.Select(index: 0);
                     }
 
                     RefreshRecipeList(fabricator);
@@ -646,6 +672,37 @@ namespace GunsmithFramework
         }
 
         [HarmonyPatch(typeof(Inventory), nameof(Inventory.DrawFront))]
+        [HarmonyPrefix]
+        private static void SuppressWorldDropLabelOverWeaponSlot(out bool __state)
+        {
+            __state = false;
+            if (GUI.MouseOn != null || !Inventory.DraggingItems.Any() ||
+                Character.Controlled?.SelectedItem is not { } selectedItem ||
+                GUI.InputBlockingMenuOpen || GunsmithGui.IsGunsmithWindowBlockingInput) { return; }
+
+            foreach (var pair in States)
+            {
+                if (pair.Key.GuiFrame is not { Visible: true } frame || frame.RectTransform.Parent == null ||
+                    !selectedItem.ActiveHUDs.Contains(pair.Key) || !pair.Value.GunsmithCategorySelected ||
+                    pair.Value.WeaponSlot is not { Visible: true } slot || !slot.Rect.Contains(PlayerInput.MousePosition))
+                {
+                    continue;
+                }
+                // Only change drawing context; input must retain the drag origin's mouse capture.
+                __state = true;
+                GUI.ForceMouseOn(slot);
+                return;
+            }
+        }
+
+        [HarmonyPatch(typeof(Inventory), nameof(Inventory.DrawFront))]
+        [HarmonyFinalizer]
+        private static void RestoreMouseAfterWeaponDragDrawing(bool __state)
+        {
+            if (__state) { GUI.ForceMouseOn(null); }
+        }
+
+        [HarmonyPatch(typeof(Inventory), nameof(Inventory.DrawFront))]
         [HarmonyPostfix]
         private static void DrawWeaponSelectionDrag(SpriteBatch spriteBatch)
         {
@@ -691,7 +748,9 @@ namespace GunsmithFramework
             }
 
             Item? weapon = state?.SelectedWeapon;
-            HashSet<string> allowedPartItemIdentifiers = GunsmithFabricatorRecipeFilterPatch.GetAllowedPartItemIdentifiers(weapon);
+            var partCategories = ParsePartCategories(weapon == null ? null :
+                GunsmithLuaHooks.Call(GunsmithFabricatorRecipeFilterPatch.LuaHookName, weapon, true) as string);
+            var allowedPartItemIdentifiers = partCategories.Keys;
             bool hasAllowedWeapon = weapon != null && allowedPartItemIdentifiers.Count > 0;
             bool anyVisible = false;
 
@@ -735,7 +794,102 @@ namespace GunsmithFramework
                 nothingToShowText.Visible = !anyVisible;
             }
 
+            if (state != null) { GroupPartRecipes(fabricator, itemList, state, partCategories); }
             UpdateCategoryButtonSelection(fabricator);
+        }
+
+        internal static Dictionary<string, (string PartType, string NameKey)> ParsePartCategories(string? spec)
+        {
+            Dictionary<string, (string PartType, string NameKey)> result = new(StringComparer.OrdinalIgnoreCase);
+            foreach (string entry in (spec ?? string.Empty).Split('|', StringSplitOptions.RemoveEmptyEntries))
+            {
+                string[] fields = entry.Split(':');
+                if (fields.Length != 3 || string.IsNullOrWhiteSpace(fields[0])) { continue; }
+                result[Uri.UnescapeDataString(fields[0])] = (Uri.UnescapeDataString(fields[1]), Uri.UnescapeDataString(fields[2]));
+            }
+            return result;
+        }
+
+        private static bool IsSortingByCategory(Fabricator fabricator)
+            => (SortByDropdownField?.GetValue(fabricator) as GUIDropDown)?.SelectedData?.ToString() == "Category";
+
+        private static void RestoreSortMode(Fabricator fabricator, ClientState state)
+        {
+            if (state.OriginalSortMode is not { } original) { return; }
+            state.OriginalSortMode = null;
+            (SortByDropdownField?.GetValue(fabricator) as GUIDropDown)?.SelectItem(original);
+        }
+
+        private static void ClearPartCategoryHeaders(ClientState state)
+        {
+            foreach (GUITextBlock header in state.PartCategoryHeaders.Values) { header.RectTransform.Parent = null; }
+            state.PartCategoryHeaders.Clear();
+        }
+
+        private static LocalizedString PartCategoryName((string PartType, string NameKey) category)
+            => string.IsNullOrEmpty(category.PartType)
+                ? TextManager.Get("gunsmith.framework.ui.fabricator_other_parts").Fallback("Other parts")
+                : TextManager.Get(category.NameKey)
+                    .Fallback(TextManager.Get("gunsmith.framework.parttype." + category.PartType.ToLowerInvariant()))
+                    .Fallback(category.PartType);
+
+        private static void GroupPartRecipes(Fabricator fabricator, GUIListBox itemList, ClientState state,
+            IReadOnlyDictionary<string, (string PartType, string NameKey)> categories)
+        {
+            if (!IsSortingByCategory(fabricator))
+            {
+                ClearPartCategoryHeaders(state);
+                return;
+            }
+            foreach (GUITextBlock header in state.PartCategoryHeaders.Values) { header.Visible = false; }
+            var groups = itemList.Content.Children
+                .Where(child => child.Visible && child.UserData is FabricationRecipe)
+                .Select(child => (Child: child, Recipe: (FabricationRecipe)child.UserData))
+                .Where(row => categories.ContainsKey(row.Recipe.TargetItemPrefabIdentifier.Value))
+                .Select(row => (row.Child, row.Recipe, Category: categories[row.Recipe.TargetItemPrefabIdentifier.Value]))
+                .GroupBy(row => (MissingRecipe: fabricator.MissingRequiredRecipe(row.Recipe, Character.Controlled), row.Category.PartType))
+                .OrderBy(group => group.Key.MissingRecipe)
+                .ThenBy(group => PartCategoryName(group.First().Category).Value, StringComparer.CurrentCultureIgnoreCase)
+                .ToArray();
+            GUIComponent? requiresRecipeText = RequiresRecipeTextField?.GetValue(fabricator) as GUIComponent;
+            if (requiresRecipeText != null)
+            {
+                requiresRecipeText.Visible = false;
+                requiresRecipeText.RectTransform.SetAsLastChild();
+            }
+            int index = 0;
+            foreach (var group in groups)
+            {
+                if (group.Key.MissingRecipe && requiresRecipeText is { Visible: false })
+                {
+                    requiresRecipeText.RectTransform.RepositionChildInHierarchy(index++);
+                    requiresRecipeText.Visible = true;
+                }
+                if (!state.PartCategoryHeaders.TryGetValue(group.Key, out GUITextBlock? header))
+                {
+                    header = new GUITextBlock(new RectTransform(new Vector2(1f, 0.09f), itemList.Content.RectTransform),
+                        PartCategoryName(group.First().Category), font: GUIStyle.SubHeadingFont, textColor: GUIStyle.TextColorBright)
+                    {
+                        CanBeFocused = false,
+                        AutoScaleHorizontal = true,
+                        AutoScaleVertical = true
+                    };
+                    new GUIFrame(new RectTransform(new Vector2(1f, 0.04f), header.RectTransform, Anchor.BottomCenter), style: "HorizontalLine")
+                    {
+                        CanBeFocused = false
+                    };
+                    state.PartCategoryHeaders.Add(group.Key, header);
+                }
+                header.Text = PartCategoryName(group.First().Category);
+                header.Visible = true;
+                header.RectTransform.RepositionChildInHierarchy(index++);
+                foreach (var row in group.OrderBy(row => row.Recipe.DisplayName.Value, StringComparer.CurrentCultureIgnoreCase))
+                {
+                    row.Child.RectTransform.RepositionChildInHierarchy(index++);
+                }
+            }
+            itemList.RecalculateChildren();
+            itemList.UpdateScrollBarSize();
         }
 
         private static bool IsGunsmithCategorySelected(Fabricator fabricator)
@@ -751,6 +905,11 @@ namespace GunsmithFramework
             if (state.GunsmithCategoryButton != null)
             {
                 state.GunsmithCategoryButton.Selected = state.GunsmithCategorySelected;
+            }
+            if (!state.GunsmithCategorySelected)
+            {
+                ClearPartCategoryHeaders(state);
+                RestoreSortMode(fabricator, state);
             }
             UpdateWeaponSlotVisibility(fabricator, state);
 

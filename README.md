@@ -785,6 +785,8 @@ GunsmithFramework.Config.weapons.my_workbench_rifle = {
 
 GunsmithFramework 可以在加工台左侧分类栏中加入一个 Gunsmith 分类按钮。玩家点击该按钮后，底部会显示一个客户端私有的枪械槽；将背包中的任意 Gunsmith 枪械拖入枪械槽后，配方列表只显示这把枪理论上可安装的部件物品。`requiresWorkbench` 不影响工作台接收枪械，只限制离开工作台后的完整改装入口。独立的打开按钮只负责打开完整改装页，不影响配方选择和制造。
 
+进入 Gunsmith 分类页时默认按配件 `type` 分组，组间显示类别标题和分隔线，组内按名称排序。类别名称沿用平台的 `pathNameKeys` / `path.<type>` 本地化；缺失时使用框架已有的类型名称或原始 `type`。搜索与“仅显示可用”仍有效，没有可见配方的类别不显示；也可以通过原版排序下拉框改用名称、技能需求或价格排序。切回原版分类后恢复原版列表排序。
+
 原版 `fabricator` 默认启用此按钮。自定义 Fabricator 需要在自己的 `<Fabricator>` 组件上加一个属性：
 
 ```xml

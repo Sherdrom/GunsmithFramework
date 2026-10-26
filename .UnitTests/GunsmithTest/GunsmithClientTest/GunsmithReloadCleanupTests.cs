@@ -170,6 +170,9 @@ public sealed class GunsmithReloadCleanupTests
         SetInstanceProperty(state, "WeaponArea", weaponArea);
         SetInstanceProperty(state, "OpenButton", openButton);
         SetInstanceProperty(state, "SelectedWeapon", Uninitialized<Item>());
+        GUITextBlock categoryHeader = CreateGui<GUITextBlock>(new RectTransform(new Point(200, 30), root.RectTransform));
+        var headers = (IDictionary)stateType.GetProperty("PartCategoryHeaders")!.GetValue(state)!;
+        headers.Add((false, "optic_mount"), categoryHeader);
 
         GunsmithFabricatorClientPatch.Reset();
         GunsmithFabricatorClientPatch.Reset();
@@ -180,6 +183,8 @@ public sealed class GunsmithReloadCleanupTests
         Assert.Null(gunsmithButton.RectTransform.Parent);
         Assert.Null(weaponArea.RectTransform.Parent);
         Assert.Null(openButton.RectTransform.Parent);
+        Assert.Null(categoryHeader.RectTransform.Parent);
+        Assert.Empty(headers);
         Assert.Null(stateType.GetProperty("SelectedWeapon")!.GetValue(state));
 
         object[] lookup = { fabricator, null! };
@@ -265,11 +270,166 @@ public sealed class GunsmithReloadCleanupTests
         }
     }
 
+    [Theory]
+    [InlineData("inside")]
+    [InlineData("outside")]
+    [InlineData("closed")]
+    [InlineData("hidden")]
+    [InlineData("other-category")]
+    [InlineData("origin-focus")]
+    [InlineData("draw-failure")]
+    public void WorkbenchDropLabelUsesTemporaryDrawFocus(string scenario)
+    {
+        using var scope = new HarmonyScope(nameof(WorkbenchDropLabelUsesTemporaryDrawFocus));
+        scope.Patch(AccessTools.PropertyGetter(typeof(GUI), nameof(GUI.InputBlockingMenuOpen)), nameof(NoSelectionTestMenu));
+        var drawHarmony = new Harmony(nameof(WorkbenchDropLabelUsesTemporaryDrawFocus) + ".Draw");
+        FieldInfo controlled = AccessTools.Field(typeof(Character), "controlled");
+        FieldInfo mouse = AccessTools.Field(typeof(PlayerInput), "mouseState");
+        object? previousCharacter = controlled.GetValue(null);
+        object? previousMouse = mouse.GetValue(null);
+        GUIComponent previousMouseOn = GUI.MouseOn;
+        Item[] previousDragging = Inventory.DraggingItems.ToArray();
+        try
+        {
+            GunsmithFabricatorClientPatch.Reset();
+            Character character = Uninitialized<Character>();
+            controlled.SetValue(null, character);
+            Fabricator fabricator = Uninitialized<Fabricator>();
+            Item workbench = Uninitialized<Item>();
+            AccessTools.Field(typeof(Item), "activeHUDs").SetValue(workbench, new List<ItemComponent> { fabricator });
+            AccessTools.Field(typeof(Character), "_selectedItem").SetValue(character, scenario == "closed" ? null : workbench);
+            GUIFrame frame = CreateGui<GUIFrame>(new RectTransform(new Point(600, 400), new RectTransform(new Point(800, 600))));
+            frame.Visible = scenario != "hidden";
+            GUICustomComponent slot = CreateGui<GUICustomComponent>(new RectTransform(new Point(60), frame.RectTransform));
+            slot.Visible = true;
+            fabricator.GuiFrame = frame;
+            object states = GetStaticField(typeof(GunsmithFabricatorClientPatch), "States")!;
+            object state = states.GetType().GetMethod("GetOrCreateValue")!.Invoke(states, [fabricator])!;
+            SetInstanceProperty(state, "WeaponSlot", slot);
+            SetInstanceProperty(state, "GunsmithCategorySelected", scenario != "other-category");
+            Item weapon = Uninitialized<Item>();
+            Inventory.DraggingItems.Clear();
+            Inventory.DraggingItems.Add(weapon);
+            GUIComponent? origin = scenario == "origin-focus" ? frame : null;
+            GUI.ForceMouseOn(origin);
+            mouse.SetValue(null, SelectionTestMouse(
+                scenario == "outside" ? new Point(slot.Rect.Right + 20, slot.Rect.Bottom + 20) : slot.Rect.Center, ButtonState.Pressed));
+            bool drawChecked = false;
+            drawFrontTestProbe = () =>
+            {
+                Assert.Same(scenario is "inside" or "draw-failure" ? slot : origin, GUI.MouseOn);
+                Assert.Same(weapon, Assert.Single(Inventory.DraggingItems));
+                drawChecked = true;
+                if (scenario == "draw-failure") { throw new InvalidOperationException("draw probe"); }
+            };
+            MethodInfo draw = AccessTools.Method(typeof(Inventory), nameof(Inventory.DrawFront));
+            drawHarmony.Patch(draw,
+                prefix: new HarmonyMethod(typeof(GunsmithFabricatorClientPatch), "SuppressWorldDropLabelOverWeaponSlot") { priority = Priority.First },
+                finalizer: new HarmonyMethod(typeof(GunsmithFabricatorClientPatch), "RestoreMouseAfterWeaponDragDrawing"));
+            drawHarmony.Patch(draw, prefix: new HarmonyMethod(typeof(GunsmithReloadCleanupTests), nameof(ProbeDragDrawing)) { priority = Priority.Last });
+
+            if (scenario == "draw-failure") { Assert.Throws<InvalidOperationException>(() => Inventory.DrawFront(null!)); }
+            else { Inventory.DrawFront(null!); }
+
+            Assert.True(drawChecked);
+            Assert.Same(origin, GUI.MouseOn);
+            Assert.Same(weapon, Assert.Single(Inventory.DraggingItems));
+        }
+        finally
+        {
+            drawHarmony.UnpatchSelf();
+            drawFrontTestProbe = null;
+            GunsmithFabricatorClientPatch.Reset();
+            controlled.SetValue(null, previousCharacter);
+            mouse.SetValue(null, previousMouse);
+            GUI.ForceMouseOn(previousMouseOn);
+            Inventory.DraggingItems.Clear();
+            foreach (Item item in previousDragging) { Inventory.DraggingItems.Add(item); }
+        }
+    }
+
+    private static Action? drawFrontTestProbe;
+    private static bool ProbeDragDrawing() { drawFrontTestProbe!(); return false; }
+
     private static MouseState SelectionTestMouse(Point point, ButtonState left)
         => new(point.X, point.Y, 0, left, ButtonState.Released, ButtonState.Released, ButtonState.Released, ButtonState.Released);
     private static bool AllowSelectionTestInput(ref bool __result) { __result = true; return false; }
     private static bool NoSelectionTestMenu(ref bool __result) { __result = false; return false; }
     private static bool SkipSelectionTestRecipeUi() => false;
+
+    [Fact]
+    public void FabricatorGroupsVisibleRecipesAndHidesEmptyHeaders()
+    {
+        using var harmony = new HarmonyScope(nameof(FabricatorGroupsVisibleRecipesAndHidesEmptyHeaders));
+        harmony.Patch(AccessTools.Method(typeof(GunsmithFabricatorClientPatch), "IsSortingByCategory"), nameof(AllowSelectionTestInput));
+        harmony.Patch(AccessTools.Method(typeof(GunsmithFabricatorClientPatch), "PartCategoryName"), nameof(CategoryTestName));
+        harmony.Patch(AccessTools.PropertySetter(typeof(GUITextBlock), nameof(GUITextBlock.Text)), nameof(SkipSelectionTestRecipeUi));
+        harmony.Patch(AccessTools.PropertyGetter(typeof(FabricationRecipe), nameof(FabricationRecipe.DisplayName)), nameof(CategoryTestRecipeName));
+        harmony.Patch(AccessTools.Method(typeof(Fabricator), nameof(Fabricator.MissingRequiredRecipe)), nameof(CategoryTestMissingRecipe));
+        harmony.Patch(AccessTools.Method(typeof(GUIListBox), nameof(GUIListBox.RecalculateChildren)), nameof(SkipSelectionTestRecipeUi));
+        harmony.Patch(AccessTools.Method(typeof(GUIListBox), nameof(GUIListBox.UpdateScrollBarSize)), nameof(SkipSelectionTestRecipeUi));
+        GUIFrame content = CreateGui<GUIFrame>(new RectTransform(new Point(300, 400)));
+        GUIListBox list = Uninitialized<GUIListBox>();
+        AccessTools.PropertySetter(typeof(GUIListBox), nameof(GUIListBox.Content)).Invoke(list, [content]);
+        Fabricator fabricator = Uninitialized<Fabricator>();
+        object state = Activator.CreateInstance(typeof(GunsmithFabricatorClientPatch).GetNestedType("ClientState", BindingFlags.NonPublic)!)!;
+        var headers = (IDictionary)state.GetType().GetProperty("PartCategoryHeaders")!.GetValue(state)!;
+        foreach (var (missing, partType) in new[] { (false, "muzzle"), (false, "scope"), (true, "scope"), (false, "grip") })
+        {
+            var header = CreateGui<GUITextBlock>(new RectTransform(new Point(300, 30), content.RectTransform));
+            header.UserData = (missing ? "locked_" : "") + partType + "_header";
+            headers.Add((missing, partType), header);
+        }
+        GUITextBlock missingHeader = CreateGui<GUITextBlock>(new RectTransform(new Point(300, 30), content.RectTransform));
+        missingHeader.UserData = "missing_header";
+        AccessTools.Field(typeof(Fabricator), "requiresRecipeText").SetValue(fabricator, missingHeader);
+        var rows = new Dictionary<string, GUIFrame>();
+        foreach (string id in new[] { "scope_z", "muzzle_a", "scope_a", "locked_scope", "hidden_grip" })
+        {
+            FabricationRecipe recipe = Uninitialized<FabricationRecipe>();
+            AccessTools.Field(typeof(FabricationRecipe), nameof(FabricationRecipe.TargetItemPrefabIdentifier)).SetValue(recipe, id.ToIdentifier());
+            GUIFrame row = CreateGui<GUIFrame>(new RectTransform(new Point(300, 40), content.RectTransform));
+            row.UserData = recipe;
+            row.Visible = id != "hidden_grip";
+            rows.Add(id, row);
+        }
+        var categories = GunsmithFabricatorClientPatch.ParsePartCategories(
+            "scope_z:scope:scope|muzzle_a:muzzle:muzzle|scope_a:scope:scope|locked_scope:scope:scope|hidden_grip:grip:grip");
+        MethodInfo group = AccessTools.Method(typeof(GunsmithFabricatorClientPatch), "GroupPartRecipes");
+        group.Invoke(null, [fabricator, list, state, categories]);
+        Assert.Equal(new[] { "muzzle_header", "muzzle_a", "scope_header", "scope_a", "scope_z", "missing_header", "locked_scope_header", "locked_scope" }, VisibleRows());
+
+        rows["scope_a"].Visible = rows["scope_z"].Visible = rows["locked_scope"].Visible = false;
+        group.Invoke(null, [fabricator, list, state, categories]);
+        Assert.Equal(new[] { "muzzle_header", "muzzle_a" }, VisibleRows());
+
+        string[] VisibleRows() => content.Children.Where(child => child.Visible).Select(child =>
+            child.UserData is FabricationRecipe recipe ? recipe.TargetItemPrefabIdentifier.Value : child.UserData.ToString()!).ToArray();
+    }
+
+    private static bool CategoryTestName((string PartType, string NameKey) category, ref LocalizedString __result)
+    { __result = category.PartType; return false; }
+    private static bool CategoryTestRecipeName(FabricationRecipe __instance, ref LocalizedString __result)
+    { __result = __instance.TargetItemPrefabIdentifier.Value; return false; }
+    private static bool CategoryTestMissingRecipe(FabricationRecipe fabricableItem, ref bool __result)
+    { __result = fabricableItem.TargetItemPrefabIdentifier.Value.StartsWith("locked_"); return false; }
+
+    private sealed class HarmonyScope : IDisposable
+    {
+        private readonly Harmony harmony;
+        public HarmonyScope(string id)
+        {
+            AssemblyLoadContext.Default.Resolving += ResolveGameDependency;
+            harmony = new Harmony(id);
+        }
+        public void Patch(MethodInfo method, string prefix)
+            => harmony.Patch(method, prefix: new HarmonyMethod(typeof(GunsmithReloadCleanupTests), prefix));
+        public void Dispose()
+        {
+            harmony.UnpatchSelf();
+            AssemblyLoadContext.Default.Resolving -= ResolveGameDependency;
+        }
+    }
 
     private static T CreateGui<T>(RectTransform rectTransform) where T : GUIComponent
     {

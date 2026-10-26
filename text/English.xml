@@ -21,6 +21,10 @@
   <gunsmith.framework.ui.fabricator_clear_selection>Release to clear selection</gunsmith.framework.ui.fabricator_clear_selection>
   <gunsmith.framework.ui.fabricator_open>Open Gunsmith</gunsmith.framework.ui.fabricator_open>
   <gunsmith.framework.ui.fabricator_no_compatible_parts>No compatible gunsmith recipes.</gunsmith.framework.ui.fabricator_no_compatible_parts>
+  <gunsmith.framework.ui.fabricator_other_parts>Other parts</gunsmith.framework.ui.fabricator_other_parts>
+  <gunsmith.framework.parttype.muzzle_mount>Muzzle devices</gunsmith.framework.parttype.muzzle_mount>
+  <gunsmith.framework.parttype.lower_rail_mount>Underbarrel attachments</gunsmith.framework.parttype.lower_rail_mount>
+  <gunsmith.framework.parttype.accessory_mount>Tactical accessories</gunsmith.framework.parttype.accessory_mount>
   <gunsmith.framework.status.installed>[Installed]</gunsmith.framework.status.installed>
   <gunsmith.framework.status.missing>[Missing]</gunsmith.framework.status.missing>
   <gunsmith.framework.status.exclusive>[Mutually Exclusive]</gunsmith.framework.status.exclusive>

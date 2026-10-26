@@ -831,7 +831,7 @@ function Runtime.SelectedHandWeapon(character)
     return nil
 end
 
-function Runtime.FabricatorPartItemIds(item)
+function Runtime.FabricatorPartItemIds(item, includeCategories)
     local weapon = Core.WeaponConfig(item)
     local platform = Core.PlatformConfig(item)
     if not weapon or not platform then return "" end
@@ -849,7 +849,11 @@ function Runtime.FabricatorPartItemIds(item)
         if not part then return end
 
         if type(part.item) == "table" and type(part.item.identifier) == "string" and part.item.identifier ~= "" then
-            itemIdentifiers[part.item.identifier] = true
+            local partType = type(part.type) == "string" and part.type or ""
+            local previousType = itemIdentifiers[part.item.identifier]
+            if not previousType or partType < previousType then
+                itemIdentifiers[part.item.identifier] = partType
+            end
         end
 
         if type(part.mounts) ~= "table" then return end
@@ -899,11 +903,16 @@ function Runtime.FabricatorPartItemIds(item)
     end
 
     local result = {}
-    for identifier in pairs(itemIdentifiers) do
-        table.insert(result, identifier)
+    for identifier, partType in pairs(itemIdentifiers) do
+        local entry = identifier
+        if includeCategories then
+            entry = Core.EncodeText(identifier) .. ":" .. Core.EncodeText(partType) .. ":"
+                .. Core.EncodeText(Core.PathNameKey(platform, partType))
+        end
+        table.insert(result, entry)
     end
     table.sort(result)
-    return table.concat(result, ",")
+    return table.concat(result, includeCategories and "|" or ",")
 end
 
 function Runtime.Open(item)
