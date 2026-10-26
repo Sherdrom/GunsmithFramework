@@ -428,7 +428,7 @@ namespace GunsmithFramework
 
             var gunsmithButton = new GUIButton(
                 new RectTransform(new Point(buttonSize), categoryButtonContainer.RectTransform),
-                style: "CategoryButton.Weapon")
+                style: "CategoryButton.Gunsmith")
             {
                 ToolTip = TextManager.Get("gunsmith.framework.ui.fabricator_category").Fallback("Gunsmith"),
                 OnClicked = (button, _) =>

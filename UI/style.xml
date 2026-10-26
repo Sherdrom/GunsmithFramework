@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<style>
+  <!-- Compensate the near-white texture to match the vanilla weapon atlas's mean gray (about 204/255). -->
+  <CategoryButton.Gunsmith color="136,171,151,255" hovercolor="178,178,178,255" selectedcolor="206,206,206,255" pressedcolor="81,81,81,255" disabledcolor="101,101,101,125">
+    <!-- Keep the transparent padding to match the vanilla atlas's glyph-to-cell proportions. -->
+    <Sprite name="CategoryButton.Gunsmith" texture="%ModDir%/UI/gunsmith-category.png" sourcerect="0,0,1254,1254" tile="false" maintainaspectratio="true" origin="0.5,0.5" />
+  </CategoryButton.Gunsmith>
+</style>

@@ -3,4 +3,5 @@
   <Afflictions file="%ModDir%/MultiplayerSync.xml" />
   <Text file="%ModDir%/text/English.xml" />
   <Text file="%ModDir%/text/Chinese.xml" />
+  <UIStyle file="%ModDir%/UI/style.xml" />
 </contentpackage>
