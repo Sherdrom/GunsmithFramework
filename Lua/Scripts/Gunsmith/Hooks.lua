@@ -302,6 +302,10 @@ function Hooks.Register()
         return Runtime.FabricatorPartItemIds(item)
     end)
 
+    Hook.Add("GunsmithFrameworkHasLowerRailBarrel", "GunsmithFrameworkHasLowerRailBarrel", function(item)
+        return Runtime.HasLowerRailBarrel(item)
+    end)
+
     Hook.Add("GunsmithFrameworkGetItemStats", "GunsmithFrameworkGetItemStats", function(item)
         return Stats.TooltipSpec(item)
     end)

@@ -130,7 +130,8 @@ namespace GunsmithFramework
             string activeKey = GetActiveRuleKey(item);
             if (!rules.TryGetValue(activeKey, out BarrelRule rule))
             {
-                if (reportMissingActiveRule && activeKey.Equals(LowerRailKey, StringComparison.OrdinalIgnoreCase))
+                if (reportMissingActiveRule && activeKey.Equals(LowerRailKey, StringComparison.OrdinalIgnoreCase) &&
+                    GunsmithLuaHooks.Call("GunsmithFrameworkHasLowerRailBarrel", item) is true)
                 {
                     ReportMissingActiveRuleOnce(item, activeKey, rules);
                 }

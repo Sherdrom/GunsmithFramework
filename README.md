@@ -675,6 +675,7 @@ statuseffecttags="Gunsmith_BarrelParticle"
 - 框架会优先使用当前 Gunsmith Quick Attachment barrel transform；如果没有注册 transform，则回退到 XML `RangedWeapon.BarrelPos`。
 - 主枪口使用 `muzzle` quick key 注册为 `primary` barrel rule。
 - 使用 Vanilla-Components-Expanded 时，VCE 的 projectile selector 会把选择 `0` 映射到 `primary`，选择 `1` 映射到 `lower_rail`。
+- 未安装声明了 `muzzleOutletOffset` 的下挂部件时，切换到下挂模式会正常回退到主枪口，不会提示缺少下挂枪口规则。
 - 不要再为不同枪口件写多套固定 `StatusEffect barrelpos` 或 `Distance` 来手动偏移枪口粒子；偏移应写在对应 part 的 `quickAttachmentTransform.muzzleOutletOffset`。
 
 适合加这个 tag 的效果：

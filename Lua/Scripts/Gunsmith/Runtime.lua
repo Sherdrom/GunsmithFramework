@@ -389,6 +389,14 @@ local function findQuickSlotByKey(item, selection, platform, key)
     return nil
 end
 
+function Runtime.HasLowerRailBarrel(item)
+    local platform = Core.PlatformConfig(item)
+    local selection = platform and Runtime.GetSelection(item)
+    if not selection then return false end
+    local slot = findQuickSlotByKey(item, selection, platform, "lower_rail")
+    return slot ~= nil and type(slot.path) == "string" and hasMuzzleOutletOffset(selection, slot.path)
+end
+
 local function registerQuickAttachmentBarrel(item, selection, platform, weapon, quickSlotKey, barrelKey)
     local quickSlot = findQuickSlotByKey(item, selection, platform, quickSlotKey)
     if not quickSlot or not quickSlot.anchor or type(quickSlot.path) ~= "string" then return false end

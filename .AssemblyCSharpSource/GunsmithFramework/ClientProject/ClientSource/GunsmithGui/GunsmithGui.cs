@@ -22,10 +22,12 @@ namespace GunsmithFramework
         private static GUIButton? partDetailActionButton;
         private static string? partListSlotPath;
         private static string? partDetailSlotPath;
+        private static string? partDetailPartId;
         private static string? selectedPartId;
         private static GunsmithPreviewSettings activePreviewSettings = GunsmithPreviewSettings.Default;
         private static GunsmithStats activeWeaponStats = GunsmithStats.Empty;
         private static bool activeQuickMode;
+        private static bool pendingPartsRefresh;
         private static QuickOverlayFrame? quickOverlayFrame;
         private static bool suppressQuickUninstallRelease;
         private static readonly HashSet<string> warnedQuickAnchorPaths = new(StringComparer.Ordinal);
@@ -69,8 +71,7 @@ namespace GunsmithFramework
                 else
                 {
                     SelectSlotAfterRefresh(previousPath, activeContext.CurrentPath);
-                    RebuildSlotList();
-                    RefreshSelectionPanels();
+                    pendingPartsRefresh = true;
                 }
                 return;
             }
@@ -137,14 +138,7 @@ namespace GunsmithFramework
             }
 
             SelectSlotAfterRefresh(previousPath, activeContext.CurrentPath);
-
-            GunsmithGuiSlot? slot = activeSlots.FirstOrDefault(slot => slot.Path == selectedSlot) ?? activeSlots.FirstOrDefault();
-            if (slot == null) { return; }
-
-            selectedSlot = slot.Path;
-            SelectDefaultPart(slot);
-            RefreshPartList(slot);
-            RefreshPartDetailPanel(slot);
+            pendingPartsRefresh = true;
         }
 
         private static void BuildHeader(string title)
@@ -307,8 +301,8 @@ namespace GunsmithFramework
             SelectDefaultPart(slot);
 
             RebuildPreviewPanel(slot);
-            RebuildPartList(slot);
-            RebuildPartDetailPanel(slot);
+            RefreshPartList(slot);
+            RefreshPartDetailPanel(slot);
         }
 
         private static void SelectSlotAfterRefresh(string previousPath, string currentPath)
@@ -522,6 +516,8 @@ namespace GunsmithFramework
             partDetailSlotPath = slot.Path;
 
             GunsmithGuiPart? part = slot.Parts.FirstOrDefault(part => part.Id == selectedPartId) ?? slot.Parts.FirstOrDefault();
+            partDetailPartId = part?.Id;
+            partDetailActionButton = null;
             if (part == null) { return; }
             selectedPartId = part.Id;
 
@@ -599,7 +595,7 @@ namespace GunsmithFramework
             }
 
             GunsmithGuiPart? part = slot.Parts.FirstOrDefault(part => part.Id == selectedPartId) ?? slot.Parts.FirstOrDefault();
-            if (part == null)
+            if (part == null || !string.Equals(partDetailPartId, part.Id, StringComparison.Ordinal))
             {
                 RebuildPartDetailPanel(slot);
                 return;
@@ -695,10 +691,12 @@ namespace GunsmithFramework
             partDetailActionButton = null;
             partListSlotPath = null;
             partDetailSlotPath = null;
+            partDetailPartId = null;
             selectedPartId = null;
             activePreviewSettings = GunsmithPreviewSettings.Default;
             activeWeaponStats = GunsmithStats.Empty;
             activeQuickMode = false;
+            pendingPartsRefresh = false;
             quickOverlayFrame = null;
             suppressQuickUninstallRelease = false;
             warnedQuickAnchorPaths.Clear();
@@ -724,10 +722,12 @@ namespace GunsmithFramework
             partDetailActionButton = null;
             partListSlotPath = null;
             partDetailSlotPath = null;
+            partDetailPartId = null;
             selectedPartId = null;
             activePreviewSettings = GunsmithPreviewSettings.Default;
             activeWeaponStats = GunsmithStats.Empty;
             activeQuickMode = false;
+            pendingPartsRefresh = false;
             quickOverlayFrame = null;
             suppressQuickUninstallRelease = false;
             warnedQuickAnchorPaths.Clear();
@@ -788,6 +788,13 @@ namespace GunsmithFramework
             }
             try
             {
+                // Rebuild before GUI.Update collects this frame's controls, not inside a click callback.
+                if (pendingPartsRefresh && !activeQuickMode)
+                {
+                    pendingPartsRefresh = false;
+                    RebuildSlotList();
+                    RefreshSelectionPanels();
+                }
                 activeWindow.AddToGUIUpdateList();
             }
             catch (Exception ex)
