@@ -1,8 +1,24 @@
+using Microsoft.Xna.Framework.Input;
+
 namespace GunsmithFramework
 {
     [HarmonyPatch]
     internal static class GunsmithQuickOverlayInputPatch
     {
+        private static readonly FieldInfo? OldKeyboardStateField = AccessTools.Field(typeof(PlayerInput), "oldKeyboardState");
+
+        [HarmonyPatch(typeof(PlayerInput), nameof(PlayerInput.Update))]
+        [HarmonyPostfix]
+        private static void CloseGunsmithWindowOnEscape()
+        {
+            if (!GunsmithGui.IsGunsmithWindowBlockingInput || !PlayerInput.KeyHit(Keys.Escape) ||
+                OldKeyboardStateField?.GetValue(null) is not KeyboardState previousKeys) { return; }
+
+            // Consume only Escape before GameMain handles it, including inlined KeyHit calls.
+            OldKeyboardStateField.SetValue(null, new KeyboardState(previousKeys.GetPressedKeys().Append(Keys.Escape).ToArray()));
+            GunsmithGui.CloseWindow();
+        }
+
         [HarmonyPatch(typeof(Inventory), nameof(Inventory.UpdateDragging))]
         [HarmonyPrefix]
         private static bool HandleQuickOverlayDraggingBeforeWorldDrop()
