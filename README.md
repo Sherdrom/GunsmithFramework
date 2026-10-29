@@ -713,6 +713,8 @@ receiver/handguard/top_rail/optic_mount
 
 路径段由 root slot 和各级 mount 的 `path` 组成。保存状态、NPC preset 和 UI 都使用同一套路径。
 
+保存状态的完整 JSON 上限为 8192 字符，包含路径和配件 ID。换件前会检查新状态长度；超限时拒绝换件并保留原存档，不会截断 JSON。大型配件树应使用简短的路径段和 ID。
+
 ## XML 配置
 
 ### Gunsmith 武器 item

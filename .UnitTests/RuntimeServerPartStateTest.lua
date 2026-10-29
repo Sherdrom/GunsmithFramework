@@ -46,6 +46,7 @@ GunsmithFramework = {
         InvalidateQuickSlotsCache = function() end
     },
     Persistence = {
+        CanSaveSelection = function() return true end,
         Save = function() saves = saves + 1 end,
         Encode = function(value)
             if value[stockMountPath] == nil then
@@ -62,9 +63,8 @@ GunsmithFramework = {
             consumed = part.item.identifier
             return true
         end,
-        ReturnPartItem = function(_, part)
-            returned[part.item.identifier] = true
-            return true
+        PreparePartReturn = function(_, part)
+            return function() returned[part.item.identifier] = true end
         end
     },
     Stats = {},

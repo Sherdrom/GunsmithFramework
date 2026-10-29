@@ -148,20 +148,6 @@ function Stats.Encode(stats, separator)
     return table.concat(values, separator or ",")
 end
 
-function Stats.ManagedItemIdentifiers(selection)
-    local ids = {}
-    if type(selection) ~= "table" then return ids end
-
-    for _, path in ipairs(Core.SortedSelectionPaths(selection)) do
-        local part = Core.GetPart(selection[path])
-        local itemId = part and part.item and part.item.identifier or nil
-        if type(itemId) == "string" and itemId ~= "" then
-            table.insert(ids, itemId)
-        end
-    end
-    return ids
-end
-
 function Stats.TooltipSpec(item)
     local identifier
     if type(item) == "string" then

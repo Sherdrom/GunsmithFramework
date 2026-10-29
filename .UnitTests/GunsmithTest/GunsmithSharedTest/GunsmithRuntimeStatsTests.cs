@@ -24,7 +24,7 @@ public sealed class GunsmithRuntimeStatsTests
     {
         Character character = (Character)RuntimeHelpers.GetUninitializedObject(typeof(Character));
         GunsmithRuntimeState state = GunsmithRuntimeStates.CreateState(
-            "stats", $"{statType}={modifier.ToString(System.Globalization.CultureInfo.InvariantCulture)}", "");
+            "stats", $"{statType}={modifier.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
         Assert.Equal(modifier, state.Stats.Values.GetValueOrDefault(statType));
 
         Type patch = typeof(GunsmithRuntimeEffectsPatch);

@@ -36,6 +36,7 @@ GunsmithFramework = {
         InvalidateQuickSlotsCache = function() end
     },
     Persistence = {
+        CanSaveSelection = function() return true end,
         Save = function() saves = saves + 1 end
     },
     Inventory = {
@@ -44,9 +45,10 @@ GunsmithFramework = {
             table.insert(consumed, part.item.identifier)
             return true
         end,
-        ReturnPartItem = function(_, part, callback)
-            table.insert(returned, { identifier = part.item.identifier, callback = callback })
-            return true
+        PreparePartReturn = function(_, part)
+            return function(callback)
+                table.insert(returned, { identifier = part.item.identifier, callback = callback })
+            end
         end
     },
     Stats = {},
@@ -58,6 +60,25 @@ dofile("Lua/Scripts/Gunsmith/Runtime.lua")
 GunsmithFramework.Runtime.Apply = function() end
 
 local item = { removed = false }
+local prepare = GunsmithFramework.Inventory.PreparePartReturn
+GunsmithFramework.Inventory.PreparePartReturn = function() return nil end
+assert(GunsmithFramework.Runtime.SetPart(item, handguardPath, "new_handguard", nil, {}) == nil)
+assert(GunsmithFramework.Runtime.SetPart(item, handguardPath, GunsmithFramework.EmptyPartId, nil, {}) == nil)
+assert(selection[handguardPath] == "old_handguard" and #consumed == 0 and #returned == 0 and saves == 0)
+GunsmithFramework.Inventory.PreparePartReturn = prepare
+selection[handguardPath .. "/child"] = "new_handguard"
+GunsmithFramework.Inventory.PreparePartReturn = function(actor, part)
+    if part.item.identifier == "old_handguard_item" then return nil end
+    return prepare(actor, part)
+end
+assert(GunsmithFramework.Runtime.SetPart(item, handguardPath, "new_handguard", nil, {}) == nil)
+assert(selection[handguardPath .. "/child"] == "new_handguard" and #returned == 0 and #consumed == 0)
+selection[handguardPath .. "/child"] = nil
+GunsmithFramework.Inventory.PreparePartReturn = prepare
+GunsmithFramework.Persistence.CanSaveSelection = function() return false end
+assert(GunsmithFramework.Runtime.SetPart(item, handguardPath, "new_handguard", nil, {}) == nil)
+assert(selection[handguardPath] == "old_handguard" and #consumed == 0 and #returned == 0 and saves == 0)
+GunsmithFramework.Persistence.CanSaveSelection = function() return true end
 assert(GunsmithFramework.Runtime.SetPart(item, handguardPath, "new_handguard", nil, {}) == false)
 assert(selection[handguardPath] == "new_handguard" and consumed[1] == "new_handguard_item" and saves == 1)
 assert(returned[1].identifier == "old_handguard_item")

@@ -51,6 +51,7 @@ Core.ClearDescendants = function() end
 Core.InvalidateQuickSlotsCache = function() end
 
 GunsmithFramework.Persistence = {
+    CanSaveSelection = function() return true end,
     Save = function() saved = saved + 1 end
 }
 GunsmithFramework.Inventory = {
@@ -109,6 +110,12 @@ assert(selection.slot == "new", "ordinary weapons must also accept workbench wri
 selection.slot = "old"
 assert(GunsmithFramework.Runtime.SetPart(ordinaryItem, "slot", "new", nil, actor) == true)
 assert(selection.slot == "new")
+
+GunsmithFramework.QuickMod.PartIdForItem = function() return "new" end
+GunsmithFramework.Persistence.CanSaveSelection = function() return false end
+assert(GunsmithFramework.Runtime.InstallQuickItem(ordinaryItem, "quick", {}) == false,
+    "oversized quick-drag changes must fail before inventory access")
+GunsmithFramework.Persistence.CanSaveSelection = function() return true end
 
 GunsmithFramework.Core.EmptyPartForPath = function() return nil end
 GunsmithFramework.Core.EncodePreview = function() return "" end

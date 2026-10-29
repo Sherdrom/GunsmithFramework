@@ -6,6 +6,17 @@ namespace GunsmithServerTest;
 public sealed class GunsmithServerSmokeTests
 {
     [Fact]
+    public void LegacyRequestsAreLimitedWithoutExtendingTheCooldownOnRejection()
+    {
+        double nextAllowed = 0;
+        Assert.True(GunsmithPartChangeServer.TryAcceptLegacyRequest(ref nextAllowed, 0));
+        Assert.False(GunsmithPartChangeServer.TryAcceptLegacyRequest(ref nextAllowed, 0.1));
+        Assert.False(GunsmithPartChangeServer.TryAcceptLegacyRequest(ref nextAllowed, 0.249));
+        Assert.True(GunsmithPartChangeServer.TryAcceptLegacyRequest(ref nextAllowed, 0.25));
+        Assert.False(GunsmithPartChangeServer.TryAcceptLegacyRequest(ref nextAllowed, 0.25));
+    }
+
+    [Fact]
     public void ServerAssemblyReference_ExposesPluginType()
     {
         Assert.Equal("GunsmithFramework", typeof(GunsmithFramework.GunsmithFramework).Namespace);

@@ -1,62 +1,39 @@
 using System.Globalization;
-using System.Threading;
 
 namespace GunsmithFramework
 {
     internal static class GunsmithRuntimeStates
     {
         private static readonly ConcurrentDictionary<Item, GunsmithRuntimeState> States = new();
-        private static int managedRuntimeItemCount;
-
-        internal static bool HasManagedRuntimeItems => Volatile.Read(ref managedRuntimeItemCount) > 0;
-
         internal static bool TryGet(Item? item, out GunsmithRuntimeState state)
         {
             state = null!;
             return item != null && !item.Removed && States.TryGetValue(item, out state!);
         }
 
-        internal static bool ApplyFromLua(Item item, string signature, string statsSpec, string managedItemSpec)
+        internal static bool ApplyFromLua(Item item, string signature, string statsSpec)
         {
             if (item == null || item.Removed || string.IsNullOrWhiteSpace(signature))
             {
                 return false;
             }
 
-            Set(item, CreateState(signature, statsSpec, managedItemSpec));
+            Set(item, CreateState(signature, statsSpec));
             return true;
         }
 
-        internal static GunsmithRuntimeState CreateState(string signature, string statsSpec, string managedItemSpec)
+        internal static GunsmithRuntimeState CreateState(string signature, string statsSpec)
             => new()
             {
                 Signature = signature,
                 Stats = ParseRuntimeStats(statsSpec),
-                ManagedItemIdentifiers = ParseIdentifierSet(managedItemSpec),
                 HasMissingRequiredParts = signature.Contains("|missingRequired:1|", StringComparison.Ordinal)
             };
 
         internal static void Set(Item item, GunsmithRuntimeState state)
         {
-            bool hadManagedItems = States.TryGetValue(item, out GunsmithRuntimeState? existingState) &&
-                                   existingState.ManagedItemIdentifiers.Count > 0;
-            bool hasManagedItems = state.ManagedItemIdentifiers.Count > 0;
-
             States[item] = state;
             GunsmithRuntimeEffectsPatch.InvalidateItem(item);
-            if (hadManagedItems == hasManagedItems)
-            {
-                return;
-            }
-
-            if (hasManagedItems)
-            {
-                Interlocked.Increment(ref managedRuntimeItemCount);
-            }
-            else
-            {
-                Interlocked.Decrement(ref managedRuntimeItemCount);
-            }
         }
 
         internal static bool Remove(Item? item)
@@ -66,15 +43,11 @@ namespace GunsmithFramework
                 return false;
             }
 
-            if (!States.TryRemove(item, out GunsmithRuntimeState? removedState))
+            if (!States.TryRemove(item, out _))
             {
                 return false;
             }
 
-            if (removedState.ManagedItemIdentifiers.Count > 0)
-            {
-                Interlocked.Decrement(ref managedRuntimeItemCount);
-            }
             GunsmithRuntimeEffectsPatch.InvalidateItem(item);
             return true;
         }
@@ -82,7 +55,6 @@ namespace GunsmithFramework
         internal static void Clear()
         {
             States.Clear();
-            managedRuntimeItemCount = 0;
             GunsmithRuntimeEffectsPatch.ClearCaches();
         }
 
@@ -118,28 +90,12 @@ namespace GunsmithFramework
             return new GunsmithRuntimeStats { Ergonomics = ergonomics, Values = values };
         }
 
-        private static IReadOnlySet<string> ParseIdentifierSet(string value)
-        {
-            HashSet<string> identifiers = new(StringComparer.OrdinalIgnoreCase);
-            if (string.IsNullOrWhiteSpace(value)) { return identifiers; }
-
-            foreach (string identifier in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                if (!string.IsNullOrWhiteSpace(identifier))
-                {
-                    identifiers.Add(identifier);
-                }
-            }
-
-            return identifiers;
-        }
     }
 
     internal sealed class GunsmithRuntimeState
     {
         public string Signature { get; init; } = string.Empty;
         public GunsmithRuntimeStats Stats { get; init; } = GunsmithRuntimeStats.Empty;
-        public IReadOnlySet<string> ManagedItemIdentifiers { get; init; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         public bool HasMissingRequiredParts { get; init; }
     }
 

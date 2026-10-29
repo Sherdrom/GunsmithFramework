@@ -74,6 +74,13 @@ function Persistence.Decode(value)
     return parts
 end
 
+function Persistence.CanSaveSelection(selection, platform, weapon)
+    local encoded = Persistence.Encode(selection, platform, weapon)
+    if #encoded <= 8192 then return true, encoded end
+    print("[GunsmithFramework] Part change rejected: saved state exceeds 8192 characters.")
+    return false
+end
+
 function Persistence.ApplySavedParts(selection, platform, weapon, savedParts, ownerId)
     if type(savedParts) ~= "table" then return end
     ownerId = ownerId or Core.OwnerForWeapon(weapon)
@@ -118,6 +125,7 @@ function Persistence.Receive(item, json)
     if Gunsmith.Runtime then
         Gunsmith.Runtime.Apply(item, hasSavedState)
         Gunsmith.Runtime.RefreshParts(item, true)
+        Gunsmith.Runtime.RefreshQuick(item, true)
         Gunsmith.Runtime.SchedulePartsRefresh(item, 100, true)
     end
 end
@@ -138,5 +146,8 @@ function Persistence.Save(item)
     if not platform or not selection then return end
 
     Core.PruneInvalidSelections(selection, platform, weapon, Core.OwnerForWeapon(weapon))
-    Hook.Call("GunsmithFrameworkSaveState", item, Persistence.Encode(selection, platform, weapon))
+    local canSave, encoded = Persistence.CanSaveSelection(selection, platform, weapon)
+    if not canSave then return false end
+    Hook.Call("GunsmithFrameworkSaveState", item, encoded)
+    return true
 end

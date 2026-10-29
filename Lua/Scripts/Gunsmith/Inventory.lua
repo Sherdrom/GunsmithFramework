@@ -117,54 +117,44 @@ end
 function Inventory.ConsumePartItem(character, part, sourceItem)
     local identifier = Inventory.ItemIdentifierForPart(part)
     if not identifier then return true end
+    if CLIENT and Game and Game.IsMultiplayer then return false end
 
     local item = Inventory.FindPartItem(character, identifier, sourceItem)
     if not item then return false end
 
-    if Entity and Entity.Spawner and Entity.Spawner.AddItemToRemoveQueue then
-        Entity.Spawner.AddItemToRemoveQueue(item)
-    else
-        local parent = parentInventory(item)
-        if parent and parent.RemoveItem then
-            parent.RemoveItem(item)
-        end
-    end
+    if not Entity or not Entity.Spawner or not Entity.Spawner.AddItemToRemoveQueue then return false end
+    Entity.Spawner.AddItemToRemoveQueue(item)
     return true
 end
 
-function Inventory.ReturnPartItem(character, part, onReturned, sourceItem)
+function Inventory.PreparePartReturn(character, part, sourceItem)
+    if CLIENT and Game and Game.IsMultiplayer then return nil end
     local identifier = Inventory.ItemIdentifierForPart(part)
-    if not identifier or not ItemPrefab or not Entity or not Entity.Spawner then return false end
+    if not identifier or not ItemPrefab or not ItemPrefab.GetItemPrefab or not Entity or not Entity.Spawner
+        or not Entity.Spawner.AddItemToSpawnQueue then return nil end
 
     local prefab = ItemPrefab.GetItemPrefab(identifier)
     if not prefab then
         print("[GunsmithFramework] Cannot return missing part item prefab: " .. tostring(identifier))
-        return false
+        return nil
     end
 
-    local function notifyReturned(spawned)
-        if onReturned then
-            onReturned(spawned)
-        end
+    local destination = characterInventory(character)
+        or (character and character.WorldPosition) or (sourceItem and sourceItem.WorldPosition)
+    if not destination then return nil end
+    local spawner = Entity.Spawner
+    return function(onReturned)
+        spawner.AddItemToSpawnQueue(prefab, destination, nil, nil, function(spawned)
+            if onReturned then onReturned(spawned) end
+        end)
     end
+end
 
-    local inventory = characterInventory(character)
-    if inventory then
-        Entity.Spawner.AddItemToSpawnQueue(prefab, inventory, nil, nil, notifyReturned)
-        return true
-    end
-
-    if character and character.WorldPosition then
-        Entity.Spawner.AddItemToSpawnQueue(prefab, character.WorldPosition, nil, nil, notifyReturned)
-        return true
-    end
-
-    if sourceItem and sourceItem.WorldPosition then
-        Entity.Spawner.AddItemToSpawnQueue(prefab, sourceItem.WorldPosition, nil, nil, notifyReturned)
-        return true
-    end
-
-    return false
+function Inventory.ReturnPartItem(character, part, onReturned, sourceItem)
+    local enqueue = Inventory.PreparePartReturn(character, part, sourceItem)
+    if not enqueue then return false end
+    enqueue(onReturned)
+    return true
 end
 
 function Inventory.CollectAvailableItemIds(character, sourceItem)

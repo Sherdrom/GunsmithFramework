@@ -900,6 +900,9 @@ function Core.ClearConfigCaches()
     defaultSelectionCache = {}
     quickSlotsCache = setmetatable({}, { __mode = "k" })
     partsByTypeCache = {}
+    if Gunsmith.QuickMod then Gunsmith.QuickMod.ClearConfigCache() end
+    if Gunsmith.QuickUiSpec then Gunsmith.QuickUiSpec.InvalidateCache() end
+    if Gunsmith.Runtime then Gunsmith.Runtime.ClearFabricatorCache() end
 end
 
 function Core.SortedSelectionPaths(selection)

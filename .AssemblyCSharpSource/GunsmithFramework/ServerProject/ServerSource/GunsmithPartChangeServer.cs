@@ -1,5 +1,6 @@
 using Barotrauma.Items.Components;
 using Barotrauma.Networking;
+using System.Runtime.CompilerServices;
 
 namespace GunsmithFramework
 {
@@ -8,6 +9,8 @@ namespace GunsmithFramework
         private const string RequestMessageId = "GunsmithFramework.SetPart.v2";
         private const string StateRequestMessageId = "GunsmithFramework.GetPartState.v1";
         private const string StateMessageId = "GunsmithFramework.PartState.v1";
+        private sealed class LegacyRequestState { internal double NextAllowed; }
+        private static readonly ConditionalWeakTable<Client, LegacyRequestState> LegacyRequests = new();
 
         internal static void Register()
         {
@@ -47,52 +50,10 @@ namespace GunsmithFramework
                 ushort workbenchItemId = message.ReadUInt16();
                 string slotPath = message.ReadString();
                 string partId = message.ReadString();
-                if (Entity.FindEntityByID(weaponItemId) is not Item weapon ||
-                    weapon.Removed ||
-                    client.Character is not { } character ||
-                    !GunsmithData.IsValidPartChange(slotPath, partId))
+                if (Entity.FindEntityByID(weaponItemId) is Item weapon)
                 {
-                    return;
+                    TryApplyPartChange(weapon, client, workbenchItemId, slotPath, partId);
                 }
-
-                bool hasWorkbench = workbenchItemId != 0;
-                Item? workbench = hasWorkbench ? Entity.FindEntityByID(workbenchItemId) as Item : null;
-                if (!hasWorkbench)
-                {
-                    if (!GunsmithData.CanClientSubmitPartChange(weapon.IsOwnedBy(character), weapon.CanClientAccess(client)))
-                    {
-                        return;
-                    }
-                }
-                else
-                {
-                    bool workbenchResolved = workbench is { Removed: false };
-                    Fabricator? fabricator = workbenchResolved ? workbench!.GetComponent<Fabricator>() : null;
-                    if (!CanClientSubmitPartChangeAtWorkbench(
-                        weapon.IsOwnedBy(character),
-                        workbenchResolved,
-                        fabricator != null && GunsmithFabricatorRecipeFilterPatch.IsEnabledFabricator(fabricator),
-                        workbenchResolved && workbench!.CanClientAccess(client)))
-                    {
-                        return;
-                    }
-                }
-
-                // Lua saves and broadcasts successful changes, including asynchronous returns.
-                _ = hasWorkbench
-                    ? GunsmithLuaHooks.Call(
-                        "GunsmithFrameworkSetPartFromClient",
-                        weapon,
-                        workbench!,
-                        character,
-                        slotPath,
-                        partId)
-                    : GunsmithLuaHooks.Call(
-                        "GunsmithFrameworkSetPartFromClient",
-                        weapon,
-                        character,
-                        slotPath,
-                        partId);
             }
             catch (Exception ex)
             {
@@ -100,8 +61,67 @@ namespace GunsmithFramework
             }
         }
 
+        private static bool TryApplyPartChange(Item weapon, Client client, ushort workbenchItemId, string slotPath, string partId)
+        {
+            if (weapon.Removed || client.Character is not { } character || !GunsmithData.IsValidPartChange(slotPath, partId))
+            {
+                return false;
+            }
+            bool hasWorkbench = workbenchItemId != 0;
+            Item? workbench = hasWorkbench ? Entity.FindEntityByID(workbenchItemId) as Item : null;
+            if (!hasWorkbench)
+            {
+                if (!GunsmithData.CanClientSubmitPartChange(weapon.IsOwnedBy(character), weapon.CanClientAccess(client)))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                bool workbenchResolved = workbench is { Removed: false };
+                Fabricator? fabricator = workbenchResolved ? workbench!.GetComponent<Fabricator>() : null;
+                if (!CanClientSubmitPartChangeAtWorkbench(
+                    weapon.IsOwnedBy(character), workbenchResolved,
+                    fabricator != null && GunsmithFabricatorRecipeFilterPatch.IsEnabledFabricator(fabricator),
+                    workbenchResolved && workbench!.CanClientAccess(client)))
+                {
+                    return false;
+                }
+            }
+
+            // Lua saves and broadcasts successful changes, including asynchronous returns.
+            object? result = hasWorkbench
+                ? GunsmithLuaHooks.Call("GunsmithFrameworkSetPartFromClient", weapon, workbench!, character, slotPath, partId)
+                : GunsmithLuaHooks.Call("GunsmithFrameworkSetPartFromClient", weapon, character, slotPath, partId);
+            return result is string state && GunsmithData.IsValidSavedState(state);
+        }
+
+        internal static bool TryAcceptLegacyRequest(ref double nextAllowed, double now)
+        {
+            if (now < nextAllowed) { return false; }
+            nextAllowed = now + 0.25;
+            return true;
+        }
+
+        internal static void ReceiveLegacyRequest(Item item, Client client, string? slotPath, string? partId)
+        {
+            if (item == null || item.Removed || client?.Connection == null) { return; }
+            LegacyRequestState gate = LegacyRequests.GetValue(client, _ => new LegacyRequestState());
+            if (!TryAcceptLegacyRequest(ref gate.NextAllowed, Timing.TotalTime)) { return; }
+            try
+            {
+                if (slotPath != null && partId != null && TryApplyPartChange(item, client, 0, slotPath, partId)) { return; }
+                SendState(item, GunsmithDataAccess.GetSavedState(item), client.Connection);
+            }
+            catch (Exception ex)
+            {
+                LuaCsSetup.PrintCsMessage($"[GunsmithFramework] Failed to handle legacy request: {ex.Message}");
+            }
+        }
+
         internal static void SendState(Item item, string state, NetworkConnection? connection = null)
         {
+            if (!GunsmithData.IsValidSavedState(state)) { return; }
             IWriteMessage response = LuaCsSetup.Instance.Networking.Start(StateMessageId);
             response.WriteUInt16(item.ID);
             response.WriteString(state);

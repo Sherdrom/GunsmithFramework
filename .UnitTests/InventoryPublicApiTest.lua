@@ -47,6 +47,11 @@ Entity = { Spawner = { AddItemToRemoveQueue = function(item)
     removals = removals + 1
 end } }
 local part = { item = { identifier = "grip" } }
+local removeItem = Entity.Spawner.AddItemToRemoveQueue
+Entity.Spawner.AddItemToRemoveQueue = nil
+assert(not Inventory.ConsumePartItem(character, part, sourceItem))
+assert(not availablePart.IsInRemoveQueue and removals == 0)
+Entity.Spawner.AddItemToRemoveQueue = removeItem
 assert(Inventory.ConsumePartItem(character, part, sourceItem))
 assert(not Inventory.ConsumePartItem(character, part, sourceItem))
 assert(removals == 1)
@@ -55,4 +60,18 @@ availablePart.IsInRemoveQueue = false
 backpack.IsInRemoveQueue = true
 assert(not Inventory.FindPartItem(character, "grip", sourceItem))
 assert(not Inventory.CollectAvailableItemIds(character, sourceItem).grip)
-print("Inventory uses public Barotrauma inventory enumeration")
+ItemPrefab = { GetItemPrefab = function() return nil end }
+assert(Inventory.PreparePartReturn(character, part, sourceItem) == nil)
+Entity.Spawner.AddItemToSpawnQueue = function() error("preflight must not spawn") end
+assert(Inventory.PreparePartReturn(character, part, sourceItem) == nil)
+ItemPrefab.GetItemPrefab = function() return part end
+local enqueue = assert(Inventory.PreparePartReturn(character, part, sourceItem))
+local spawned = 0
+Entity.Spawner.AddItemToSpawnQueue = function(prefab, destination, _, _, callback)
+    assert(prefab == part and destination == characterInventory)
+    spawned = spawned + 1
+    callback(part)
+end
+enqueue(function(value) assert(value == part) end)
+assert(spawned == 1)
+print("Inventory uses public enumeration and validates part returns before spawning")

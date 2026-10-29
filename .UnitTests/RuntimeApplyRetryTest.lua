@@ -35,8 +35,7 @@ GunsmithFramework = {
     Persistence = {},
     Stats = {
         SumSelection = function() return {} end,
-        Encode = function() return "" end,
-        ManagedItemIdentifiers = function() return {} end
+        Encode = function() return "" end
     },
     State = {
         selections = { [item] = selection },

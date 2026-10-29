@@ -26,10 +26,9 @@ namespace GunsmithFramework
                 Item? item = FindArg<Item>(args);
                 string? signature = FindStringArg(args, 0);
                 string? statsSpec = FindStringArg(args, 1);
-                string? managedItemSpec = FindStringArg(args, 2);
                 return item != null &&
                        signature != null &&
-                       GunsmithRuntimeStates.ApplyFromLua(item, signature, statsSpec ?? string.Empty, managedItemSpec ?? string.Empty);
+                       GunsmithRuntimeStates.ApplyFromLua(item, signature, statsSpec ?? string.Empty);
             });
 
             GunsmithLuaHooks.Add(hook, "GunsmithFrameworkClearRuntimeState", args =>

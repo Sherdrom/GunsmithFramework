@@ -29,7 +29,7 @@ public sealed class GunsmithStatusEffectTests
         AccessTools.Field(typeof(MapEntity), nameof(MapEntity.Prefab)).SetValue(part, prefab);
         AccessTools.Field(typeof(Item), "parentInventory").SetValue(part, new Inventory(weapon, 1));
         part.SerializableProperties = new();
-        GunsmithRuntimeStates.Set(weapon, GunsmithRuntimeStates.CreateState("state", "", "managed_part"));
+        GunsmithRuntimeStates.Set(weapon, GunsmithRuntimeStates.CreateState("state", ""));
         var probe = new PropertyTarget();
         StatusEffect effect = StatusEffect.Load(new ContentXElement(null,
             XElement.Parse("<StatusEffect type='OnUse' target='This' setvalue='true' Value='7' />")), "mixed-target regression");

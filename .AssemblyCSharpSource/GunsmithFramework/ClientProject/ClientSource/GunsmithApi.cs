@@ -11,7 +11,6 @@ namespace GunsmithFramework
         private static SpriteBatch? spriteBatch;
 
         public static bool IsReady => graphicsDevice != null && spriteBatch != null;
-        internal static bool HasManagedRuntimeItems => GunsmithRuntimeStates.HasManagedRuntimeItems;
         internal static bool HasAnySpriteState => !spriteStates.IsEmpty;
 
         public static void Initialize(GraphicsDevice graphics)
@@ -39,7 +38,7 @@ namespace GunsmithFramework
             if (!IsReady || item == null || item.Removed) { return false; }
             if (string.IsNullOrWhiteSpace(signature)) { return false; }
 
-            GunsmithRuntimeState runtimeState = GunsmithRuntimeStates.CreateState(signature, statsSpec, managedItemSpec);
+            GunsmithRuntimeState runtimeState = GunsmithRuntimeStates.CreateState(signature, statsSpec);
             if (string.IsNullOrWhiteSpace(layerSpec))
             {
                 RestoreVanillaSprite(item);

@@ -7,6 +7,10 @@ Gunsmith.QuickMod = QuickMod
 
 local itemIdentifierToPartIds = nil
 
+function QuickMod.ClearConfigCache()
+    itemIdentifierToPartIds = nil
+end
+
 local function quickSlotsForItem(item)
     local weapon = Core.WeaponConfig(item)
     if not weapon then return nil end
@@ -51,6 +55,16 @@ end
 
 function QuickMod.HasSlotItem(item, slotIndex)
     return slotItem(item, slotIndex) ~= nil
+end
+
+function QuickMod.IsItemInQuickSlot(item, contained)
+    if not item or not item.OwnInventory or not contained then return false end
+    local index = item.OwnInventory.FindIndex(contained)
+    if index < 0 then return false end
+    for _, slot in ipairs(quickSlotsForItem(item) or {}) do
+        if slot.slot == index then return true end
+    end
+    return false
 end
 
 local function findCompatiblePartId(selection, platform, path, identifier, ownerId)

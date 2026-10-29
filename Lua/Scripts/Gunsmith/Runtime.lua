@@ -182,7 +182,7 @@ function Runtime.RefreshQuick(item, alreadySynced)
     Hook.Call("GunsmithFrameworkRefreshQuick", item, QuickUiSpec.Build(item, selection, platform))
 end
 
-function Runtime.SyncQuickModContainerItem(item)
+function Runtime.SyncQuickModContainerItem(item, correctUnchanged)
     if not QuickMod then return end
     if not item or item.removed then return end
 
@@ -195,7 +195,7 @@ function Runtime.SyncQuickModContainerItem(item)
     if QuickMod.SyncFromContainer(item, selection, platform, true) then
         finishQuickModChange(item, selection, platform, Core.WeaponConfig(item), true)
         Runtime.RefreshParts(item, true)
-    elseif SERVER then
+    elseif SERVER and correctUnchanged then
         Persistence.Save(item)
     end
 end
@@ -252,7 +252,7 @@ saveSelectionIfChanged = function(item, selection, platform, weapon)
         return false
     end
 
-    Persistence.Save(item)
+    if Persistence.Save(item) == false then return false end
     State.savedSignatures[item] = signature
     return true
 end
@@ -311,10 +311,6 @@ local function encodeWorldSettings(item)
         world.padding or 0.0,
         offset.x or 0.0,
         offset.y or 0.0)
-end
-
-local function encodeManagedItems(selection)
-    return table.concat(Stats.ManagedItemIdentifiers(selection), ",")
 end
 
 local function registerQuickSlotLayouts(item, selection, platform, weapon)
@@ -510,14 +506,13 @@ function Runtime.Apply(item, alreadySynced)
 
     if SERVER then
         local statsSpec = Stats.Encode(Stats.SumSelection(selection))
-        local managedItemSpec = encodeManagedItems(selection)
         local applied = Hook and Hook.Call and
             Hook.Call(
                 "GunsmithFrameworkApplyRuntimeState",
                 item,
-                configSignature .. "|stats:" .. statsSpec .. "|items:" .. managedItemSpec,
+                configSignature .. "|stats:" .. statsSpec,
                 statsSpec,
-                managedItemSpec) == true
+                "") == true
         if applied then
             registerQuickAttachmentBarrels(item, selection, platform, weapon)
             State.appliedConfigSignatures[item] = configSignature
@@ -525,15 +520,14 @@ function Runtime.Apply(item, alreadySynced)
         return
     end
     local statsSpec = Stats.Encode(Stats.SumSelection(selection))
-    local managedItemSpec = encodeManagedItems(selection)
-    local signature = configSignature .. "|stats:" .. statsSpec .. "|items:" .. managedItemSpec
+    local signature = configSignature .. "|stats:" .. statsSpec
 
     local layerSpec = buildLayerSpecForItem(item, selection, platform)
     if Hook and Hook.Call then
         registerQuickSlotLayouts(item, selection, platform, weapon)
         local applied = true
         if State.appliedSignatures[item] ~= signature then
-            applied = Hook.Call("GunsmithFrameworkApply", item, signature, layerSpec, inventorySpec, worldSpec, statsSpec, managedItemSpec, platform.canvas.w, platform.canvas.h) == true
+            applied = Hook.Call("GunsmithFrameworkApply", item, signature, layerSpec, inventorySpec, worldSpec, statsSpec, "", platform.canvas.w, platform.canvas.h) == true
             if applied then
                 State.appliedSignatures[item] = signature
             end
@@ -612,15 +606,15 @@ local function quickSlotsInSubtree(sourceItem, selection, platform, slotPath)
     return quickSlotsByPath
 end
 
-local function returnSelectionSubtree(character, sourceItem, selection, platform, slotPath, onAllReturned)
-    if not Inventory then return 0 end
+local function returnSelectionSubtree(character, sourceItem, selection, platform, slotPath, onAllReturned, replacementPart)
+    if not Inventory then return nil end
     local returns = {}
     local quickReturnedPaths = {}
     local quickSlotsByPath = quickSlotsInSubtree(sourceItem, selection, platform, slotPath)
 
     for path, slotIndex in pairs(quickSlotsByPath) do
         if slotIndex ~= nil and QuickMod.HasSlotItem(sourceItem, slotIndex) then
-            table.insert(returns, { quickSlotIndex = slotIndex })
+            table.insert(returns, function(callback) QuickMod.ClearSlot(sourceItem, character, slotIndex, callback) end)
             quickReturnedPaths[path] = true
         end
     end
@@ -629,10 +623,14 @@ local function returnSelectionSubtree(character, sourceItem, selection, platform
         local partId = selection[path]
         local part = Core.GetPart(partId)
         if part and Inventory.ItemIdentifierForPart(part) and not quickReturnedPaths[path] then
-            table.insert(returns, { part = part })
+            local enqueue = Inventory.PreparePartReturn(character, part, sourceItem)
+            if not enqueue then return nil end
+            table.insert(returns, enqueue)
         end
     end
 
+    -- Validate every return before consuming the replacement or moving any installed item.
+    if replacementPart and not Inventory.ConsumePartItem(character, replacementPart, sourceItem) then return nil end
     local pending = #returns
     if pending == 0 then return 0 end
 
@@ -650,21 +648,20 @@ local function returnSelectionSubtree(character, sourceItem, selection, platform
         notifyIfComplete()
     end
 
-    for _, returnSpec in ipairs(returns) do
-        local queued = false
-        if returnSpec.quickSlotIndex ~= nil and QuickMod then
-            queued = QuickMod.ClearSlot(sourceItem, character, returnSpec.quickSlotIndex, onReturned) == true
-        elseif returnSpec.part then
-            queued = Inventory.ReturnPartItem(character, returnSpec.part, onReturned, sourceItem) == true
-        end
-        if not queued then
-            pending = pending - 1
-            notifyIfComplete()
-        end
+    for _, enqueue in ipairs(returns) do
+        enqueue(onReturned)
     end
 
-    if pending == 0 then return 0 end
     return pending
+end
+
+local function canSavePartChange(selection, platform, weapon, slotPath, partId, clearDescendants)
+    local proposed = {}
+    for path, selectedPartId in pairs(selection) do proposed[path] = selectedPartId end
+    proposed[slotPath] = partId
+    if clearDescendants then Core.ClearDescendants(proposed, slotPath) end
+    Core.PruneInvalidSelections(proposed, platform, weapon, Core.OwnerForWeapon(weapon))
+    return Persistence.CanSaveSelection(proposed, platform, weapon)
 end
 
 function Runtime.SetPart(item, slotPath, partId, refreshMode, character, workbench)
@@ -683,6 +680,10 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode, character, workben
     character = character or (Inventory and Inventory.ActorForItem(item) or nil)
     local emptyPartId = partId == Gunsmith.EmptyPartId and Core.EmptyPartForPath(selection, slotPath) or nil
     if emptyPartId and not Core.IsPartCompatible(selection, platform, slotPath, emptyPartId, ownerId) then return end
+
+    local proposedPartId = partId
+    if partId == Gunsmith.EmptyPartId then proposedPartId = emptyPartId end
+    if not canSavePartChange(selection, platform, weapon, slotPath, proposedPartId, quickSlotIndex == nil) then return end
 
     if quickSlotIndex ~= nil then
         local refreshQuick = refreshMode == "quick"
@@ -738,16 +739,14 @@ function Runtime.SetPart(item, slotPath, partId, refreshMode, character, workben
     if partId == Gunsmith.EmptyPartId then
         if selection[slotPath] == emptyPartId then return true end
         returnedParts = returnSelectionSubtree(character, item, selection, platform, slotPath, refreshWhenReturned)
+        if returnedParts == nil then return end
         selection[slotPath] = emptyPartId
     else
         local part = Gunsmith.Config.parts[partId]
         if not part or not Core.IsPartCompatible(selection, platform, slotPath, partId, ownerId) then return end
         if selection[slotPath] == partId then return end
-        if Inventory and not Inventory.ConsumePartItem(character, part, item) then
-            print("[GunsmithFramework] Missing part item for " .. tostring(partId))
-            return
-        end
-        returnedParts = returnSelectionSubtree(character, item, selection, platform, slotPath, refreshWhenReturned)
+        returnedParts = returnSelectionSubtree(character, item, selection, platform, slotPath, refreshWhenReturned, part)
+        if returnedParts == nil then return end
         selection[slotPath] = partId
     end
 
@@ -805,6 +804,7 @@ function Runtime.InstallQuickItem(item, slotPath, draggedItem)
     local part = Gunsmith.Config.parts[partId]
     if not part or not Core.IsPartCompatible(selection, platform, slotPath, partId, ownerId) then return false end
     if not QuickMod.CanSlotAcceptItem(item, slotIndex, draggedItem) then return false end
+    if not canSavePartChange(selection, platform, weapon, slotPath, partId, false) then return false end
 
     local character = Inventory and Inventory.ActorForItem(item) or nil
     local refreshAfterReturn = function()
@@ -831,19 +831,17 @@ function Runtime.SelectedHandWeapon(character)
     return nil
 end
 
-function Runtime.FabricatorPartItemIds(item, includeCategories)
-    local weapon = Core.WeaponConfig(item)
-    local platform = Core.PlatformConfig(item)
-    if not weapon or not platform then return "" end
-
+local function collectFabricatorParts(weapon, platform)
     local ownerId = Core.OwnerForWeapon(weapon)
     local itemIdentifiers = {}
     local visitedParts = {}
+    local visitedAccepts = {}
 
     local collectAcceptedParts
     local function collectPart(partId, depth)
-        if type(partId) ~= "string" or partId == "" or visitedParts[partId] or depth > 32 then return end
-        visitedParts[partId] = true
+        if type(partId) ~= "string" or partId == "" or depth > 32 then return end
+        if visitedParts[partId] and visitedParts[partId] <= depth then return end
+        visitedParts[partId] = depth
 
         local part = Core.GetPart(partId)
         if not part then return end
@@ -859,22 +857,21 @@ function Runtime.FabricatorPartItemIds(item, includeCategories)
         if type(part.mounts) ~= "table" then return end
         for _, mount in ipairs(part.mounts) do
             if type(mount) == "table" then
-                collectAcceptedParts(mount.partType or mount.path, mount.accepts, depth + 1)
+                collectAcceptedParts(mount.accepts, depth + 1)
             end
         end
     end
 
-    collectAcceptedParts = function(partType, accepts, depth)
+    collectAcceptedParts = function(accepts, depth)
         if type(accepts) ~= "table" or depth > 32 then return end
-
-        if type(partType) == "string" and partType ~= "" then
-            for _, partId in ipairs(Core.GetPartsForType(partType, ownerId)) do
-                local part = Core.GetPart(partId)
-                if part and Core.PartProvidesAccepted(part, accepts) then
-                    collectPart(partId, depth)
-                end
-            end
+        local tags = {}
+        for _, tag in ipairs(accepts) do
+            table.insert(tags, string.format("%q", tag))
         end
+        table.sort(tags)
+        local key = table.concat(tags, ",")
+        if visitedAccepts[key] and visitedAccepts[key] <= depth then return end
+        visitedAccepts[key] = depth
 
         for partId, part in pairs(Gunsmith.Config.parts or {}) do
             if Core.CanUsePart(partId, ownerId) and Core.PartProvidesAccepted(part, accepts) then
@@ -901,9 +898,29 @@ function Runtime.FabricatorPartItemIds(item, includeCategories)
     for partId in pairs(collectedRoots) do
         collectPart(partId, 0)
     end
+    return itemIdentifiers
+end
+
+local fabricatorCatalogCache = setmetatable({}, { __mode = "k" })
+
+function Runtime.ClearFabricatorCache()
+    fabricatorCatalogCache = setmetatable({}, { __mode = "k" })
+end
+
+function Runtime.FabricatorPartItemIds(item, includeCategories)
+    local weapon = Core.WeaponConfig(item)
+    local platform = Core.PlatformConfig(item)
+    if not weapon or not platform then return "" end
+    local cached = fabricatorCatalogCache[weapon]
+    if not cached then
+        cached = { identifiers = collectFabricatorParts(weapon, platform) }
+        fabricatorCatalogCache[weapon] = cached
+    end
+    local format = includeCategories and "categories" or "ids"
+    if cached[format] then return cached[format] end
 
     local result = {}
-    for identifier, partType in pairs(itemIdentifiers) do
+    for identifier, partType in pairs(cached.identifiers) do
         local entry = identifier
         if includeCategories then
             entry = Core.EncodeText(identifier) .. ":" .. Core.EncodeText(partType) .. ":"
@@ -912,7 +929,8 @@ function Runtime.FabricatorPartItemIds(item, includeCategories)
         table.insert(result, entry)
     end
     table.sort(result)
-    return table.concat(result, includeCategories and "|" or ",")
+    cached[format] = table.concat(result, includeCategories and "|" or ",")
+    return cached[format]
 end
 
 function Runtime.Open(item)

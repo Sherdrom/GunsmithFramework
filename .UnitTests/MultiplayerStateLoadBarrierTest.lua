@@ -67,6 +67,8 @@ CLIENT = false
 SERVER = true
 Runtime.SyncQuickModContainerItem({})
 assert(quickSyncs == 2)
+assert(saves == 0)
+Runtime.SyncQuickModContainerItem({}, true)
 assert(saves == 1)
 CLIENT = true
 SERVER = false

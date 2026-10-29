@@ -22,6 +22,7 @@ namespace GunsmithFramework
 
         internal static bool SetSavedState(ItemComponent? component, string state)
         {
+            if (!GunsmithData.IsValidSavedState(state)) { return false; }
             PropertyInfo? property = component?.GetType()
                 .GetProperty(nameof(GunsmithData.SavedState), BindingFlags.Instance | BindingFlags.Public);
             if (component == null || property == null)
@@ -32,15 +33,6 @@ namespace GunsmithFramework
             property.SetValue(component, GunsmithData.NormalizeSavedState(state));
             return true;
         }
-
-        internal static bool RequestStateFromServer(Item? item)
-            => Invoke(item, nameof(GunsmithData.RequestStateFromServer));
-
-        internal static bool SubmitStateToServer(Item? item, string state)
-            => Invoke(item, nameof(GunsmithData.SubmitStateToServer), state);
-
-        internal static bool SubmitPartChangeToServer(Item? item, string slotPath, string partId)
-            => Invoke(item, nameof(GunsmithData.SubmitPartChangeToServer), slotPath, partId);
 
         internal static bool BroadcastState(Item? item)
             => Invoke(item, nameof(GunsmithData.BroadcastState));

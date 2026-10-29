@@ -1040,6 +1040,11 @@
       draw();
     }
 
+    function luaString(value) {
+      return '"' + String(value ?? "").replace(/["\\\x00-\x1f\x7f]/g,
+        char => "\\" + char.charCodeAt(0).toString().padStart(3, "0")) + '"';
+    }
+
     function exportLua() {
       applyFields();
       const part = selectedPart();
@@ -1049,13 +1054,13 @@
       const texturePath = texture.replace(/\\/g, "/");
       const childMounts = state.parts.filter(child => child.parentIndex === state.selected);
       const mountLines = (indent) => childMounts
-        .map(child => `${indent}{ path = "${child.mountPath}", name = "${child.name}", accepts = { "" }, defaultPart = "${child.id}", anchor = { x = ${fmt(child.anchor.x)}, y = ${fmt(child.anchor.y)} } }`)
+        .map(child => `${indent}{ path = ${luaString(child.mountPath)}, name = ${luaString(child.name)}, accepts = { "" }, defaultPart = ${luaString(child.id)}, anchor = { x = ${fmt(child.anchor.x)}, y = ${fmt(child.anchor.y)} } }`)
         .join(",\n");
 
       const rootsText = [
         "roots = {",
         "    receiver = {",
-        `        part = "${part.id}",`,
+        `        part = ${luaString(part.id)},`,
         `        socket = { x = ${fmt(state.rootSocket.x)}, y = ${fmt(state.rootSocket.y)} },`,
         "        itemPosOrigin = { x = 0, y = 0 } -- 按游戏内预览手动校准",
         "    }",
@@ -1063,13 +1068,13 @@
       ].join("\n");
 
       const partText = [
-        `parts.${part.id} = {`,
-        `    type = "${part.type}",`,
-        `    name = "${part.name}",`,
+        `parts[${luaString(part.id)}] = {`,
+        `    type = ${luaString(part.type)},`,
+        `    name = ${luaString(part.name)},`,
         `    provides = { "" },`,
         "    item = { identifier = \"\" },",
         "    visual = {",
-        `        texture = "%ModDir%/${texturePath}",`,
+        `        texture = ${luaString(`%ModDir%/${texturePath}`)},`,
         `        source = { x = ${fmt(part.source.x)}, y = ${fmt(part.source.y)}, w = ${fmt(part.source.w)}, h = ${fmt(part.source.h)} },`,
         `        attachPoint = { x = ${fmt(part.attachPoint.x)}, y = ${fmt(part.attachPoint.y)} },`,
         `        order = ${fmt(part.order)},`,
