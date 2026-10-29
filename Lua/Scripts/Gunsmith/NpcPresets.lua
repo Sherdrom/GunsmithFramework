@@ -102,12 +102,12 @@ local function buildSelection(profile, platform, weapon, ownerId)
     local selection = Core.BuildDefaultSelection(platform, weapon, ownerId)
     local parts = type(profile.parts) == "table" and profile.parts or {}
 
-    for path, partId in pairs(parts) do
-        validatePartPath(selection, platform, path, partId, ownerId)
-    end
-
     Persistence.ApplySavedParts(selection, platform, weapon, parts, ownerId)
-    Core.PruneInvalidSelections(selection, platform, weapon, ownerId)
+    for path, partId in pairs(parts) do
+        if partId ~= Gunsmith.EmptyPartId then
+            validatePartPath(selection, platform, path, partId, ownerId)
+        end
+    end
     return selection
 end
 
@@ -137,23 +137,16 @@ local function ensureQuickPartItems(item, selection, platform, profileName)
     return ensuredAny
 end
 
-local function schedulePresetRecovery(item, profileName)
+local function schedulePresetRefresh(item, profileName)
     if not Timer or not Timer.Wait then return end
 
     Timer.Wait(function()
         if not item or item.removed then return end
         if appliedProfiles[item] ~= profileName then return end
 
-        local profile = NpcPresets.profiles[profileName]
         local State = Gunsmith.State
-        local platform = Core.PlatformConfig(item)
-        local weapon = Core.WeaponConfig(item)
-        local key = Core.ItemKey(item)
-        if type(profile) ~= "table" or not State or not platform or not weapon or not key then return end
+        if not State then return end
 
-        local selection = buildSelection(profile, platform, weapon, Core.OwnerForWeapon(weapon))
-        State.selections[key] = selection
-        State.loadedStates[key] = true
         State.appliedSignatures[item] = nil
         State.appliedConfigSignatures[item] = nil
 
@@ -167,6 +160,7 @@ end
 
 function NpcPresets.TryApply(item, diagnose, presetName)
     if not item or item.removed then return false end
+    if CLIENT and Game and Game.IsMultiplayer then return false end
 
     local profileName = type(presetName) == "string" and presetName or ""
 
@@ -196,7 +190,7 @@ function NpcPresets.TryApply(item, diagnose, presetName)
         return true
     end
 
-    if SERVER and currentSavedState(item) ~= "" then
+    if currentSavedState(item) ~= "" then
         warnOnce(
             "saved:" .. profileName .. ":" .. tostring(Core.ItemIdentifier(item)),
             "Skipped profile '" .. tostring(profileName) .. "' for '" .. tostring(Core.ItemIdentifier(item)) .. "' because it already has saved Gunsmith state.")
@@ -223,14 +217,14 @@ function NpcPresets.TryApply(item, diagnose, presetName)
 
     local ensuredQuickItems = ensureQuickPartItems(item, selection, platform, profileName)
 
-    if SERVER and Persistence then
+    if Persistence then
         Persistence.Save(item)
     end
     if Runtime then
         Runtime.Apply(item, true)
     end
     if ensuredQuickItems then
-        schedulePresetRecovery(item, profileName)
+        schedulePresetRefresh(item, profileName)
     end
     return true
 end

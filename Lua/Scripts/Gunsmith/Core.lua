@@ -771,12 +771,12 @@ function Core.HiddenHomeRootPath(platform)
     return hiddenPath
 end
 
-function Core.IsPartCompatible(selection, platform, path, partId, ownerId)
+function Core.IsPartCompatible(selection, platform, path, partId, ownerId, deferConflicts)
     local part = Core.GetPart(partId)
     if not part or not platform or not path or path == "" then return false end
     if not Core.CanUsePart(partId, ownerId) then return false end
     if part.type ~= Core.PartTypeForPath(selection, path) then return false end
-    if Core.PartConflictsWithSelection(selection, path, partId) then return false end
+    if not deferConflicts and Core.PartConflictsWithSelection(selection, path, partId) then return false end
     if Core.IsRootSlot(platform, path) then return true end
 
     local accepts = Core.AcceptsForPath(selection, platform, path)

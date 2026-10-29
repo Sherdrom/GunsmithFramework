@@ -121,6 +121,8 @@ function QuickMod.CanSlotAcceptItem(item, slotIndex, partItem)
 end
 
 function QuickMod.SyncFromContainer(item, selection, platform, clearEmpty, preferredPath)
+    -- Inventory events may arrive after the authoritative selection snapshot.
+    if CLIENT and Game and Game.IsMultiplayer then return false end
     local quickSlots = quickSlotsForItem(item)
     if not quickSlots or not selection or not platform then return false end
     local ownerId = Core.OwnerForWeaponId(Core.ItemIdentifier(item))

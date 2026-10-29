@@ -870,8 +870,10 @@ profiles.guard_rifle = {
 规则：
 
 - profile 会先构造默认选择，再应用 `parts`。
+- `parts` 的互斥检查在整套替换完成后进行，不会被即将替换的默认部件阻挡。
 - 无效路径、不存在 part 或不兼容 part 会被警告，最终选择会被修剪。
-- 服务端上如果武器已有非空 `SavedState`，不会用 NPC preset 覆盖它。
+- 单机和服务端都会保存应用后的预设；武器已有非空 `SavedState` 时不会覆盖它。
+- 多人客户端使用服务端下发的部件选择，附件容器的到达顺序不会改写预设。
 - Quick Slot profile 部件需要 `part.item.identifier`，否则只能影响视觉/属性，不能自动生成真实 contained item。
 
 ## Quick Slot 完整示例

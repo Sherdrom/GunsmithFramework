@@ -83,17 +83,18 @@ function Persistence.ApplySavedParts(selection, platform, weapon, savedParts, ow
         if Core.IsValidPath(selection, platform, path) then
             if partId == Gunsmith.EmptyPartId then
                 local emptyPartId = Core.EmptyPartForPath(selection, path)
-                selection[path] = emptyPartId and Core.IsPartCompatible(selection, platform, path, emptyPartId, ownerId)
+                selection[path] = emptyPartId and Core.IsPartCompatible(selection, platform, path, emptyPartId, ownerId, true)
                     and emptyPartId or nil
             else
                 local part = Gunsmith.Config.parts[partId]
-                if part and Core.IsPartCompatible(selection, platform, path, partId, ownerId) then
+                if part and Core.IsPartCompatible(selection, platform, path, partId, ownerId, true) then
                     selection[path] = partId
                 end
             end
-            Core.PruneInvalidSelections(selection, platform, weapon, ownerId)
         end
     end
+    -- Check conflicts after all replacements, not against defaults being replaced.
+    Core.PruneInvalidSelections(selection, platform, weapon, ownerId)
 end
 
 function Persistence.Receive(item, json)
