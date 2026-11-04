@@ -192,7 +192,7 @@ namespace GunsmithFramework
             return false;
         }
 
-        [HarmonyPatch(typeof(Inventory), nameof(Inventory.TryPutItem), typeof(Item), typeof(int), typeof(bool), typeof(bool), typeof(Character), typeof(bool), typeof(bool), typeof(bool))]
+        [HarmonyPatch(typeof(Inventory), nameof(Inventory.TryPutItem), typeof(Item), typeof(int), typeof(bool), typeof(bool), typeof(Character), typeof(bool), typeof(bool), typeof(bool), typeof(bool), typeof(bool))]
         [HarmonyPrefix]
         private static bool SkipSwapForUncontainableItem(
             Inventory __instance,
@@ -204,6 +204,8 @@ namespace GunsmithFramework
             bool createNetworkEvent,
             bool ignoreCondition,
             bool triggerOnInsertedEffects,
+            bool ignoreStuckInHand,
+            bool allowReplacingIntactLimb,
             ref bool __result)
         {
             if (GunsmithQuickDrag.TryHandleNativeSlotDrop(
@@ -216,6 +218,8 @@ namespace GunsmithFramework
                     createNetworkEvent,
                     ignoreCondition,
                     triggerOnInsertedEffects,
+                    ignoreStuckInHand,
+                    allowReplacingIntactLimb,
                     ref __result))
             {
                 return false;
@@ -233,9 +237,9 @@ namespace GunsmithFramework
             return true;
         }
 
-        [HarmonyPatch(typeof(ItemInventory), nameof(ItemInventory.TryPutItem), typeof(Item), typeof(int), typeof(bool), typeof(bool), typeof(Character), typeof(bool), typeof(bool), typeof(bool))]
+        [HarmonyPatch(typeof(ItemInventory), nameof(ItemInventory.TryPutItem), typeof(Item), typeof(int), typeof(bool), typeof(bool), typeof(Character), typeof(bool), typeof(bool), typeof(bool), typeof(bool), typeof(bool))]
         [HarmonyPrefix]
-        private static bool BlockDirectManagedSlotPut(ItemInventory __instance, Item item, int i, Character user, bool createNetworkEvent, bool ignoreCondition, bool triggerOnInsertedEffects, ref bool __result)
+        private static bool BlockDirectManagedSlotPut(ItemInventory __instance, Item item, int i, Character user, bool createNetworkEvent, bool ignoreCondition, bool triggerOnInsertedEffects, bool ignoreStuckInHand, bool allowReplacingIntactLimb, ref bool __result)
         {
             if (!IsManagedSlot(__instance, i) || IsQuickMutationAllowed(__instance, i))
             {
@@ -252,7 +256,7 @@ namespace GunsmithFramework
             ItemInventory? containedInventory = containedItem?.OwnInventory;
             if (containedInventory != null && containedInventory.CanBePut(item))
             {
-                __result = containedInventory.TryPutItem(item, user, null, createNetworkEvent, ignoreCondition, triggerOnInsertedEffects);
+                __result = containedInventory.TryPutItem(item, user, null, createNetworkEvent, ignoreCondition, triggerOnInsertedEffects, ignoreStuckInHand, allowReplacingIntactLimb);
                 return false;
             }
 
@@ -541,7 +545,7 @@ namespace GunsmithFramework
 
                 foreach (string identifierOrTag in identifiers)
                 {
-                    if (contained.HasTag(identifierOrTag))
+                    if (contained.HasTag(identifierOrTag.ToIdentifier()))
                     {
                         return true;
                     }

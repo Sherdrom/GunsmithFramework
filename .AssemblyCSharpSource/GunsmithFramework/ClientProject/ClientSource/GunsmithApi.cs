@@ -31,7 +31,7 @@ namespace GunsmithFramework
         }
 
         private static bool HasRegisteredWeaponTag(Item item)
-            => WeaponTags.Count > 0 && WeaponTags.Any(tag => item.HasTag(tag));
+            => WeaponTags.Count > 0 && WeaponTags.Any(tag => item.HasTag(tag.ToIdentifier()));
 
         public static bool ApplyFromLua(Item item, string signature, string layerSpec, string inventorySpec, string worldSpec, string statsSpec, string managedItemSpec, int width, int height)
         {

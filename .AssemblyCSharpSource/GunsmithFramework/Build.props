@@ -3,6 +3,9 @@
         <Libs>..\..\..\.Tools/Refs</Libs>
     </PropertyGroup>
     <ItemGroup>
+        <Reference Include="System.Collections.Immutable">
+            <HintPath>$(Libs)\System.Collections.Immutable.dll</HintPath>
+        </Reference>
         <!-- /Refs Path References-->
         <Reference Include="Farseer.NetStandard">
             <HintPath>$(Libs)\Farseer.NetStandard.dll</HintPath>

@@ -14,6 +14,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Reference Include="LuaCsForBarotraumaPluginServer">
+      <HintPath>$(Libs)\Windows\LuaCsForBarotraumaPluginServer.dll</HintPath>
+    </Reference>
     <Reference Include="DedicatedServer">
       <HintPath>$(Libs)\Windows\DedicatedServer.dll</HintPath>
     </Reference>

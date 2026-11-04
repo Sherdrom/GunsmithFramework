@@ -4,6 +4,9 @@
       <DefineConstants>TRACE;CLIENT;LINUX</DefineConstants>
     </PropertyGroup>
     <ItemGroup>
+      <Reference Include="LuaCsForBarotraumaPluginClient">
+        <HintPath>$(Libs)\Linux\LuaCsForBarotraumaPluginClient.dll</HintPath>
+      </Reference>
       <Reference Include="Barotrauma">
         <HintPath>$(Libs)\Linux\Barotrauma.dll</HintPath>
       </Reference>

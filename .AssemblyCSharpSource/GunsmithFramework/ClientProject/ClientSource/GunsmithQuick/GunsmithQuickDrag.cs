@@ -119,6 +119,8 @@ namespace GunsmithFramework
             bool createNetworkEvent,
             bool ignoreCondition,
             bool triggerOnInsertedEffects,
+            bool ignoreStuckInHand,
+            bool allowReplacingIntactLimb,
             ref bool result)
         {
             result = false;
@@ -185,7 +187,9 @@ namespace GunsmithFramework
                         user,
                         createNetworkEvent,
                         ignoreCondition,
-                        triggerOnInsertedEffects))
+                        triggerOnInsertedEffects,
+                        ignoreStuckInHand,
+                        allowReplacingIntactLimb))
                 {
                     RemoveItemFromWeaponInventory(drag.WeaponItem, existingItem);
                     targetInventory.TryPutItem(
@@ -196,7 +200,9 @@ namespace GunsmithFramework
                         user,
                         createNetworkEvent,
                         ignoreCondition: true,
-                        triggerOnInsertedEffects: false);
+                        triggerOnInsertedEffects: false,
+                        ignoreStuckInHand,
+                        allowReplacingIntactLimb);
                     PutItemInWeaponSlot(drag.WeaponItem, draggedItem, drag.SlotIndex, allowSwapping: false);
                     result = false;
                     return true;

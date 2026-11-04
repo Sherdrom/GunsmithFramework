@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
 using Barotrauma;
+using Barotrauma.LuaCs;
 using GunsmithFramework;
 using HarmonyLib;
 using Microsoft.Xna.Framework;
