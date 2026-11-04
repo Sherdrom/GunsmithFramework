@@ -4,6 +4,9 @@
     <DefineConstants>TRACE;OSX;SERVER</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="LuaCsForBarotraumaPluginServer">
+      <HintPath>$(Libs)\OSX\LuaCsForBarotraumaPluginServer.dll</HintPath>
+    </Reference>
     <Reference Include="DedicatedServer">
       <HintPath>$(Libs)\OSX\DedicatedServer.dll</HintPath>
     </Reference>

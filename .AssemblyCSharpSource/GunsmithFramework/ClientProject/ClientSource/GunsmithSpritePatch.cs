@@ -21,6 +21,7 @@ namespace GunsmithFramework
             typeof(bool),
             typeof(bool),
             typeof(Color?),
+            typeof(float?),
             typeof(float?)
         })]
         [HarmonyPrefix]

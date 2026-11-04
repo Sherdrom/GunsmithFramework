@@ -4,6 +4,9 @@
       <DefineConstants>TRACE;SERVER;LINUX</DefineConstants>
     </PropertyGroup>
     <ItemGroup>
+      <Reference Include="LuaCsForBarotraumaPluginServer">
+        <HintPath>$(Libs)\Linux\LuaCsForBarotraumaPluginServer.dll</HintPath>
+      </Reference>
       <Reference Include="DedicatedServer">
         <HintPath>$(Libs)\Linux\DedicatedServer.dll</HintPath>
       </Reference>

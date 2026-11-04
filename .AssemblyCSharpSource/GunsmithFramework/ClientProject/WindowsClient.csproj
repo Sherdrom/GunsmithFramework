@@ -16,6 +16,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Reference Include="LuaCsForBarotraumaPluginClient">
+      <HintPath>$(Libs)\Windows\LuaCsForBarotraumaPluginClient.dll</HintPath>
+    </Reference>
     <Reference Include="Barotrauma">
       <HintPath>$(Libs)\Windows\Barotrauma.dll</HintPath>
     </Reference>

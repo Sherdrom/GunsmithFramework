@@ -12,4 +12,9 @@
     <GunSmithMonoGameAssembly Condition="'$(GunSmithPlatform)' == 'Linux'">MonoGame.Framework.Linux.NetStandard</GunSmithMonoGameAssembly>
     <GunSmithMonoGameAssembly Condition="'$(GunSmithPlatform)' == 'OSX'">MonoGame.Framework.MacOS.NetStandard</GunSmithMonoGameAssembly>
   </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Collections.Immutable">
+      <HintPath>$(RepoRoot).Tools/Refs/System.Collections.Immutable.dll</HintPath>
+    </Reference>
+  </ItemGroup>
 </Project>

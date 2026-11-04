@@ -18,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../GunsmithCompatibilityTests.cs" Link="GunsmithCompatibilityTests.cs" />
     <Reference Include="DedicatedServer">
       <HintPath>$(GunSmithRefDir)/DedicatedServer.dll</HintPath>
     </Reference>
