@@ -198,7 +198,7 @@ namespace GunsmithFramework
             Inventory __instance,
             Item item,
             int i,
-            bool allowSwapping,
+            ref bool allowSwapping,
             bool allowCombine,
             Character user,
             bool createNetworkEvent,
@@ -227,8 +227,8 @@ namespace GunsmithFramework
             if (__instance is not ItemInventory itemInventory) { return true; }
             if (!itemInventory.Container.CanBeContained(item, i))
             {
-                __result = false;
-                return false;
+                // Keep vanilla combining into a nested container; only the slot swap is invalid.
+                allowSwapping = false;
             }
             return true;
         }

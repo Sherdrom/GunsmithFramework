@@ -749,6 +749,7 @@ receiver/handguard/top_rail/optic_mount
 - 框架读取武器的 `ItemContainer` 当前容量和已有 `SubContainer` 容量。
 - 如果 Lua 绑定的最大 slot 超过现有容量，会自动追加隐藏 `SubContainer`。
 - 追加的槽位 `capacity="1"`、`maxstacksize="1"`、`hide="true"`、`itempos="0,0"`、`setactive="true"`。
+- Quick Slot 范围内复用的完整 XML `SubContainer` 也会启用 `setactive="true"`，并补充相同的配件 items/tags 匹配规则；原有位置、隐藏设置和状态效果会保留，使手电等配件能正常运行。
 - 如果你的武器已有弹匣槽，通常保留 slot `0` 给弹匣，让 Quick Slot 从 `1` 开始。
 
 ### 部件 item
