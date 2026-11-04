@@ -45,14 +45,28 @@ public sealed class GunsmithDataTests
     }
 
     [Fact]
-    public void NormalizeSavedState_TruncatesLongState()
+    public void NormalizeSavedState_NeverTruncatesJson()
     {
         string state = new('x', 8193);
 
         string normalized = GunsmithData.NormalizeSavedState(state);
 
-        Assert.Equal(8192, normalized.Length);
-        Assert.Equal(new string('x', 8192), normalized);
+        Assert.Equal(state, normalized);
+    }
+
+    [Fact]
+    public void OversizedStateCannotReplacePreviousSave()
+    {
+        const string original = "{\"v\":1,\"parts\":{}}";
+        var component = (GunsmithData)RuntimeHelpers.GetUninitializedObject(typeof(GunsmithData));
+        component.SavedState = original;
+        string oversized = "{\"v\":1,\"parts\":{\"receiver\":\"" + new string('x', 8192) + "\"}}";
+        Assert.False(GunsmithDataAccess.SetSavedState(component, oversized));
+        var message = new ReadWriteMessage();
+        message.WriteString(oversized);
+        message.BitPosition = 0;
+        component.ClientEventRead(message, 0);
+        Assert.Equal(original, component.SavedState);
     }
 
     [Theory]
@@ -138,8 +152,9 @@ public sealed class GunsmithDataTests
 
             Assert.Same(oldData, GunsmithDataAccess.Find(new[] { oldData }));
             Assert.Equal("old-state", GunsmithDataAccess.GetSavedState(oldData));
-            Assert.True(GunsmithDataAccess.SetSavedState(oldData, "new-state"));
-            Assert.Equal("new-state", oldDataType.GetProperty(nameof(GunsmithData.SavedState))!.GetValue(oldData));
+            const string newState = "{\"v\":1,\"parts\":{}}";
+            Assert.True(GunsmithDataAccess.SetSavedState(oldData, newState));
+            Assert.Equal(newState, oldDataType.GetProperty(nameof(GunsmithData.SavedState))!.GetValue(oldData));
         }
         finally
         {

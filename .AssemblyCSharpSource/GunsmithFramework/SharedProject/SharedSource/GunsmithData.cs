@@ -97,7 +97,9 @@ namespace Barotrauma.Items.Components
 
         public void ClientEventRead(IReadMessage msg, float sendingTime)
         {
-            SavedState = NormalizeSavedState(msg.ReadString());
+            string state = msg.ReadString();
+            if (!IsValidSavedState(state)) { return; }
+            SavedState = state;
 #if CLIENT
             global::GunsmithFramework.GunsmithLuaHooks.Call("GunsmithFrameworkReceiveState", item, SavedState);
 #endif
@@ -106,44 +108,17 @@ namespace Barotrauma.Items.Components
         public void ServerEventRead(IReadMessage msg, Client c)
         {
             ClientEventType eventType = (ClientEventType)msg.ReadByte();
-            switch (eventType)
+            if (eventType == ClientEventType.SaveState)
             {
-                case ClientEventType.RequestState:
-                    BroadcastState();
-                    break;
-                case ClientEventType.SaveState:
-                    // Consume legacy packets without trusting client-authored snapshots.
-                    _ = msg.ReadString();
-                    break;
-                case ClientEventType.SetPart:
-                    string slotPath = msg.ReadString();
-                    string partId = msg.ReadString();
-                    bool isOwnedByCharacter = c.Character is { } owner && item.IsOwnedBy(owner);
-                    if (!IsValidPartChange(slotPath, partId) ||
-                        !CanClientSubmitPartChange(isOwnedByCharacter, item.CanClientAccess(c)))
-                    {
-                        BroadcastState();
-                        return;
-                    }
-
-#if SERVER
-                    var character = c.Character;
-                    if (character != null)
-                    {
-                        object? result = global::GunsmithFramework.GunsmithLuaHooks.Call("GunsmithFrameworkSetPartFromClient", item, character, slotPath, partId);
-                        if (result is string updatedState && IsValidSavedState(updatedState))
-                        {
-                            // The Lua save hook already published the authoritative state.
-                            return;
-                        }
-                    }
-#endif
-                    BroadcastState();
-                    break;
-                default:
-                    BroadcastState();
-                    break;
+                // Consume legacy packets without trusting client-authored snapshots.
+                _ = msg.ReadString();
+                return;
             }
+            string? slotPath = eventType == ClientEventType.SetPart ? msg.ReadString() : null;
+            string? partId = eventType == ClientEventType.SetPart ? msg.ReadString() : null;
+#if SERVER
+            global::GunsmithFramework.GunsmithPartChangeServer.ReceiveLegacyRequest(item, c, slotPath, partId);
+#endif
         }
 
         public void ServerEventWrite(IWriteMessage msg, Client c, NetEntityEvent.IData? extraData = null)
@@ -152,11 +127,7 @@ namespace Barotrauma.Items.Components
         }
 
         internal static string NormalizeSavedState(string value)
-            => value == null
-                ? string.Empty
-                : value.Length > MaxSavedStateLength
-                    ? value.Substring(0, MaxSavedStateLength)
-                    : value;
+            => value ?? string.Empty;
 
         internal static bool IsValidSavedState(string value)
         {

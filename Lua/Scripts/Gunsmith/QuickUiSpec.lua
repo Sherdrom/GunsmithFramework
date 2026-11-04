@@ -107,5 +107,9 @@ function QuickUiSpec.Build(item, selection, platform)
 end
 
 function QuickUiSpec.InvalidateCache(item)
-    if item then buildCache[item] = nil end
+    if item then
+        buildCache[item] = nil
+    else
+        buildCache = setmetatable({}, { __mode = "k" })
+    end
 end

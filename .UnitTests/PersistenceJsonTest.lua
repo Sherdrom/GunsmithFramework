@@ -144,6 +144,7 @@ assert(Persistence.Decode("missing-parts") == nil)
 assert(Persistence.Decode("non-table-parts") == nil)
 
 local refreshed = 0
+local quickRefreshed = 0
 local scheduled
 local item = {}
 GunsmithFramework.State = {
@@ -160,12 +161,23 @@ GunsmithFramework.Core.PruneInvalidSelections = function() end
 GunsmithFramework.Runtime = {
     Apply = function() end,
     RefreshParts = function() refreshed = refreshed + 1 end,
+    RefreshQuick = function(receivedItem, alreadySynced)
+        assert(receivedItem == item and alreadySynced == true)
+        quickRefreshed = quickRefreshed + 1
+    end,
     SchedulePartsRefresh = function(receivedItem, delay, alreadySynced)
         scheduled = { item = receivedItem, delay = delay, alreadySynced = alreadySynced }
     end
 }
 Persistence.Receive(item, "empty-parts")
 assert(refreshed == 1)
+assert(quickRefreshed == 1)
 assert(scheduled.item == item and scheduled.delay == 100 and scheduled.alreadySynced == true)
 
-print("Persistence JSON uses native serialization and validates decoded version 1 state")
+local originalEncode = Persistence.Encode
+Persistence.Encode = function() return string.rep("x", 8192) end
+assert(Persistence.CanSaveSelection({}, {}, {}))
+Persistence.Encode = function() return string.rep("x", 8193) end
+assert(not Persistence.CanSaveSelection({}, {}, {}))
+Persistence.Encode = originalEncode
+print("Persistence validates JSON, length boundaries, and both UI refresh paths")

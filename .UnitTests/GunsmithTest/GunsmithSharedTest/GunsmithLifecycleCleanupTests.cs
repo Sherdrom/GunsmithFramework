@@ -16,8 +16,8 @@ public sealed class GunsmithLifecycleCleanupTests
     [Fact]
     public void RuntimeStateTracksMissingRequiredParts()
     {
-        Assert.False(GunsmithRuntimeStates.CreateState("selection|missingRequired:0|stats:", "", "").HasMissingRequiredParts);
-        Assert.True(GunsmithRuntimeStates.CreateState("selection|missingRequired:1|stats:", "", "").HasMissingRequiredParts);
+        Assert.False(GunsmithRuntimeStates.CreateState("selection|missingRequired:0|stats:", "").HasMissingRequiredParts);
+        Assert.True(GunsmithRuntimeStates.CreateState("selection|missingRequired:1|stats:", "").HasMissingRequiredParts);
     }
 
     [Theory]
@@ -145,8 +145,7 @@ public sealed class GunsmithLifecycleCleanupTests
         Item item = Uninitialized<Item>();
         GunsmithRuntimeStates.Set(item, new GunsmithRuntimeState
         {
-            Signature = "seed",
-            ManagedItemIdentifiers = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "part" }
+            Signature = "seed"
         });
         SeedRegistry(typeof(GunsmithQuickSlotCapacityPatch), "MaxQuickSlotByItemIdentifier", "weapon");
         GunsmithQuickPartItemSpawner.BeginQuickSlotMutation = _ => { };
@@ -160,7 +159,6 @@ public sealed class GunsmithLifecycleCleanupTests
 
         Assert.Null(global::GunsmithFramework.GunsmithFramework.Package);
         Assert.False(GunsmithRuntimeStates.TryGet(item, out _));
-        Assert.False(GunsmithRuntimeStates.HasManagedRuntimeItems);
         AssertRegistryEmpty(typeof(GunsmithQuickSlotCapacityPatch), "MaxQuickSlotByItemIdentifier");
         Assert.Null(GunsmithQuickPartItemSpawner.BeginQuickSlotMutation);
     }

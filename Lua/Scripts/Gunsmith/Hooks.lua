@@ -246,6 +246,7 @@ local function isQuickSlotMutation(item)
 end
 
 local pendingQuickModContainerSync = setmetatable({}, { __mode = "k" })
+local removedQuickItems = setmetatable({}, { __mode = "k" })
 
 local function flushQuickModContainerSync(item)
     if not item then return end
@@ -254,7 +255,7 @@ local function flushQuickModContainerSync(item)
 
     if item.removed or isQuickSlotMutation(item) then return end
     if Core.WeaponConfig(item) and QuickMod and QuickMod.IsQuickItem(item) then
-        Runtime.SyncQuickModContainerItem(item)
+        Runtime.SyncQuickModContainerItem(item, true)
     end
 end
 
@@ -272,8 +273,11 @@ local function syncQuickModContainerItem(item)
     end
 end
 
-local function syncQuickModContainer(instance)
-    syncQuickModContainerItem(instance and instance.Item)
+local function syncQuickModContainer(instance, contained)
+    local item = instance and instance.Item
+    if Core.WeaponConfig(item) and QuickMod and QuickMod.IsItemInQuickSlot(item, contained) then
+        syncQuickModContainerItem(item)
+    end
 end
 
 function Hooks.Register()
@@ -339,12 +343,24 @@ function Hooks.Register()
 
     Hook.Patch("Barotrauma.Items.Components.ItemContainer", "OnItemContained", { "Barotrauma.Item", "System.Boolean" }, function(instance, ptable)
         applyGunsmithItem(readContainedItem(ptable))
-        syncQuickModContainer(instance)
+        syncQuickModContainer(instance, readContainedItem(ptable))
     end, Hook.HookMethodType.After)
 
+    -- OnItemRemoved runs after the item has already left its inventory slot.
+    Hook.Patch("Barotrauma.ItemInventory", "RemoveItem", { "Barotrauma.Item" }, function(instance, ptable)
+        local item, contained = instance.Owner, ptable["item"]
+        if Core.WeaponConfig(item) and QuickMod and QuickMod.IsItemInQuickSlot(item, contained) then
+            removedQuickItems[contained] = item
+        end
+    end, Hook.HookMethodType.Before)
+
     Hook.Patch("Barotrauma.Items.Components.ItemContainer", "OnItemRemoved", { "Barotrauma.Item" }, function(instance, ptable)
-        applyGunsmithItem(readContainedItem(ptable))
-        syncQuickModContainer(instance)
+        local contained = readContainedItem(ptable)
+        applyGunsmithItem(contained)
+        if contained and removedQuickItems[contained] == instance.Item then
+            removedQuickItems[contained] = nil
+            syncQuickModContainerItem(instance.Item)
+        end
     end, Hook.HookMethodType.After)
 
     Hook.Add("item.removed", "GunsmithFrameworkCleanup", function(item)
