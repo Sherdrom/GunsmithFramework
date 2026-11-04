@@ -1,8 +1,10 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.Loader;
 using Barotrauma;
 using Barotrauma.Items.Components;
 using GunsmithFramework;
+using HarmonyLib;
 using Xunit;
 
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
@@ -14,6 +16,71 @@ public sealed class GunsmithQuickDragTests : IDisposable
     public GunsmithQuickDragTests() => ClearState();
 
     public void Dispose() => ClearState();
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void CabinetDropTriesNestedContainerWithoutInvalidSlotSwap(bool allowCombine, bool nestedAccepts)
+    {
+        AssemblyLoadContext.Default.Resolving += ResolveGameDependency;
+        var harmony = new Harmony(nameof(CabinetDropTriesNestedContainerWithoutInvalidSlotSwap));
+        try
+        {
+            Type[] putArgs = [typeof(Item), typeof(int), typeof(bool), typeof(bool), typeof(Character), typeof(bool), typeof(bool), typeof(bool)];
+            harmony.Patch(AccessTools.Method(typeof(Inventory), nameof(Inventory.TryPutItem), putArgs),
+                prefix: new HarmonyMethod(typeof(GunsmithHiddenQuickSlotsPatch), "SkipSwapForUncontainableItem"));
+            harmony.Patch(AccessTools.Method(typeof(ItemContainer), nameof(ItemContainer.CanBeContained), [typeof(Item), typeof(int)]),
+                prefix: new HarmonyMethod(typeof(GunsmithQuickDragTests), nameof(RejectDirectCabinetSlot)));
+            harmony.Patch(AccessTools.Method(typeof(Item), nameof(Item.Combine)),
+                prefix: new HarmonyMethod(typeof(GunsmithQuickDragTests), nameof(TryNestedContainer)));
+            harmony.Patch(AccessTools.Method(typeof(Inventory), "TrySwapping"),
+                prefix: new HarmonyMethod(typeof(GunsmithQuickDragTests), nameof(UnexpectedCabinetSwap)));
+
+            ItemInventory cabinet = CreateInventory(1);
+            SetInstanceField(cabinet, "Owner", Uninitialized<Item>());
+            SetInstanceField(cabinet, "container", Uninitialized<ItemContainer>());
+            Item toolbelt = Uninitialized<Item>();
+            SetInstanceField(toolbelt, "ownInventory", CreateInventory(1));
+            PutInSlot(cabinet, toolbelt, 0);
+            Item wire = Uninitialized<Item>();
+            PutInSlot(CreateInventory(1), wire, 0);
+            nestedContainerAccepts = nestedAccepts;
+            nestedCombineCalls = 0;
+
+            Assert.Equal(allowCombine && nestedAccepts,
+                cabinet.TryPutItem(wire, 0, allowSwapping: true, allowCombine, user: null!, createNetworkEvent: false));
+            Assert.Equal(allowCombine ? 1 : 0, nestedCombineCalls);
+            Assert.Same(cabinet, toolbelt.ParentInventory);
+        }
+        finally
+        {
+            harmony.UnpatchSelf();
+            AssemblyLoadContext.Default.Resolving -= ResolveGameDependency;
+        }
+    }
+
+    private static bool nestedContainerAccepts;
+    private static int nestedCombineCalls;
+    private static bool RejectDirectCabinetSlot(ref bool __result) { __result = false; return false; }
+    private static bool TryNestedContainer(ref bool __result)
+    {
+        nestedCombineCalls++;
+        __result = nestedContainerAccepts;
+        return false;
+    }
+    private static bool UnexpectedCabinetSwap()
+        => throw new InvalidOperationException("Rejected cabinet slots must not swap their toolbelt into the source inventory.");
+
+    private static Assembly? ResolveGameDependency(AssemblyLoadContext context, AssemblyName name)
+    {
+        for (DirectoryInfo? directory = new(AppContext.BaseDirectory); directory != null; directory = directory.Parent)
+        {
+            string path = Path.Combine(directory.FullName, name.Name + ".dll");
+            if (File.Exists(path)) { return context.LoadFromAssemblyPath(path); }
+        }
+        return null;
+    }
 
     [Fact]
     public void ResetWithoutPendingDragIsSafeAndIdempotent()
