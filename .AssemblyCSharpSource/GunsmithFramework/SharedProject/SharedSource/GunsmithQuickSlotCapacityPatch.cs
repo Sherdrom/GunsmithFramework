@@ -57,7 +57,7 @@ namespace GunsmithFramework
             int maxQuickSlot = hasRegisteredMaxSlot
                 ? registeredMaxSlot
                 : gunsmithData?.GetAttributeInt("quickslotmax", -1) ?? -1;
-            if (maxQuickSlot < quickSlotStart)
+            if (quickSlotStart < 0 || maxQuickSlot < quickSlotStart)
             {
                 return;
             }
@@ -67,6 +67,39 @@ namespace GunsmithFramework
             int existingCapacity = declaredCapacity + subContainerCapacity;
             int requiredCapacity = maxQuickSlot + 1;
             int missingSlots = requiredCapacity - existingCapacity;
+
+            string items = gunsmithData?.GetAttributeString("quickslotitems", string.Empty) ?? string.Empty;
+            QuickSlotTagsByItemIdentifier.TryGetValue(itemIdentifier, out string? registeredTags);
+            string tags = gunsmithData?.GetAttributeString("quickslottags", registeredTags ?? string.Empty) ?? registeredTags ?? string.Empty;
+            System.Xml.Linq.XElement quickContainable = new("Containable",
+                new System.Xml.Linq.XAttribute("hide", "true"),
+                new System.Xml.Linq.XAttribute("itempos", "0,0"),
+                new System.Xml.Linq.XAttribute("setactive", "true"));
+            if (!string.IsNullOrWhiteSpace(items)) { quickContainable.SetAttributeValue("items", items); }
+            if (!string.IsNullOrWhiteSpace(tags)) { quickContainable.SetAttributeValue("tags", tags); }
+
+            // Reused XML slots need the same activation and package matching as added slots.
+            int slotStart = declaredCapacity;
+            foreach (ContentXElement subContainer in element.GetChildElements("SubContainer"))
+            {
+                int slotEnd = slotStart + subContainer.GetAttributeInt("capacity", 1);
+                if (slotStart >= quickSlotStart && slotEnd <= requiredCapacity)
+                {
+                    foreach (ContentXElement containable in subContainer.GetChildElements("Containable"))
+                    {
+                        containable.SetAttributeValue("setactive", "true");
+                    }
+                    if ((!string.IsNullOrWhiteSpace(items) || !string.IsNullOrWhiteSpace(tags)) &&
+                        !subContainer.GetChildElements("Containable").Any(c =>
+                            c.GetAttributeString("items", string.Empty) == items &&
+                            c.GetAttributeString("tags", string.Empty) == tags))
+                    {
+                        subContainer.Add(new ContentXElement(element.ContentPackage, new System.Xml.Linq.XElement(quickContainable)));
+                    }
+                }
+                slotStart = slotEnd;
+            }
+
             if (missingSlots <= 0)
             {
                 return;
@@ -78,28 +111,13 @@ namespace GunsmithFramework
                 InjectedSlotsByItemIdentifier[itemIdentifier] = injectedSlots;
             }
 
-            string items = gunsmithData?.GetAttributeString("quickslotitems", string.Empty) ?? string.Empty;
-            QuickSlotTagsByItemIdentifier.TryGetValue(itemIdentifier, out string? registeredTags);
-            string tags = gunsmithData?.GetAttributeString("quickslottags", registeredTags ?? string.Empty) ?? registeredTags ?? string.Empty;
             for (int i = 0; i < missingSlots; i++)
             {
                 injectedSlots.Add(existingCapacity + i);
                 System.Xml.Linq.XElement subContainer = new("SubContainer",
                     new System.Xml.Linq.XAttribute("capacity", "1"),
                     new System.Xml.Linq.XAttribute("maxstacksize", "1"));
-                System.Xml.Linq.XElement containable = new("Containable",
-                    new System.Xml.Linq.XAttribute("hide", "true"),
-                    new System.Xml.Linq.XAttribute("itempos", "0,0"),
-                    new System.Xml.Linq.XAttribute("setactive", "true"));
-                if (!string.IsNullOrWhiteSpace(items))
-                {
-                    containable.SetAttributeValue("items", items);
-                }
-                if (!string.IsNullOrWhiteSpace(tags))
-                {
-                    containable.SetAttributeValue("tags", tags);
-                }
-                subContainer.Add(containable);
+                subContainer.Add(new System.Xml.Linq.XElement(quickContainable));
                 element.Add(new ContentXElement(element.ContentPackage, subContainer));
             }
         }
