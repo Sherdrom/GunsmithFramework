@@ -69,27 +69,36 @@ namespace GunsmithFramework
         public static bool TryGetTransform(Item weaponItem, Item attachmentItem, out GunsmithQuickAttachmentTransform transform)
         {
             transform = default;
-            if (TryGetDirectQuickSlotIndex(weaponItem, attachmentItem, out int quickSlotIndex) &&
-                TryGetTransformForSlot(weaponItem, attachmentItem, quickSlotIndex, out transform))
+            if (weaponItem == null || weaponItem.Removed || attachmentItem == null || attachmentItem.Removed)
             {
-                return true;
+                return false;
             }
 
-            return !GunsmithLuaHooks.HasRegisteredHooks &&
-                   TryGetReloadedTransform(weaponItem, attachmentItem, requestedSlotIndex: -1, out transform);
+            // Reflection callers can retain an unloaded generation whose local caches are unavailable.
+            if (!GunsmithLuaHooks.HasRegisteredHooks)
+            {
+                return TryGetReloadedTransform(weaponItem, attachmentItem, requestedSlotIndex: -1, out transform);
+            }
+
+            return TryGetDirectQuickSlotIndex(weaponItem, attachmentItem, out int quickSlotIndex) &&
+                   TryGetTransformForSlot(weaponItem, attachmentItem, quickSlotIndex, out transform);
         }
 
         public static bool TryGetTransform(Item weaponItem, Item attachmentItem, int quickSlotIndex, out GunsmithQuickAttachmentTransform transform)
         {
             transform = default;
-            if (IsValidQuickSlotAttachment(weaponItem, attachmentItem, quickSlotIndex) &&
-                TryGetTransformForSlot(weaponItem, attachmentItem, quickSlotIndex, out transform))
+            if (weaponItem == null || weaponItem.Removed || attachmentItem == null || attachmentItem.Removed)
             {
-                return true;
+                return false;
             }
 
-            return !GunsmithLuaHooks.HasRegisteredHooks &&
-                   TryGetReloadedTransform(weaponItem, attachmentItem, quickSlotIndex, out transform);
+            if (!GunsmithLuaHooks.HasRegisteredHooks)
+            {
+                return TryGetReloadedTransform(weaponItem, attachmentItem, quickSlotIndex, out transform);
+            }
+
+            return IsValidQuickSlotAttachment(weaponItem, attachmentItem, quickSlotIndex) &&
+                   TryGetTransformForSlot(weaponItem, attachmentItem, quickSlotIndex, out transform);
         }
 
         internal static object? ResolveReloadBridge(object?[] args)

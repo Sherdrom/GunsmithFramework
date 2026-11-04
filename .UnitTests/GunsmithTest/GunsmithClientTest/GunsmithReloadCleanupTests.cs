@@ -14,6 +14,81 @@ namespace GunsmithClientTest;
 
 public sealed class GunsmithReloadCleanupTests
 {
+    [Theory]
+    [InlineData("transform", true)]
+    [InlineData("transform", false)]
+    [InlineData("slot-transform", true)]
+    [InlineData("slot-transform", false)]
+    [InlineData("depth", true)]
+    [InlineData("depth", false)]
+    public void UnregisteredAttachmentApisBypassUnavailableLocalState(string api, bool bridgeAvailable)
+    {
+        using var scope = new HarmonyScope(nameof(UnregisteredAttachmentApisBypassUnavailableLocalState));
+        GunsmithLuaHooks.Clear();
+        reloadBridgeAvailable = bridgeAvailable;
+        scope.Patch(AccessTools.Method(typeof(GunsmithLuaHooks), "Call"), nameof(ResolveTestReloadBridge));
+        scope.Patch(AccessTools.Method(typeof(GunsmithQuickAttachmentTransformService), "TryGetDirectQuickSlotIndex"), nameof(UnavailableLocalState));
+        scope.Patch(AccessTools.Method(typeof(GunsmithQuickAttachmentTransformService), "IsValidQuickSlotAttachment"), nameof(UnavailableLocalState));
+        scope.Patch(AccessTools.Method(typeof(GunsmithApi), "TryGetAttachmentDepthLocal"), nameof(UnavailableLocalState));
+        Item weapon = Uninitialized<Item>();
+        Item attachment = Uninitialized<Item>();
+
+        if (api == "depth")
+        {
+            Assert.Equal(bridgeAvailable, GunsmithApi.TryGetAttachmentDepth(weapon, attachment, out float depth));
+            Assert.Equal(bridgeAvailable ? 0.25f : 0.0f, depth);
+            Assert.False(GunsmithApi.TryGetAttachmentDepth(null!, attachment, out _));
+            return;
+        }
+
+        GunsmithQuickAttachmentTransform transform;
+        bool resolved = api == "transform"
+            ? GunsmithQuickAttachmentTransformService.TryGetTransform(weapon, attachment, out transform)
+            : GunsmithQuickAttachmentTransformService.TryGetTransform(weapon, attachment, 3, out transform);
+        Assert.Equal(bridgeAvailable, resolved);
+        if (resolved)
+        {
+            Assert.Same(weapon, transform.WeaponItem);
+            Assert.Same(attachment, transform.AttachmentItem);
+            Assert.Equal(3, transform.QuickSlotIndex);
+            Assert.Equal(new Vector2(10, 20), transform.DrawPosition);
+            Assert.Equal(Vector2.UnitX, transform.Direction);
+        }
+        else
+        {
+            Assert.Equal(default, transform);
+        }
+        Assert.False(GunsmithQuickAttachmentTransformService.TryGetTransform(null!, attachment, out _));
+        Assert.False(GunsmithQuickAttachmentTransformService.TryGetTransform(weapon, null!, 3, out _));
+    }
+
+    private static bool reloadBridgeAvailable;
+
+    private static bool UnavailableLocalState()
+        => throw new InvalidOperationException("An unloaded generation must not access local state.");
+
+    private static bool ResolveTestReloadBridge(string hookName, object[] args, ref object? __result)
+    {
+        __result = null;
+        if (!reloadBridgeAvailable) { return false; }
+        if (hookName == GunsmithApi.ReloadDepthBridgeHookName)
+        {
+            args[2] = 0.25f;
+        }
+        else
+        {
+            Assert.Equal(GunsmithQuickAttachmentTransformService.ReloadBridgeHookName, hookName);
+            Assert.Contains((int)args[2], new[] { -1, 3 });
+            args[3] = 3;
+            args[4] = args[5] = new Vector2(10, 20);
+            args[6] = args[7] = 0.0f;
+            args[8] = new Vector2(2, 0);
+            args[9] = 1.0f;
+        }
+        __result = true;
+        return false;
+    }
+
     [Fact]
     public void PackedHiddenSlotsShareVisibleBoundsAndResetRestoresLayouts()
     {
