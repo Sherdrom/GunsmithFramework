@@ -355,13 +355,13 @@ namespace GunsmithFramework
             GunsmithGui.Reset();
             GunsmithFabricatorClientPatch.Reset();
 
-            foreach (KeyValuePair<Item, GunsmithSpriteState> pair in spriteStates.ToArray())
+            foreach (Item item in spriteStates.Keys)
             {
                 try
                 {
-                    if (!pair.Key.Removed)
+                    if (!item.Removed)
                     {
-                        RestoreVanillaSprite(pair.Key);
+                        RestoreVanillaSprite(item);
                     }
                 }
                 catch (Exception ex)
@@ -371,7 +371,7 @@ namespace GunsmithFramework
 
                 try
                 {
-                    RemoveState(pair.Key);
+                    RemoveState(item);
                 }
                 catch (Exception ex)
                 {

@@ -11,7 +11,7 @@ namespace GunsmithFramework
         private static string activeLocalizationPrefix = DefaultLocalizationPrefix;
         private static string? selectedSlot;
         private static GunsmithGuiContext activeContext = GunsmithGuiContext.Empty;
-        private static List<GunsmithGuiSlot> activeSlots = new();
+        private static List<GunsmithGuiSlot> activeSlots = new(4);
         private static GUIListBox? slotList;
         private static GUIFrame? previewPanel;
         private static GUIFrame? detailPanel;
@@ -680,7 +680,7 @@ namespace GunsmithFramework
             activeLocalizationPrefix = DefaultLocalizationPrefix;
             selectedSlot = null;
             activeContext = GunsmithGuiContext.Empty;
-            activeSlots = new List<GunsmithGuiSlot>();
+            activeSlots = new List<GunsmithGuiSlot>(4);
             slotList = null;
             previewPanel = null;
             detailPanel = null;
