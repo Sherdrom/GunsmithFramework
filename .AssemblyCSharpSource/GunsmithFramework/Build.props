@@ -1,8 +1,13 @@
 <Project>
+    <!-- shortcut: vscode-solution-explorer skips ImportGroup, use Visible metadata when supported. -->
+    <ImportGroup>
+        <Import Project="SharedProject/SharedProject.projitems" Label="Shared" />
+    </ImportGroup>
     <PropertyGroup>
         <Libs>..\..\..\.Tools/Refs</Libs>
     </PropertyGroup>
     <ItemGroup>
+        <None Remove="*.csproj" />
         <Reference Include="System.Collections.Immutable">
             <HintPath>$(Libs)\System.Collections.Immutable.dll</HintPath>
         </Reference>
@@ -48,8 +53,6 @@
         <PlatformTarget>x64</PlatformTarget>
         <Platforms>x64</Platforms>
         <TargetFramework>net8.0</TargetFramework>
-        <OutputPath>bin\$(MSBuildProjectName)\$(Platform)\$(Configuration)\</OutputPath>
-        <IntermediateOutputPath>obj\$(MSBuildProjectName)\$(Platform)\$(Configuration)\</IntermediateOutputPath>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
