@@ -4,6 +4,9 @@
       <DefineConstants>TRACE;SERVER;LINUX</DefineConstants>
     </PropertyGroup>
     <ItemGroup>
+      <Reference Include="LuaCsForBarotraumaPluginServer">
+        <HintPath>$(Libs)\Linux\LuaCsForBarotraumaPluginServer.dll</HintPath>
+      </Reference>
       <Reference Include="DedicatedServer">
         <HintPath>$(Libs)\Linux\DedicatedServer.dll</HintPath>
       </Reference>
@@ -15,7 +18,6 @@
       </Reference>
     </ItemGroup>
 
-    <Import Project="..\SharedProject\SharedProject.projitems" Label="Shared" />
     <Import Project="../Build.props"/>
 
     <Target Name="CopyFiles" AfterTargets="Build" Condition="'$(SkipModDeploy)' != 'true'">

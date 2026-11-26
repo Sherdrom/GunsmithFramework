@@ -6,7 +6,8 @@ namespace GunsmithFramework
         private const string PresetAttributeName = "gunsmithpreset";
         private const string IdentifierAttributeName = "identifier";
         private static readonly ConditionalWeakTable<Item, PresetName> Presets = new();
-        private static readonly List<PendingPreset> PendingItemPresets = new();
+        // A positive capacity avoids the shared empty array for this unloadable type on the game's .NET 8.0.0 runtime.
+        private static readonly List<PendingPreset> PendingItemPresets = new(4);
         private static readonly object PresetsLock = new();
         private static readonly object PendingItemPresetsLock = new();
 

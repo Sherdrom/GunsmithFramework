@@ -18,6 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../GunsmithCompatibilityTests.cs" Link="GunsmithCompatibilityTests.cs" />
+    <Reference Include="LuaCsForBarotraumaPluginClient">
+      <HintPath>$(GunSmithRefDir)/LuaCsForBarotraumaPluginClient.dll</HintPath>
+    </Reference>
     <Reference Include="Barotrauma">
       <HintPath>$(GunSmithRefDir)/Barotrauma.dll</HintPath>
     </Reference>

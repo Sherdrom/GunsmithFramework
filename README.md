@@ -6,7 +6,8 @@ GunsmithFramework 是一个 Barotrauma 模组框架，用 Lua 描述枪械平台
 
 ## 需要准备
 
-- Barotrauma 已启用 LuaCs / Lua For Barotrauma。
+- 本分支面向 Barotrauma Unstable 1.15.x 和插件版 LuaCs，需在 LuaCs 设置中启用 C# 模组。
+  Windows 构建引用为 1.15.25，Linux/macOS 为 1.15.24；详见 [.Tools/Refs/README.md](.Tools/Refs/README.md)。
 - GunsmithFramework 作为独立模组启用；使用下面的延迟注册写法时，模组加载顺序不做要求。
 - 你的模组拥有自己的 `ModConfig.xml`、`filelist.xml`、XML 物品文件、Lua 配置文件和本地化文本。
 

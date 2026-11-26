@@ -4,6 +4,9 @@
     <DefineConstants>TRACE;OSX;SERVER</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="LuaCsForBarotraumaPluginServer">
+      <HintPath>$(Libs)\OSX\LuaCsForBarotraumaPluginServer.dll</HintPath>
+    </Reference>
     <Reference Include="DedicatedServer">
       <HintPath>$(Libs)\OSX\DedicatedServer.dll</HintPath>
     </Reference>
@@ -15,7 +18,6 @@
     </Reference>
   </ItemGroup>
 
-  <Import Project="..\SharedProject\SharedProject.projitems" Label="Shared" />
   <Import Project="../Build.props"/>
 
   <Target Name="CopyFiles" AfterTargets="Build" Condition="'$(SkipModDeploy)' != 'true'">

@@ -8,7 +8,7 @@ namespace GunsmithFramework
 {
     public static class GunsmithQuickAttachmentBarrelSelectorPatch
     {
-        private const string VceTypeName = "SRW.SwitchableRangedWeapon";
+        private const string VceTypeName = "VCE_SRW.SwitchableRangedWeapon";
         private const string SelectorPropertyName = "currentProjectileSelected";
 
         private static readonly object PatchLock = new();

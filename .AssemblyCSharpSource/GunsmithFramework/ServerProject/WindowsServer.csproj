@@ -2,7 +2,6 @@
   <PropertyGroup>
     <Libs>..\..\..\.Tools/Refs</Libs>
   </PropertyGroup>
-  <Import Project="..\SharedProject\SharedProject.projitems" Label="Shared" />
   <Import Project="../Build.props"/>
 
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
@@ -14,6 +13,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Reference Include="LuaCsForBarotraumaPluginServer">
+      <HintPath>$(Libs)\Windows\LuaCsForBarotraumaPluginServer.dll</HintPath>
+    </Reference>
     <Reference Include="DedicatedServer">
       <HintPath>$(Libs)\Windows\DedicatedServer.dll</HintPath>
     </Reference>

@@ -27,7 +27,7 @@ public sealed class GunsmithQuickDragTests : IDisposable
         var harmony = new Harmony(nameof(CabinetDropTriesNestedContainerWithoutInvalidSlotSwap));
         try
         {
-            Type[] putArgs = [typeof(Item), typeof(int), typeof(bool), typeof(bool), typeof(Character), typeof(bool), typeof(bool), typeof(bool)];
+            Type[] putArgs = [typeof(Item), typeof(int), typeof(bool), typeof(bool), typeof(Character), typeof(bool), typeof(bool), typeof(bool), typeof(bool), typeof(bool)];
             harmony.Patch(AccessTools.Method(typeof(Inventory), nameof(Inventory.TryPutItem), putArgs),
                 prefix: new HarmonyMethod(typeof(GunsmithHiddenQuickSlotsPatch), "SkipSwapForUncontainableItem"));
             harmony.Patch(AccessTools.Method(typeof(ItemContainer), nameof(ItemContainer.CanBeContained), [typeof(Item), typeof(int)]),
@@ -44,6 +44,8 @@ public sealed class GunsmithQuickDragTests : IDisposable
             SetInstanceField(toolbelt, "ownInventory", CreateInventory(1));
             PutInSlot(cabinet, toolbelt, 0);
             Item wire = Uninitialized<Item>();
+            SetInstanceField(wire, "componentsByType", new Dictionary<Type, List<ItemComponent>>());
+            SetInstanceField(wire, "components", new List<ItemComponent>());
             PutInSlot(CreateInventory(1), wire, 0);
             nestedContainerAccepts = nestedAccepts;
             nestedCombineCalls = 0;
@@ -148,12 +150,12 @@ public sealed class GunsmithQuickDragTests : IDisposable
         bool result = true;
 
         Assert.False(GunsmithQuickDrag.TryHandleNativeSlotDrop(
-            target, Uninitialized<Item>(), 0, true, true, null!, false, false, false, ref result));
+            target, Uninitialized<Item>(), 0, true, true, null!, false, false, false, false, false, ref result));
         Assert.False(result);
 
         result = true;
         Assert.False(GunsmithQuickDrag.TryHandleNativeSlotDrop(
-            target, dragged, 1, true, true, null!, false, false, false, ref result));
+            target, dragged, 1, true, true, null!, false, false, false, false, false, ref result));
         Assert.False(result);
     }
 
@@ -168,7 +170,7 @@ public sealed class GunsmithQuickDragTests : IDisposable
         bool result = true;
 
         Assert.False(GunsmithQuickDrag.TryHandleNativeSlotDrop(
-            source, dragged, 0, true, true, null!, false, false, false, ref result));
+            source, dragged, 0, true, true, null!, false, false, false, false, false, ref result));
         Assert.False(result);
     }
 
