@@ -10,19 +10,30 @@ namespace GunsmithFramework
             typeof(Character)
         })]
         [HarmonyPostfix]
-        private static void AppendItemStats(Item item, ref RichString __result)
+        private static void AppendItemStats(Item item, IEnumerable<Item>? itemsInSlot, Character? character, ref RichString __result)
         {
+            if (item == null || __result == null)
+            {
+                return;
+            }
+
             string? stats = GetFormattedItemStats(item);
             if (stats == null)
             {
                 return;
             }
 
-            string tooltip = __result?.NestedStr.Value ?? string.Empty;
-            string? modLine = item.Prefab.ContentPackage is { } package && package != GameMain.VanillaContent
-                ? $"\n‖color:{XMLExtensions.ToStringHex(Color.MediumPurple)}‖{package.Name}‖color:end‖"
+            string tooltip = __result.NestedStr.Value ?? string.Empty;
+            string? stackLine = itemsInSlot != null && itemsInSlot.Skip(1).Any()
+                ? $"\n‖color:gui.blue‖[{GameSettings.CurrentConfig.KeyMap.KeyBindText(InputType.TakeOneFromInventorySlot)}] {TextManager.Get("inputtype.takeonefrominventoryslot")}‖color:end‖"
                 : null;
-            __result = RichString.Rich(InsertTooltipStats(tooltip, stats, modLine));
+            string? skillHints = item.Prefab?.SkillRequirementHints != null && item.Prefab.SkillRequirementHints.Any()
+                ? item.Prefab.GetSkillRequirementHints(character).Value
+                : null;
+            string contextualLine = PlayerInput.KeyDown(InputType.ContextualCommand)
+                ? $"\n‖color:gui.blue‖{TextManager.ParseInputTypes(TextManager.Get("itemmsgcontextualorders"))}‖color:end‖"
+                : $"\n‖color:{XMLExtensions.ToStringHex(Color.LightGray * 0.7f)}‖{TextManager.Get("itemmsg.morreoptionsavailable")}‖color:end‖";
+            __result = RichString.Rich(InsertTooltipStats(tooltip, stats, stackLine, skillHints, contextualLine));
         }
 
         internal static string? GetFormattedItemStats(object itemOrIdentifier, string indent = "  ")
@@ -41,11 +52,23 @@ namespace GunsmithFramework
             return FormatTooltipStats(ParseStats(sections[1]), sections[0], indent);
         }
 
-        internal static string InsertTooltipStats(string tooltip, string stats, string? modLine)
+        internal static string InsertTooltipStats(string tooltip, string stats, params string?[] beforeSections)
         {
-            int insertAt = string.IsNullOrEmpty(modLine)
-                ? -1
-                : tooltip.IndexOf(modLine, StringComparison.Ordinal);
+            int insertAt = -1;
+            foreach (string? section in beforeSections)
+            {
+                if (string.IsNullOrEmpty(section))
+                {
+                    continue;
+                }
+
+                int index = tooltip.LastIndexOf(section, StringComparison.Ordinal);
+                if (index >= 0 && (insertAt < 0 || index < insertAt))
+                {
+                    insertAt = index;
+                }
+            }
+
             return insertAt < 0
                 ? tooltip + "\n" + stats
                 : tooltip.Insert(insertAt, "\n" + stats);
