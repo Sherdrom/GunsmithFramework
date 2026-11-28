@@ -1,55 +1,118 @@
 # GunsmithFramework
 
-GunsmithFramework 是一个 Barotrauma 模组框架，用 Lua 描述枪械平台、武器、部件、挂点、Quick Slot 和 NPC 预设，用 C# 负责游戏内 UI、合成贴图、保存状态、Quick Slot 容器桥接和运行时属性。
+**GunsmithFramework** 是一个面向 **Barotrauma** 的模块化改枪框架：
 
-这份 README 面向第三方模组作者。目标是让你从零创建自己的改枪模组，而不是修改 GunsmithFramework 本体。
+- **Lua** 负责声明式配置：枪械平台、武器、部件、挂点、Quick Slot 与 NPC 预设。
+- **C#** 负责运行时能力：游戏内改装 UI、整枪贴图合成、存档持久化、Quick Slot 容器桥接与属性生效。
 
-## 需要准备
+> [!NOTE]
+> 本文档面向**第三方模组作者**，目标是帮你从零制作独立的改枪扩展包，无需修改 GunsmithFramework 本体。
 
-- 本分支面向 Barotrauma Unstable 1.15.x 和插件版 LuaCs，需在 LuaCs 设置中启用 C# 模组。
-  Windows 构建引用为 1.15.25，Linux/macOS 为 1.15.24；详见 [.Tools/Refs/README.md](.Tools/Refs/README.md)。
-- GunsmithFramework 作为独立模组启用；使用下面的延迟注册写法时，模组加载顺序不做要求。
-- 你的模组拥有自己的 `ModConfig.xml`、`filelist.xml`、XML 物品文件、Lua 配置文件和本地化文本。
+---
 
-第三方模组通过同一个 package 描述完成直接注册或延迟注册：
+## 目录
 
-```lua
-local package = {
-    modDir = ...,
-    entry = "Lua/Scripts/MyGunsmithMod/Config.lua"
-}
+- [核心概念速览](#核心概念速览)
+- [1. 环境准备与快速开始](#1-环境准备与快速开始)
+- [2. 核心配置参考](#2-核心配置参考)
+  - [2.1 包级配置（RegisterPackage）](#21-包级配置registerpackage)
+  - [2.2 Platform（枪械平台）](#22-platform枪械平台)
+  - [2.3 Weapon（武器）](#23-weapon武器)
+  - [2.4 Part（部件）与 Mount（挂点）](#24-part部件与-mount挂点)
+  - [2.5 配件互斥（excludes 与 exclusiveGroups）](#25-配件互斥excludes-与-exclusivegroups)
+  - [2.6 贴图坐标、兼容性与存档限制](#26-贴图坐标兼容性与存档限制)
+- [3. XML 接入与游戏内系统](#3-xml-接入与游戏内系统)
+  - [3.1 武器与部件 XML（GunsmithData）](#31-武器与部件-xmlgunsmithdata)
+  - [3.2 Quick Slot 完整指南](#32-quick-slot-完整指南)
+  - [3.3 枪口出口偏移与粒子跟随](#33-枪口出口偏移与粒子跟随)
+  - [3.4 工作台专用改装与 Fabricator 配方过滤](#34-工作台专用改装与-fabricator-配方过滤)
+  - [3.5 NPC 预设（NPC Presets）](#35-npc-预设npc-presets)
+- [4. 本地化配置](#4-本地化配置)
+- [5. 数值属性（part.stats）](#5-数值属性partstats)
+- [6. 校验、调试与接口速查](#6-校验调试与接口速查)
 
-GunsmithFramework = GunsmithFramework or {}
-if GunsmithFramework.RegisterPackage then
-    GunsmithFramework.RegisterPackage(package)
-else
-    GunsmithFramework.PendingPackages = GunsmithFramework.PendingPackages or {}
-    table.insert(GunsmithFramework.PendingPackages, package)
-end
+---
+
+## 核心概念速览
+
+### 配置层级关系
+
+```text
+Package（你的模组包，隔离归属与依赖）
+ └─ Platform（共享画布尺寸、根槽与路径显示名）
+     └─ Weapon（绑定 XML 武器 identifier、默认根部件与 Quick Slot 容器槽）
+         └─ Part（贴图、属性、真实/虚拟物品）
+             └─ Mount（子挂点，继续挂载下级 Part，可选暴露为 Quick Slot）
 ```
 
-入口可以放在模组内的任意路径。第三方模组先加载时会暂存 package，GunsmithFramework 启动后自动注册；框架先加载时则立即注册。
+### 区分 4 种常见标识
 
-## 快速开始
+写配置时最容易混淆的四个概念：
 
-建议目录结构：
+| 概念 | 出现位置 | 含义 | 示例 |
+| --- | --- | --- | --- |
+| **Lua Part ID** | `Config.parts.<id>`、`defaultPart`、`excludes` | Lua 中的部件配置键名 | `"my_suppressor"` |
+| **XML Identifier** | `<Item identifier="...">`、`part.item.identifier`、`Config.weapons.<id>` | Barotrauma 实际物品 ID | `"my_suppressor_item"` |
+| **Path（路径）** | `rootSlots[].path`、`mount.path`、NPC 预设 | 由根槽与各级挂点拼出的槽位路径 | `"receiver/barrel/muzzle"` |
+| **Quick Key** | `mount.quick.key`、`weapon.quickSlotBindings.<key>` | 把挂点映射到真实容器槽的稳定键 | `"muzzle"` |
+
+### 玩家操作与默认行为
+
+- **按 `F1`**：手持 Gunsmith 武器时打开完整改装 UI。
+- **按 `Shift+F1`**：武器配置了 Quick Slot 时打开快速改装 UI。
+- **真实物品部件（`item.identifier`）**：安装时从角色物品栏消耗对应 XML 物品，拆除或替换时返还（放不下则掉落）。
+- **虚拟部件（`item = { virtual = true }`）**：不消耗真实物品，适合默认结构件、不可掉落内部件或纯视觉件。
+
+### 推荐制作顺序
+
+1. 编写武器与部件的 XML，确认 Barotrauma 可正常加载。
+2. 给武器 XML 添加 `<GunsmithData />`。
+3. 新建 `platform`（先只放一个 `rootSlot`）。
+4. 编写根 `part` 与 `weapon.roots`，确保默认武器可正确显示。
+5. 使用内置工具 [`GunsmithAnchorEditor/index.html`](GunsmithAnchorEditor/index.html) 拾取 `visual.source`、`visual.attachPoint`、`roots[path].socket` 和 `mount.anchor`。
+6. 逐步为部件添加 `mounts` 与子配件（枪管、护木、枪托、瞄具等）。
+7. 需要快捷换装时，补充 `mount.quick` 与 `weapon.quickSlotBindings`。
+8. 进游戏执行控制台命令 `GunsmithFrameworkValidate`，再实测完整 UI 与 Quick UI。
+
+---
+
+## 1. 环境准备与快速开始
+
+### 运行环境
+
+- **游戏版本**：Barotrauma Unstable `1.15.x` + 插件版 LuaCs（需在 LuaCs 设置中启用 **C# 模组**）。
+  - 构建引用版本：Windows 为 `1.15.25`，Linux/macOS 为 `1.15.24`（详见 [`.Tools/Refs/README.md`](.Tools/Refs/README.md)）。
+- **加载顺序**：将 GunsmithFramework 作为独立模组启用；使用下方的延迟注册写法时，**不限制模组加载顺序**。
+
+### 推荐目录结构
 
 ```text
 MyGunsmithMod/
-  ModConfig.xml
-  filelist.xml
-  Items/Weapons.xml
-  Items/Parts.xml
-  text/English.xml
-  Lua/Autorun/init.lua
-  Lua/Scripts/MyGunsmithMod/Config.lua
-  Lua/Scripts/MyGunsmithMod/Config/Platforms/ExamplePlatform.lua
-  Lua/Scripts/MyGunsmithMod/Config/Parts/ExampleParts.lua
-  Lua/Scripts/MyGunsmithMod/Config/Weapons/ExampleWeapon.lua
+├── ModConfig.xml
+├── filelist.xml
+├── Items/
+│   ├── Weapons.xml
+│   └── Parts.xml
+├── text/
+│   └── English.xml
+└── Lua/
+    ├── Autorun/
+    │   └── init.lua
+    └── Scripts/MyGunsmithMod/
+        ├── Config.lua
+        └── Config/
+            ├── Platforms/ExamplePlatform.lua
+            ├── Parts/ExampleParts.lua
+            └── Weapons/ExampleWeapon.lua
 ```
 
-`ModConfig.xml`：
+### 最小可运行示例
 
+这个示例仅包含一个 `receiver` 根部件，完成后即可被框架识别、合成贴图、打开改装 UI 并保存状态。
+
+#### 第一步：配置模组清单与入口
+
+**`ModConfig.xml`**
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <ModConfig>
@@ -57,8 +120,7 @@ MyGunsmithMod/
 </ModConfig>
 ```
 
-`filelist.xml`：
-
+**`filelist.xml`**
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <contentpackage name="My Gunsmith Mod" modversion="1.0.0" corepackage="False" gameversion="1.12.7.0">
@@ -68,8 +130,7 @@ MyGunsmithMod/
 </contentpackage>
 ```
 
-`Lua/Autorun/init.lua`：
-
+**`Lua/Autorun/init.lua`**（同时支持直接注册与延迟注册）
 ```lua
 local package = {
     modDir = ...,
@@ -88,8 +149,7 @@ else
 end
 ```
 
-`Lua/Scripts/MyGunsmithMod/Config.lua`：
-
+**`Lua/Scripts/MyGunsmithMod/Config.lua`**
 ```lua
 local package = GunsmithFramework.CurrentPackage()
 local configPath = package.modDir .. "/Lua/Scripts/MyGunsmithMod/Config"
@@ -99,12 +159,9 @@ dofile(configPath .. "/Parts/ExampleParts.lua")
 dofile(configPath .. "/Weapons/ExampleWeapon.lua")
 ```
 
-## 最小可运行示例
+#### 第二步：声明 Platform、Part 与 Weapon
 
-这个例子只有一个重要的 `receiver` 根部件，能通过框架识别、合成贴图、打开 UI、保存状态。重要部件可以拆空，但缺少时枪械无法开火。
-
-`Config/Platforms/ExamplePlatform.lua`：
-
+**`Config/Platforms/ExamplePlatform.lua`**
 ```lua
 local platforms = GunsmithFramework.Config.platforms
 
@@ -119,8 +176,7 @@ platforms.my_platform = {
 }
 ```
 
-`Config/Parts/ExampleParts.lua`：
-
+**`Config/Parts/ExampleParts.lua`**
 ```lua
 local parts = GunsmithFramework.Config.parts
 
@@ -139,8 +195,7 @@ parts.my_receiver = {
 }
 ```
 
-`Config/Weapons/ExampleWeapon.lua`：
-
+**`Config/Weapons/ExampleWeapon.lua`**
 ```lua
 local weapons = GunsmithFramework.Config.weapons
 
@@ -152,27 +207,15 @@ weapons.my_rifle = {
             socket = { x = 64, y = 32 }
         }
     },
-    preview = {
-        padding = 12,
-        scale = 1.0,
-        offset = { x = 0, y = 0 }
-    },
-    inventory = {
-        scale = 1.0,
-        rotation = 0,
-        padding = 0
-    },
-    world = {
-        scale = 1.0,
-        rotation = 0,
-        padding = 0,
-        offset = { x = 0, y = 0 }
-    }
+    preview = { padding = 12, scale = 1.0, offset = { x = 0, y = 0 } },
+    inventory = { scale = 1.0, rotation = 0, padding = 0 },
+    world = { scale = 1.0, rotation = 0, padding = 0, offset = { x = 0, y = 0 } }
 }
 ```
 
-`Items/Weapons.xml` 里对应的武器 item 必须有 `<GunsmithData />`：
+#### 第三步：添加 XML 物品与文本
 
+**`Items/Weapons.xml`**（必须带有 `<GunsmithData />`）
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <Items>
@@ -186,8 +229,7 @@ weapons.my_rifle = {
 </Items>
 ```
 
-`text/English.xml`：
-
+**`text/English.xml`**
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <infotexts language="English">
@@ -197,60 +239,30 @@ weapons.my_rifle = {
 </infotexts>
 ```
 
-进游戏后运行控制台命令：
+#### 第四步：游戏内验证
+
+进游戏后打开控制台运行：
 
 ```text
 GunsmithFrameworkValidate
 ```
 
-如果输出 `0 errors`，拿起 `my_rifle` 按 `G` 应能打开完整改装 UI。
+输出 `0 errors` 后，拿起 `my_rifle` 按 `F1` 即可打开完整改装 UI。
 
-## Lua 类型约定
+---
 
-文档中的复合类型写法如下：
+## 2. 核心配置参考
 
-| 名称 | Lua 写法 | 说明 |
-| --- | --- | --- |
-| point | `{ x = 0, y = 0 }` | 坐标点或偏移。 |
-| rect | `{ x = 0, y = 0, w = 128, h = 64 }` | 图片裁切矩形。 |
-| string array | `{ "a", "b" }` | 必须是连续数组，不能写成键值表。 |
-| path | `"receiver/barrel/muzzle"` | root slot 和 mount path 拼出的选择路径。 |
+> [!TIP]
+> **本文档的 Lua 类型约定**：
+> - `point`：`{ x = 0, y = 0 }`（坐标点或偏移）
+> - `rect`：`{ x = 0, y = 0, w = 128, h = 64 }`（图片像素裁切区域）
+> - `string array`：`{ "a", "b" }`（**必须是连续数组**，不能写成键值表）
+> - `path`：`"receiver/barrel/muzzle"`（由 root slot 与各级 mount path 拼接）
 
-## 制作流程
+### 2.1 包级配置（`RegisterPackage`）
 
-推荐顺序：
-
-1. 先写 XML 武器和部件物品，确认 Barotrauma 能加载你的模组。
-2. 给 Gunsmith 武器 XML item 加 `<GunsmithData />`。
-3. 写 `platform`，先只做一个 root slot。
-4. 写 root part 和 weapon `roots`，让默认武器能显示。
-5. 用 `GunsmithAnchorEditor/index.html` 取 `visual.source`、`visual.attachPoint`、`roots[path].socket`、`mount.anchor`。
-6. 给 root part 增加 `mounts`，再逐步增加枪管、护木、枪托、瞄具等部件。
-7. 需要快速改装时，再添加 `mount.quick` 和 `weapon.quickSlotBindings`。
-8. 进游戏运行 `GunsmithFrameworkValidate`，再打开 UI 和 Quick UI 做最终检查。
-
-坐标规则：
-
-```text
-root draw offset = root.socket - root visual.attachPoint * root visual.scale
-child anchor = parent draw offset + (parent visual.attachPoint + mount.anchor) * parent visual.scale
-child draw offset = child anchor - child visual.attachPoint * child visual.scale
-```
-
-如果不用 `visual.attachPoint`，也可以用 `visual.relativeOffset`，含义是相对锚点的绘制偏移。
-
-## 玩家交互
-
-- 持有 Gunsmith 武器时按 `G` 打开完整改装 UI。
-- 武器有 Quick Slot 时按 `Shift+G` 打开快速改装 UI。
-- 选择有 `part.item.identifier` 的部件时，框架会从角色物品栏寻找同 identifier 的真实 XML 物品，安装时消耗，拆除或替换时返还。
-- `item = { virtual = true }` 的部件不需要真实物品，适合默认结构件、不可掉落内部件或纯视觉件。
-- Quick Slot 使用武器自己的 `ItemContainer` 槽位。Lua 配置中的 `slot` 是从 `0` 开始的槽位索引。
-
-## 包级配置
-
-`GunsmithFramework.RegisterPackage(package)` 可接收字符串或 table。字符串会被视为 `entry`。
-如果 Autorun 执行时该函数尚不存在，将同一个 table 加入 `GunsmithFramework.PendingPackages`；框架启动时会依次交给 `RegisterPackage`。
+`GunsmithFramework.RegisterPackage(package)` 接受一个配置表（或直接传字符串作为 `entry`）。若在 `Autorun` 执行时框架尚未加载，把同一个表放入 `GunsmithFramework.PendingPackages`，框架启动后会自动依次注册。
 
 ```lua
 GunsmithFramework.RegisterPackage({
@@ -259,9 +271,9 @@ GunsmithFramework.RegisterPackage({
     name = "My Pack",
     entry = "Lua/Scripts/MyPack/Config.lua",
     localizationFiles = { "text/English.xml", "text/Chinese.xml" },
-    -- 可选：只在想覆盖框架 UI 文案前缀时填写。
+    -- 可选：覆盖框架 UI 文案前缀，不写也能正常工作
     -- localizationPrefix = "my.gunsmith",
-    -- 可选：只在需要引用其他 Gunsmith package 的 platform/part/preset 时填写。
+    -- 可选：显式引用其他包的配置
     -- imports = { "shared_gunsmith_pack" },
     weaponTags = { "my_gunsmith_weapon" },
     partTags = { "my_gunsmith_part" },
@@ -269,49 +281,42 @@ GunsmithFramework.RegisterPackage({
 })
 ```
 
-字段说明：
-
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `entry` | string | 必填 | 相对 `modDir` 的 Lua 配置入口。 |
-| `modDir` | string | 从调用来源推断 | 模组根目录。Autorun 里通常写 `modDir = ...`。 |
+| `entry` | string | **必填** | 相对 `modDir` 的 Lua 配置入口（可放在模组内任意路径）。 |
+| `modDir` | string | 从调用来源推断 | 模组根目录；Autorun 中通常写 `modDir = ...`。 |
 | `modPath` | string | 无 | `modDir` 的别名。 |
-| `id` | string | 从目录名推断 | 包 id，用于记录配置归属和重复定义检测。 |
-| `name` | string | 从 filelist 或目录名推断 | 显示/日志用名称。 |
-| `localizationFiles` | string array | 从 filelist 的 `<Text>` 推断 | 校验本地化 key 时读取的文本文件。 |
-| `localizationPrefix` | string | `id .. ".gunsmith"`，也会尝试从已注册 key 推断 | 可选。覆盖此包的框架 UI 文案前缀；不写也能正常工作。 |
-| `imports` | string array | `{}` | 可选。显式允许本包引用其他 package 拥有的 platform、part、weapon 或 NPC preset。默认禁止跨包引用。 |
-| `weaponTags` | string array | 尝试从 XML item tags 推断 | 注册为 Gunsmith 武器标签。 |
-| `partTags` | string array | 尝试从 XML item tags 推断 | 注入 Quick Slot 容器时用作可放入部件标签。 |
-| `override` | boolean | `false` | 为 `true` 时允许覆盖其他包已有的同 id platform/weapon/part/preset。 |
+| `id` | string | 从目录名推断 | 包唯一 ID，用于配置归属隔离和重复定义检测。 |
+| `name` | string | 从 filelist/目录推断 | 显示与日志用名称。 |
+| `localizationFiles` | string array | 从 filelist `<Text>` 推断 | 校验本地化 key 时读取的文本文件列表。 |
+| `localizationPrefix` | string | `id .. ".gunsmith"` 或自动推断 | 可选。覆盖此包的框架 UI 文案前缀（详见[第 4 节](#4-本地化配置)）。 |
+| `imports` | string array | `{}` | 可选。允许本包引用其他已注册包的 platform/part/weapon/preset。 |
+| `weaponTags` | string array | 从 XML tags 推断 | 注册为 Gunsmith 武器标签。 |
+| `partTags` | string array | 从 XML tags 推断 | 注入 Quick Slot 容器时允许放入的部件标签。 |
+| `override` | boolean | `false` | 为 `true` 时允许覆盖其他包同 ID 的 platform/weapon/part/preset。 |
 
-owner 隔离规则：
+在配置入口中可通过 `GunsmithFramework.CurrentPackage()` 获取当前包信息（如 `package.modDir`）。
 
-- 每个通过 `RegisterPackage` 加载的 platform、weapon、part、NPC preset 都会记录所属 package。
-- 默认只能引用本 package 拥有的配置。weapon 的 `platform`、root part、`defaultPart`、NPC preset 的 `weapon/parts`，以及 UI/Quick UI 的部件候选都会按 owner 过滤。
-- 如果要复用其他包的配置，在当前包声明 `imports = { "other_package_id" }`。被 import 的包必须已经注册。
-- `imports` 只允许引用，不允许覆盖同名配置。覆盖同名 platform/weapon/part/preset 仍然必须使用 `override = true`。
-- 仍建议所有全局 key 使用模组前缀，例如 `my_mod_ar_platform`、`my_mod_receiver`，避免 duplicate key。
-- 直接写全局 `GunsmithFramework.Config` 而不通过 `RegisterPackage` 不属于支持的第三方接口；校验器会把真实配置中的无 owner 条目标为错误。
+#### Owner 隔离规则
 
-配置入口内可用：
+- 通过 `RegisterPackage` 加载的所有 platform、weapon、part、NPC preset 都会自动记录所属 package。
+- **默认禁止跨包引用**：weapon 的 `platform` / root part、`defaultPart`、NPC preset 以及 UI / Quick UI 候选项均按 owner 过滤。
+- 如需复用其他包的内容，声明 `imports = { "other_package_id" }`（被引入的包必须已注册）。
+- `imports` 仅允许**引用**，不允许覆盖同名配置；覆盖必须显式设置 `override = true`。
+- 建议所有全局配置 ID 均带模组前缀（如 `my_mod_ar_platform`、`my_mod_receiver`），避免键名冲突。
+- **不要**绕过 `RegisterPackage` 直接写全局 `GunsmithFramework.Config`；校验器会将无 owner 的条目报为错误。
 
-```lua
-local package = GunsmithFramework.CurrentPackage()
-local modDir = package.modDir
-```
+---
 
-## Platform 配置
+### 2.2 Platform（枪械平台）
 
-Platform 定义同一类武器共享的画布、根槽和路径显示名。
+Platform 定义一类武器共享的合成画布、根槽结构与路径显示名。
 
 ```lua
 GunsmithFramework.Config.platforms.my_platform = {
-    -- 可选：不写时使用所属 package 的 localizationPrefix，或框架默认前缀。
-    -- localizationPrefix = "my.gunsmith",
     canvas = { w = 512, h = 160 },
     rootSlots = {
-        { path = "receiver" , hidden = true }
+        { path = "receiver", hidden = true }
     },
     requiredSlots = { "barrel", "stock" },
     pathNameKeys = {
@@ -323,56 +328,42 @@ GunsmithFramework.Config.platforms.my_platform = {
 }
 ```
 
-字段说明：
-
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `canvas.w` / `canvas.h` | number | 是 | 合成整枪贴图的画布宽高。 |
+| `canvas.w` / `canvas.h` | number | 是 | 合成整枪贴图的画布宽高（像素）。 |
 | `rootSlots` | array | 是 | 根槽数组，必须写成 `{ { path = "receiver" } }`，不能写成键值表。 |
-| `rootSlots[].path` | string | 是 | 根槽路径。根槽路径不能包含 `/`。 |
-| `rootSlots[].hidden` | boolean | 否 | 隐藏根槽不直接显示在 UI 根层，它的子挂点会显示在根层。 |
-| `pathNameKeys` | table | 是 | 路径段到本地化 key 的映射。root path 和 required slot 的每个路径段都需要 key。 |
-| `localizationPrefix` | string | 否 | 可选。覆盖此 platform 的路径 UI 文案前缀；大多数第三方模组可以不写。 |
-| `requiredSlots` | string array | 否 | 重要子槽。可以拆空，但任一重要槽为空时主武器无法开火，并在尝试开火时提示玩家。只有存在且仅存在一个 hidden root 时可用，路径写 hidden root 下的相对路径，不要带 hidden root 自身。 |
+| `rootSlots[].path` | string | 是 | 根槽路径段，**不能包含 `/`**。 |
+| `rootSlots[].hidden` | boolean | 否 | 设为 `true` 时隐藏该根槽，将其子挂点直接提升到 UI 根层显示。 |
+| `pathNameKeys` | table | 是 | 路径段到本地化 key 的映射；root path 与 requiredSlots 的每一段都需要对应 key。 |
+| `requiredSlots` | string array | 否 | 重要子槽列表。仅当**存在且仅存在一个 `hidden = true` 的根槽**时可用；路径写相对该 hidden root 的路径（不要包含 hidden root 自身）。 |
+| `localizationPrefix` | string | 否 | 可选。覆盖该 platform 的路径 UI 文案前缀，大多数模组可省略。 |
 
-规则：
+> [!IMPORTANT]
+> **重要部件（禁射）规则**：
+> - `rootSlots` 中的根槽**天生就是重要槽**，无需也不应写 `required = true`。
+> - 重要部件（根槽或 `requiredSlots`）允许玩家拆空，但**只要有任意重要槽为空，主武器就无法开火**，尝试开火时会提示玩家。
+> - `requiredSlots` 必须是数组（如 `{ "barrel", "stock" }`），不能写成 `{ barrel = true }`；没有 hidden root 时不要写此字段。
+> - 若武器使用 `SwitchableRangedWeapon` 切换到下挂武器（索引 `1`），下挂武器仍可开火，重要部件限制仅作用于主武器。
 
-- root slot 永远属于重要槽，不要写 `required = true`；它可以拆空，但缺少时主武器无法开火。
-- `requiredSlots` 必须是数组，不是 `{ barrel = true }` 这样的键值表。
-- 如果没有 hidden root，就不要写 `requiredSlots`。
-- `SwitchableRangedWeapon` 选择下挂弹药（索引 `1`）时，下挂武器仍可开火；重要部件限制只作用于主武器。
+---
 
-## Weapon 配置
+### 2.3 Weapon（武器）
 
-Weapon 绑定一个 XML item identifier。键名必须等于 XML `<Item identifier="...">`。
+Weapon 配置的键名必须与 XML `<Item identifier="...">` 完全一致。
 
 ```lua
 GunsmithFramework.Config.weapons.my_rifle = {
     platform = "my_platform",
-    -- 可选：不写时使用所属 package 的 localizationPrefix，或框架默认前缀。
-    -- localizationPrefix = "my.gunsmith",
+    requiresWorkbench = false,
     roots = {
         receiver = {
             part = "my_receiver",
             socket = { x = 256, y = 80 }
         }
     },
-    preview = {
-        padding = 12,
-        scale = 1.0,
-        offset = { x = 0, y = 0 }
-    },
-    inventory = {
-        scale = 0.8,
-        rotation = 0,
-        padding = 2
-    },
-    world = {
-        scale = 1.0,
-        rotation = 0,
-        padding = 0,
-        offset = { x = 0, y = 0 }
-    },
+    preview = { padding = 12, scale = 1.0, offset = { x = 0, y = 0 } },
+    inventory = { scale = 0.8, rotation = 0, padding = 2 },
+    world = { scale = 1.0, rotation = 0, padding = 0, offset = { x = 0, y = 0 } },
     quickSlotTags = { "my_gunsmith_part" },
     quickSlotBindings = {
         muzzle = {
@@ -384,38 +375,26 @@ GunsmithFramework.Config.weapons.my_rifle = {
 }
 ```
 
-字段说明：
-
-| 字段 | 类型 | 必填 | 说明 |
+| 字段 | 类型 | 必填 / 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `platform` | string | 是 | 引用 `Config.platforms[platformId]`。 |
-| `localizationPrefix` | string | 否 | 可选。覆盖此 weapon 的完整/快速改装 UI 文案前缀；大多数第三方模组可以不写。 |
-| `requiresWorkbench` | boolean | 否，默认 `false` | 为 `true` 时只限制完整 GunsmithUI；普通 `G` 入口需工作台，`Shift+G` QuickUI 仍可用。 |
-| `roots` | table | 是 | 每个 platform root slot 都必须有对应 root 配置。 |
-| `roots[path].part` | string | 是 | 默认 root part id。该 part 的 `type` 必须等于 root path。 |
-| `roots[path].socket` | point | 是 | root part 在 canvas 上的连接点 `{ x, y }`。 |
-| `preview.padding` | number >= 0 | 否，默认 `12` | UI 预览边距。 |
-| `preview.scale` | number > 0 | 否，默认 `1.0` | UI 预览缩放。 |
-| `preview.offset` | point | 否，默认 `{0,0}` | UI 预览偏移。 |
-| `inventory.scale` | number > 0 | 否，默认 `1.0` | 物品栏图标缩放。 |
-| `inventory.rotation` | number | 否，默认 `0` | 物品栏图标旋转角度，单位为度。 |
-| `inventory.padding` | number >= 0 | 否，默认 `0` | 物品栏图标边距。 |
-| `world.scale` | number > 0 | 否，默认 `1.0` | 世界贴图缩放。 |
-| `world.rotation` | number | 否，默认 `0` | 世界贴图旋转角度，单位为度。 |
-| `world.padding` | number >= 0 | 否，默认 `0` | 世界贴图边距。 |
-| `world.offset` | point | 否，默认 `{0,0}` | 世界贴图偏移。 |
-| `quickSlotBindings` | table | 否 | 将部件挂点上的 `mount.quick.key` 绑定到真实 ItemContainer 槽位。 |
-| `quickSlotBindings[key].slot` | integer >= 0 | 是 | 真实容器槽位索引，从 `0` 开始。 |
-| `quickSlotBindings[key].itemPosOffset` | point | 否 | Quick Slot 附件显示点相对挂点的偏移。 |
-| `quickSlotBindings[key].rotation` | number | 否，默认 `0` | Quick Slot 附件显示旋转角度。 |
-| `quickSlotTags` | string array | 否 | 覆盖动态注入 Quick Slot 的 containable tags。未写时使用 package `partTags`。 |
+| `platform` | string | **必填** | 引用 `Config.platforms[platformId]`。 |
+| `roots` | table | **必填** | 必须为 platform 的每个 root slot 提供配置。 |
+| `roots[path].part` | string | **必填** | 默认 root part ID，该 part 的 `type` 必须等于 `path`。 |
+| `roots[path].socket` | point | **必填** | root part 在画布上的连接点 `{ x, y }`。 |
+| `requiresWorkbench` | boolean | 否（`false`） | 为 `true` 时，普通 `F1` 键无法打开完整改装 UI，需通过工作台打开；`Shift+F1` 的 Quick UI 仍可用。 |
+| `preview` | table | 否 | UI 预览渲染参数：`padding`（≥0，默认 `12`）、`scale`（>0，默认 `1.0`）、`offset`（默认 `{0,0}`）。 |
+| `inventory` | table | 否 | 物品栏图标参数：`scale`（>0，默认 `1.0`）、`rotation`（度，默认 `0`）、`padding`（≥0，默认 `0`）。 |
+| `world` | table | 否 | 世界贴图参数：`scale`（>0，默认 `1.0`）、`rotation`（度，默认 `0`）、`padding`（≥0，默认 `0`）、`offset`（默认 `{0,0}`）。 |
+| `quickSlotBindings` | table | 否 | 将挂点的 `mount.quick.key` 绑定到武器 `ItemContainer` 槽位（从 `0` 开始）。每个绑定含 `slot`（必填，≥0 整数）、`itemPosOffset`（可选）、`rotation`（可选，默认 `0`）。 |
+| `quickSlotTags` | string array | 否 | 覆盖动态注入 Quick Slot 的 containable tags；省略时沿用所属 package 的 `partTags`。 |
+| `localizationPrefix` | string | 否 | 可选。覆盖该 weapon 的完整/快速改装 UI 文案前缀。 |
 
-兼容字段：
+<details>
+<summary>兼容旧字段：<code>weapon.quickSlots</code>（不推荐新模组使用）</summary>
 
-- `weapon.quickSlots` 仍可作为 fallback 被读取，但不推荐新模组使用。它不会经过同等严格的可达性校验，也不会自动从 `mount.quick` 生成锚点。新配置应使用 `mount.quick` + `weapon.quickSlotBindings`。
+`weapon.quickSlots` 仍可作为 fallback 被运行时读取，但不会经过同等严格的可达性校验，也不会从 `mount.quick` 自动推导锚点。新模组请统一使用 `mount.quick` + `weapon.quickSlotBindings`。
 
-如果必须维护旧配置，`weapon.quickSlots` 是数组，运行时会读取这些字段：
-
+旧格式参考（数组）：
 ```lua
 quickSlots = {
     {
@@ -431,16 +410,19 @@ quickSlots = {
 }
 ```
 
-这些字段不会由校验器完整保护。新内容仍应迁移到 `quickSlotBindings`。
+</details>
 
-## Part 配置
+---
 
-Part 是所有可安装部件、默认结构件和附件的配置。
+### 2.4 Part（部件）与 Mount（挂点）
+
+Part 描述所有可安装部件、默认结构件与附件。
 
 ```lua
 GunsmithFramework.Config.parts.my_handguard = {
     type = "handguard",
     nameKey = "my.gunsmith.part.handguard",
+    uiOrder = 0,
     provides = { "my_ar_handguard" },
     excludes = { "my_conflicting_part" },
     groups = { "my_mod:long_handguard" },
@@ -477,250 +459,111 @@ GunsmithFramework.Config.parts.my_handguard = {
 }
 ```
 
-字段说明：
+#### Part 字段说明
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `type` | string | 是 | 部件类型。安装到 root slot 时必须等于 root path；安装到 mount 时必须等于 `mount.partType` 或 `mount.path`。 |
-| `nameKey` | string | 是 | UI 显示名本地化 key。 |
-| `uiOrder` | number | 否，默认 `0` | 配件列表排序权重，越小越靠前；相同权重按 part id 排序。`[空]` 始终位于最前。 |
-| `provides` | string array | 是 | 兼容性标签。必须和目标 mount 的 `accepts` 至少有一个交集。 |
-| `excludes` | string array | 否 | 与这些 part id 互斥。任一方向声明都会互斥，同一配件对只需声明一次。 |
-| `groups` | string array | 否 | 配件所属的分类组。组本身不会导致冲突；冲突关系由 `Config.exclusiveGroups` 定义。 |
-| `item.identifier` | string | 条件必填 | 真实 XML 部件物品 identifier。非默认部件必须有 `item.identifier` 或 `item.virtual = true`。 |
-| `item.virtual` | boolean | 条件必填 | `true` 表示不需要真实物品。 |
-| `visual` | table | 否 | 视觉图层。缺少 visual 的部件仍可参与兼容性/默认树/属性，但不会绘制图层。 |
-| `visual.texture` | string | visual 存在时必填 | 图片路径，支持 `%ModDir%`。 |
-| `visual.source` | rect | visual 存在时必填 | `{ x, y, w, h }`，图片像素裁切区域。 |
-| `visual.attachPoint` | point | 与 `relativeOffset` 二选一 | source 内连接点。 |
-| `visual.relativeOffset` | point | 与 `attachPoint` 二选一 | 相对锚点的绘制偏移。 |
-| `visual.order` | number | 否，默认 `0` | 图层绘制顺序。mount 上的 `visualOrder` 会覆盖它。 |
-| `visual.scale` | number > 0 | 否，默认 `1.0` | 单个部件图层缩放。 |
-| `stats` | table | 否 | 数值修正。键见“Stats 附录”，值必须是 number。 |
-| `mounts` | array | 否 | 此部件安装后提供的子挂点。 |
-| `quickAttachmentTransform.muzzleOutletOffset` | point | 否 | 高级可选字段。只对安装在 `muzzle` 或 `lower_rail` Quick Slot 路径上的部件有意义；`lower_rail` 是 Vanilla-Components-Expanded 下挂武器兼容路径。见下方专门说明。 |
+| `type` | string | **是** | 部件类型。装在根槽时必须等于 root `path`；装在子挂点时必须等于 `mount.partType`（或未写时的 `mount.path`）。 |
+| `nameKey` | string | **是** | UI 显示名本地化 key。 |
+| `provides` | string array | **是** | 兼容性标签；必须与目标 mount 的 `accepts` 至少有一个交集。 |
+| `item.identifier` | string | 条件必填 | 真实 XML 物品 identifier。非默认部件必须提供 `item.identifier` 或 `item.virtual = true`。 |
+| `item.virtual` | boolean | 条件必填 | 为 `true` 表示无需真实物品。 |
+| `uiOrder` | number | 否（`0`） | 配件列表排序权重，越小越靠前；同权重按 part ID 排序；`[空]` 始终排在最前。 |
+| `excludes` | string array | 否 | 与指定 part ID 双向互斥（详见 [2.5](#25-配件互斥excludes-与-exclusivegroups)）。 |
+| `groups` | string array | 否 | 所属分类组；配合 `Config.exclusiveGroups` 实现组间互斥。 |
+| `visual` | table | 否 | 视觉图层配置。无 `visual` 的部件仍参与兼容、默认树与属性计算，但不绘制贴图。 |
+| `visual.texture` | string | `visual` 存在时必填 | 贴图路径，支持 `%ModDir%`。 |
+| `visual.source` | rect | `visual` 存在时必填 | `{ x, y, w, h }`，图片像素裁切区域。 |
+| `visual.attachPoint` | point | 与 `relativeOffset` 二选一 | `source` 内的连接点坐标。 |
+| `visual.relativeOffset` | point | 与 `attachPoint` 二选一 | 相对挂点锚点的绘制偏移。（旧字段 `visual.offset` 已废弃，请勿使用。） |
+| `visual.order` | number | 否（`0`） | 图层绘制顺序；会被目标 mount 的 `visualOrder` 覆盖。 |
+| `visual.scale` | number > 0 | 否（`1.0`） | 单个部件图层缩放。 |
+| `stats` | table | 否 | 属性修正表，值必须为 `number`（详见[第 5 节](#5-数值属性partstats)）。 |
+| `mounts` | array | 否 | 该部件安装后向下提供的子挂点数组。 |
+| `quickAttachmentTransform` | table | 否 | 高级选项，仅含 `muzzleOutletOffset`（详见 [3.3](#33-枪口出口偏移与粒子跟随)）。 |
 
-### 配件互斥
-
-少量、例外性的配件冲突使用 `excludes`。它按双向关系处理，只需在任意一边列出另一个 part id，不要重复反向声明：
-
-```lua
-parts.my_long_handguard.excludes = {
-    "my_short_barrel"
-}
-```
-
-大量配件形成类别间冲突时，将配件加入分类组，再通过 `Config.exclusiveGroups` 集中声明组间关系。下面的关系只声明一个方向，但运行时按双向互斥处理：
-
-```lua
-parts.my_long_handguard.groups = {
-    "my_mod:long_handguard"
-}
-
-parts.my_short_barrel.groups = {
-    "my_mod:short_barrel"
-}
-
-parts.my_other_short_barrel.groups = {
-    "my_mod:short_barrel"
-}
-
-GunsmithFramework.Config.exclusiveGroups["my_mod:short_barrel"] = {
-    "my_mod:long_handguard"
-}
-```
-
-加入同一组的配件不会彼此互斥；只有两个配件所属的不同组之间声明了关系时才会冲突。以后新增短枪管或长护木时，只需加入相应的 `groups`。同一个配件可以加入多个组。
-
-组名是全局字符串；第三方内容应使用稳定且带模组前缀的名称，例如 `my_mod:short_barrel`。`Config.exclusiveGroups` 的键和值都必须是已约定的组名，并且同一组关系只需声明一次。
-
-`visual` 完整性规则：
-
-- 如果写了 `visual`，必须有 `texture` 和完整 `source.x/y/w/h`。
-- 必须写 `attachPoint` 或 `relativeOffset` 其中一个。
-- `visual.offset` 是旧字段，不要使用。
-
-### Mount 配置
-
-`part.mounts` 必须是数组：
-
-```lua
-mounts = {
-    {
-        path = "optic_mount",
-        partType = "optic",
-        nameKey = "my.gunsmith.path.optic",
-        accepts = { "picatinny_optic" },
-        defaultPart = "my_iron_sight",
-        anchor = { x = 70, y = -12 },
-        visualOrder = 40,
-        quick = {
-            key = "optic",
-            nameKey = "my.gunsmith.quick.optic",
-            showWhenContained = { "my_scope_item" }
-        }
-    }
-}
-```
-
-字段说明：
+#### Mount 字段说明（`part.mounts` 必须是数组）
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `path` | string | 是 | 子路径段。完整路径由父路径拼接，例如 `receiver/handguard/optic_mount`。 |
-| `partType` | string | 否 | 接受的 part `type`。未写时使用 `path`。 |
-| `nameKey` | string | 否 | 子槽显示名本地化 key。未写时用 platform `pathNameKeys[path]`。 |
+| `path` | string | **是** | 子路径段，自动拼接到父路径后（如 `receiver/handguard/optic_mount`）。 |
+| `accepts` | string array | **是** | 接受的 `provides` 标签列表。 |
+| `partType` | string | 否 | 要求子部件的 `type`；省略时默认等于 `path`。 |
+| `nameKey` | string | 否 | 子槽显示名本地化 key；省略时回退到 `platform.pathNameKeys[path]`。 |
 | `defaultPart` | string | 否 | 父部件安装时自动安装的默认子部件。 |
-| `emptyPart` | string | 否 | 选择 `[空]` 时内部安装的虚拟子部件，可继续提供下级 mount；UI 不会把它显示为第二个候选项。 |
-| `accepts` | string array | 是 | 接受的 `provides` 标签。 |
-| `anchor` | point | 否 | 父部件上的子挂点，坐标相对父部件 `visual.attachPoint`。 |
-| `visualOrder` | number | 否 | 安装在此 mount 上的子部件图层顺序。 |
-| `quick` | table | 否 | 将此 mount 暴露给 Quick Slot 系统。 |
-| `quick.key` | string | quick 存在时必填 | 由 `weapon.quickSlotBindings[key]` 引用。 |
-| `quick.nameKey` | string | 否 | Quick UI 显示名。 |
-| `quick.showWhenContained` | string array | 否 | 只有槽内物品 identifier 在此列表中时，显示该原生槽。 |
+| `emptyPart` | string | 否 | 选择 `[空]` 时在内部安装的虚拟占位部件，可继续提供下级挂点，且不会在 UI 中显示为第二个选项。 |
+| `anchor` | point | 否 | 子挂点坐标，**相对父部件的 `visual.attachPoint`**。 |
+| `visualOrder` | number | 否 | 覆盖安装在此挂点上的子部件 `visual.order`。 |
+| `quick` | table | 否 | 暴露为 Quick Slot：`key`（存在 `quick` 时必填，对应 `weapon.quickSlotBindings`）、`nameKey`（可选）、`showWhenContained`（可选，string array，仅当槽内为指定 XML item 时显示原生容器槽）。 |
 
-默认部件规则：
+#### `defaultPart` 与 `emptyPart` 规则
 
-- `defaultPart` 必须存在。
-- 默认部件的 `type` 必须匹配 `mount.partType` 或 `mount.path`。
-- 默认部件的 `provides` 必须被 `mount.accepts` 接受。
-- `emptyPart` 同样必须匹配 mount，并声明 `item = { virtual = true }`，不能带 `item.identifier`。
-- `emptyPart` 会被视为已安装；表示可用的空挂点时，不要把该路径加入 `requiredSlots`。
-- 默认树最大深度为 32，不能形成循环。
+- 两者指定的 part 都必须存在，且满足该 mount 的 `partType` 与 `accepts`。
+- `emptyPart` 必须声明 `item = { virtual = true }`，且不能带 `item.identifier`。
+- `emptyPart` 在状态中会被视为“已安装”，因此表示可用空挂点时**不要**将该路径列入 `requiredSlots`。
+- 默认配件树最大深度为 **32**，不允许形成循环引用。
 
-### Quick Attachment 枪口出口偏移
+---
 
-`quickAttachmentTransform` 不是普通视觉对齐字段。普通部件贴图仍然只用 `visual.source`、`visual.attachPoint`、`mount.anchor` 和 `visual.scale` 对齐。
+### 2.5 配件互斥（`excludes` 与 `exclusiveGroups`）
 
-它目前只有一个可写字段：
+框架提供两种互斥方式，均在运行时按**双向互斥**处理，**无需反向重复声明**：
 
-```lua
-quickAttachmentTransform = {
-    muzzleOutletOffset = { x = 60, y = 0 }
-}
-```
+1. **少量点对点冲突 → 使用 `part.excludes`**
+   ```lua
+   parts.my_long_handguard.excludes = { "my_short_barrel" }
+   ```
+2. **大量类别间冲突 → 使用 `part.groups` + `Config.exclusiveGroups`**
+   ```lua
+   parts.my_long_handguard.groups  = { "my_mod:long_handguard" }
+   parts.my_short_barrel.groups    = { "my_mod:short_barrel" }
+   parts.my_short_barrel_v2.groups = { "my_mod:short_barrel" }
 
-含义：当这个部件被装在某个 Quick Slot 上，并且该 Quick Slot 的 key 是 `muzzle` 或 `lower_rail` 时，框架会把该 slot 的 anchor 当作附件基准点，再加上 `muzzleOutletOffset`，得到“实际枪口出口点”。其中 `lower_rail` 专门服务 Vanilla-Components-Expanded 下挂武器兼容，不是普通下导轨附件必须使用的 key。
+   GunsmithFramework.Config.exclusiveGroups["my_mod:short_barrel"] = {
+       "my_mod:long_handguard"
+   }
+   ```
+   - 同组配件之间**不会**互相冲突；只有两个配件所属的不同组在 `exclusiveGroups` 中声明了互斥关系时才会冲突。
+   - 单个配件可加入多个组；组名是全局字符串，请统一加模组前缀（如 `my_mod:short_barrel`）。
 
-这个点用于需要知道枪口位置的运行时效果，例如：
+---
 
-- 枪口 flash / spark 等带 Gunsmith barrel transform 的粒子。
-- 使用 Vanilla-Components-Expanded 的下挂发射器/下挂武器发射点。
-- 依赖 Quick Attachment barrel transform 的兼容补丁。
+### 2.6 贴图坐标、兼容性与存档限制
 
-不需要它的情况：
-
-- 普通瞄具。
-- 普通握把。
-- 只影响合成贴图的枪管、护木、枪托。
-- 任何不需要“实际枪口出口点”的部件。
-
-坐标规则：
-
-- 坐标使用 Gunsmith canvas 像素。
-- `{ x = 0, y = 0 }` 表示枪口出口就在该 Quick Slot 的 anchor 上。
-- `x` 向右增加，`y` 向下增加。
-- 不确定时先省略这个字段；省略时等价于没有额外枪口出口偏移。
-
-典型用法是写在消音器、枪口装置、下挂榴弹发射器或霰弹枪这类 Quick Slot 附件 part 上：
-
-```lua
-parts.my_suppressor = {
-    type = "muzzle",
-    nameKey = "my.gunsmith.part.suppressor",
-    provides = { "my_muzzle" },
-    item = { identifier = "my_suppressor_item" },
-    visual = {
-        texture = "%ModDir%/Items/my_parts.png",
-        source = { x = 0, y = 48, w = 64, h = 24 },
-        attachPoint = { x = 4, y = 12 }
-    },
-    quickAttachmentTransform = {
-        muzzleOutletOffset = { x = 60, y = 0 }
-    }
-}
-```
-
-Quick Attachment 枪口出口偏移目前识别两个 quick key：
-
-- `muzzle`：主枪口。
-- `lower_rail`：Vanilla-Components-Expanded 下挂发射器或下挂武器兼容路径；只有安装部件声明了 `quickAttachmentTransform.muzzleOutletOffset` 时才注册。不使用 Vanilla-Components-Expanded 时，普通下导轨附件不需要这个 key。
-
-### XML StatusEffect 用法
-
-Lua 里的 `quickAttachmentTransform.muzzleOutletOffset` 只负责告诉框架“当前枪口出口点在 canvas 上哪里”。XML 里的粒子效果还需要给对应 `StatusEffect` 加上 Gunsmith tag，框架才会把这个 StatusEffect 的生成位置改到当前枪口出口点。
-
-需要添加的 tag 是：
-
-```xml
-statuseffecttags="Gunsmith_BarrelParticle"
-```
-
-典型写法：
-
-```xml
-<RangedWeapon barrelpos="0,0">
-  <StatusEffect type="OnUse" target="This" statuseffecttags="Gunsmith_BarrelParticle">
-    <!-- 这里保留你原本的枪口 flash / spark 粒子效果。 -->
-    <ParticleEmitter particle="muzzleflash" particleamount="1" />
-    <ParticleEmitter particle="spark" particleamount="3" />
-  </StatusEffect>
-</RangedWeapon>
-```
-
-工作方式：
-
-- 没有 `Gunsmith_BarrelParticle` tag 的 `StatusEffect` 不会被 GunsmithFramework 改写位置。
-- 带这个 tag 的 `StatusEffect` 必须由带 `RangedWeapon` 组件的武器 item 触发，否则框架会报错。
-- 框架会优先使用当前 Gunsmith Quick Attachment barrel transform；如果没有注册 transform，则回退到 XML `RangedWeapon.BarrelPos`。
-- 主枪口使用 `muzzle` quick key 注册为 `primary` barrel rule。
-- 使用 Vanilla-Components-Expanded 时，VCE 的 projectile selector 会把选择 `0` 映射到 `primary`，选择 `1` 映射到 `lower_rail`。
-- 未安装声明了 `muzzleOutletOffset` 的下挂部件时，切换到下挂模式会正常回退到主枪口，不会提示缺少下挂枪口规则。
-- 不要再为不同枪口件写多套固定 `StatusEffect barrelpos` 或 `Distance` 来手动偏移枪口粒子；偏移应写在对应 part 的 `quickAttachmentTransform.muzzleOutletOffset`。
-
-适合加这个 tag 的效果：
-
-- 枪口 flash。
-- 枪口 spark。
-- 其他必须跟随 Gunsmith 当前枪口出口点的粒子。
-
-不建议依赖这个 tag 的效果：
-
-- 声音。
-- 爆炸。
-- 弹壳抛出。
-- 不使用 `StatusEffect` world position 的自定义逻辑。
-
-## 兼容性模型
-
-安装一个 part 到某个 path 时，框架按以下顺序判断：
-
-1. part id 必须存在。
-2. part `type` 必须等于该 path 的部件类型。
-3. 不能和当前已安装选择里的其他 part 互斥。
-4. root slot 不检查 `accepts`，只检查 type。
-5. 子 mount 必须存在 `accepts`，并且 `part.provides` 与 `mount.accepts` 有交集。
-
-路径示例：
+#### 贴图坐标换算公式
 
 ```text
-receiver
-receiver/barrel
-receiver/handguard
-receiver/handguard/top_rail
-receiver/handguard/top_rail/optic_mount
+root draw offset  = root.socket - root.attachPoint * root.scale
+child anchor      = parent draw offset + (parent.attachPoint + mount.anchor) * parent.scale
+child draw offset = child anchor - child.attachPoint * child.scale
 ```
 
-路径段由 root slot 和各级 mount 的 `path` 组成。保存状态、NPC preset 和 UI 都使用同一套路径。
+> 推荐使用 [`GunsmithAnchorEditor/index.html`](GunsmithAnchorEditor/index.html) 可视化对齐，避免手算出错。
 
-保存状态的完整 JSON 上限为 8192 字符，包含路径和配件 ID。换件前会检查新状态长度；超限时拒绝换件并保留原存档，不会截断 JSON。大型配件树应使用简短的路径段和 ID。
+#### 兼容性校验顺序
 
-## XML 配置
+尝试将某个 `part` 安装到 `path` 时，框架依次校验：
 
-### Gunsmith 武器 item
+1. `part` ID 存在（且符合 owner / `imports` 权限）。
+2. `part.type` 等于该 `path` 期望的部件类型。
+3. 不与当前已安装的其他部件互斥（`excludes` / `exclusiveGroups`）。
+4. 若为根槽：不检查 `accepts`，仅检查 `type`。
+5. 若为子挂点：`mount.accepts` 必须存在，且与 `part.provides` 有交集。
 
-每个 Gunsmith 武器 XML item 都应有 `<GunsmithData />`：
+#### 存档长度上限
+
+- 武器保存状态的完整 JSON 上限为 **8192 字符**（含所有路径与部件 ID）。
+- 换件前框架会校验长度，超限时直接拒绝换件并保留原存档，不会截断 JSON。配件树较深时，建议使用简短的路径段与 ID。
+
+---
+
+## 3. XML 接入与游戏内系统
+
+### 3.1 武器与部件 XML（`GunsmithData`）
+
+#### 武器 XML
+
+每个 Gunsmith 武器必须包含 `<GunsmithData />`：
 
 ```xml
 <Item identifier="my_rifle" tags="weapon,gun,gunsmith">
@@ -735,27 +578,25 @@ receiver/handguard/top_rail/optic_mount
 </Item>
 ```
 
-`GunsmithData` 字段：
+`<GunsmithData />` 可选属性：
 
 | 属性 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `savedstate` | string | `""` | 持久化选择状态。通常由框架写入，不建议手写。 |
-| `quickslotstart` | integer | 有 Quick Slot 时默认 `1` | 动态注入 Quick Slot 子容器的起始槽位。 |
-| `quickslotmax` | integer | 从 Lua `quickSlotBindings` 推断 | 需要注入到的最大槽位。未注册 Lua quick slots 时可手动指定。 |
+| `savedstate` | string | `""` | 持久化状态 JSON，由框架自动读写，不建议手写。 |
+| `quickslotstart` | integer | 有 Quick Slot 时为 `1` | 动态注入 Quick Slot 子容器的起始槽位索引。 |
+| `quickslotmax` | integer | 从 Lua `quickSlotBindings` 推断 | 需注入到的最大槽位索引（未注册 Lua 绑定时可手动指定）。 |
 | `quickslotitems` | string | `""` | 注入 Quick Slot 的 `<Containable items="...">`。 |
 | `quickslottags` | string | Lua 注册的 quick slot tags | 注入 Quick Slot 的 `<Containable tags="...">`。 |
 
-动态 Quick Slot 注入规则：
+**动态 Quick Slot 容器注入规则**：
 
-- 框架读取武器的 `ItemContainer` 当前容量和已有 `SubContainer` 容量。
-- 如果 Lua 绑定的最大 slot 超过现有容量，会自动追加隐藏 `SubContainer`。
-- 追加的槽位 `capacity="1"`、`maxstacksize="1"`、`hide="true"`、`itempos="0,0"`、`setactive="true"`。
-- Quick Slot 范围内复用的完整 XML `SubContainer` 也会启用 `setactive="true"`，并补充相同的配件 items/tags 匹配规则；原有位置、隐藏设置和状态效果会保留，使手电等配件能正常运行。
-- 如果你的武器已有弹匣槽，通常保留 slot `0` 给弹匣，让 Quick Slot 从 `1` 开始。
+- 若 Lua 绑定的最大 `slot` 超出武器 `ItemContainer` 现有容量，框架会自动追加隐藏 `SubContainer`（`capacity="1"`、`maxstacksize="1"`、`hide="true"`、`itempos="0,0"`、`setactive="true"`）。
+- 若 Quick Slot 范围内复用了你在 XML 中手写的 `SubContainer`，框架会为其启用 `setactive="true"` 并补充相同的配件 items/tags 规则，同时**保留**原有的位置、隐藏设置与 `StatusEffect`（使手电等组件可正常工作）。
+- 若武器自带弹匣槽，通常保留 slot `0` 给弹匣，Quick Slot 从 `1` 开始。
 
-### 部件 item
+#### 部件 XML
 
-有真实物品的 part 需要一个普通 XML item，其 identifier 等于 `part.item.identifier`：
+真实部件只需编写普通 XML Item，其 `identifier` 必须与 `part.item.identifier` 一致（框架按 `identifier` 匹配，不按名称匹配）：
 
 ```xml
 <Item identifier="my_suppressor_item" nameidentifier="entityname.my_suppressor_item" category="Weapon" tags="smallitem,my_gunsmith_part">
@@ -764,140 +605,22 @@ receiver/handguard/top_rail/optic_mount
 </Item>
 ```
 
-安装时框架按 identifier 找物品，不按 name 找。若 XML item 不存在，校验器会警告。
+---
 
-### 工作台专用改装
+### 3.2 Quick Slot 完整指南
 
-工作台默认接受所有 Gunsmith 枪械。需要限制完整改装入口的武器可以写 `requiresWorkbench = true`：
-
-```lua
-GunsmithFramework.Config.weapons.my_workbench_rifle = {
-    platform = "my_platform",
-    requiresWorkbench = true,
-    roots = {
-        receiver = {
-            part = "my_receiver",
-            socket = { x = 256, y = 80 }
-        }
-    }
-}
-```
-
-工作台页面使用客户端私有的虚拟枪械槽：玩家将这类枪拖入枪械槽后，当前客户端只保存该枪的引用并过滤配方；点击独立的打开按钮才会打开完整改装页。枪本身不会离开玩家背包，也不会进入工作台容器，其他玩家也看不到该选择或改装页。从框中拖出并在框外松手可取消选择，拖回框内松手则保留；这不会移动或丢弃背包中的枪械。拖入另一把枪可直接切换改装目标。普通 `G` 入口对这类武器不显示完整 UI；`Shift+G` 仍可打开 QuickUI 并修改 Quick Slot，完整改装仍必须由工作台入口打开。Fabricator 制造队列仍使用原版共享队列，制造出的部件不会自动安装。
-
-### Fabricator 配方过滤
-
-GunsmithFramework 可以在加工台左侧分类栏中加入一个 Gunsmith 分类按钮。玩家点击该按钮后，底部会显示一个客户端私有的枪械槽；将背包中的任意 Gunsmith 枪械拖入枪械槽后，配方列表只显示这把枪理论上可安装的部件物品。`requiresWorkbench` 不影响工作台接收枪械，只限制离开工作台后的完整改装入口。独立的打开按钮只负责打开完整改装页，不影响配方选择和制造。
-
-进入 Gunsmith 分类页时默认按配件 `type` 分组，组间显示类别标题和分隔线，组内按名称排序。类别名称沿用平台的 `pathNameKeys` / `path.<type>` 本地化；缺失时使用框架已有的类型名称或原始 `type`。搜索与“仅显示可用”仍有效，没有可见配方的类别不显示；也可以通过原版排序下拉框改用名称、技能需求或价格排序。切回原版分类后恢复原版列表排序。
-
-原版 `fabricator` 默认启用此按钮。自定义 Fabricator 需要在自己的 `<Fabricator>` 组件上加一个属性：
-
-```xml
-<Item identifier="my_gunsmith_fabricator" tags="my_gunsmith_fabricator" category="Machine">
-  <Sprite texture="%ModDir%/Items/my_fabricator.png" />
-  <Body width="160" height="96" />
-  <Fabricator canbeselected="true" gunsmithframeworkbutton="true" />
-</Item>
-```
-
-第三方作者不需要为枪械槽额外写 `ItemContainer`。这个枪械槽只是当前客户端的 UI 状态，不创建物品、容器或网络实体；切回原版分类或关闭加工台后会清除选择，加工台恢复原版输入栏和原版配方列表。
-
-可显示的配方必须已经是 Barotrauma 原版 Fabricate 配方。GunsmithFramework 只负责过滤，不会凭空生成配方：
-
-```xml
-<Item identifier="my_suppressor_item" nameidentifier="entityname.my_suppressor_item" category="Weapon" tags="smallitem,my_gunsmith_part">
-  <Sprite texture="%ModDir%/Items/my_parts.png" sourcerect="0,0,64,24" />
-  <Body width="64" height="24" />
-  <Fabricate suitablefabricators="my_gunsmith_fabricator" requiredtime="8">
-    <RequiredItem identifier="steel" />
-  </Fabricate>
-</Item>
-```
-
-匹配规则：
-
-- 目标配方的 item identifier 必须等于某个可安装 part 的 `part.item.identifier`。
-- 该配方仍必须适用于当前 Fabricator，也就是 `<Fabricate suitablefabricators="...">` 中包含当前加工台 identifier。
-- 尚未选择枪械时，Gunsmith 分类页不会显示可制造配方。
-- 选择工作台专用枪械后，框架从 weapon 的 root parts 出发，递归扫描这些 part 声明的 `mounts`，用候选 part 的 `provides` 和 mount 的 `accepts` 判断兼容性。
-- 配方列表显示“这把枪理论上可安装的所有部件”，不会根据当前已安装部件动态缩窄。
-- 制造结果只产出部件物品，不会自动安装到枪上。
-- 枪械改装请求由服务端校验枪械归属、工作台可用性和配置模式；Fabricator 配方与制造队列仍由原版共享逻辑处理。
-
-如果 Gunsmith 分类页为空，优先检查三件事：
-
-1. 枪械 XML item 是否有 `<GunsmithData />`，Lua `Config.weapons[identifier]` 是否存在。
-2. part 是否有 `item = { identifier = "..." }`，并且这个 XML item 真的存在。
-3. 该 XML item 是否有适用于当前 Fabricator 的 `<Fabricate suitablefabricators="...">`。
-
-### NPC preset
-
-NPC 或人类预设 XML 中的武器 item 可以写：
-
-```xml
-<Item identifier="my_rifle" gunsmithpreset="guard_rifle">
-  <Item identifier="my_magazine" />
-</Item>
-```
-
-不要把瞄具、握把、枪口等 Gunsmith Quick Slot 附件直接塞进 NPC XML。让 Lua profile 负责这些部件，框架会为 Quick Slot 自动生成真实 contained item。
-
-## NPC Presets
-
-NPC preset 写在 Lua：
-
-```lua
-local profiles = GunsmithFramework.Config.npcPresets.profiles
-
-profiles.guard_rifle = {
-    weapon = "my_rifle",
-    parts = {
-        receiver = "my_receiver",
-        ["receiver/barrel"] = "my_barrel_short",
-        ["receiver/handguard"] = "my_handguard",
-        ["receiver/handguard/top_rail/optic_mount"] = "my_red_dot",
-        ["receiver/handguard/bottom_rail/grip_mount"] = "my_vertical_grip",
-        ["receiver/barrel/muzzle"] = "my_suppressor"
-    }
-}
-```
-
-字段说明：
-
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| profile key | string | 是 | XML `gunsmithpreset` 引用的名字。 |
-| `weapon` | string | 否，但推荐 | 限定武器 XML identifier。写错武器时会忽略并警告。 |
-| `parts` | table | 否 | path 到 part id 的选择表。未列出的路径使用默认选择。 |
-
-规则：
-
-- profile 会先构造默认选择，再应用 `parts`。
-- `parts` 的互斥检查在整套替换完成后进行，不会被即将替换的默认部件阻挡。
-- 无效路径、不存在 part 或不兼容 part 会被警告，最终选择会被修剪。
-- 单机和服务端都会保存应用后的预设；武器已有非空 `SavedState` 时不会覆盖它。
-- 多人客户端使用服务端下发的部件选择，附件容器的到达顺序不会改写预设。
-- Quick Slot profile 部件需要 `part.item.identifier`，否则只能影响视觉/属性，不能自动生成真实 contained item。
-
-## Quick Slot 完整示例
-
-Quick Slot 把 Gunsmith 挂点连接到武器自己的真实 `ItemContainer` 槽位。它由三部分组成：
+Quick Slot 将挂点与武器自身的真实 `ItemContainer` 槽位双向同步：
 
 ```text
-part.mounts[].quick.key
-            ↓ 按 key 查找
-weapon.quickSlotBindings[key]
-            ↓ 使用 slot
-武器 ItemContainer 中从 0 开始的真实槽位
+part.mounts[].quick.key  ──(按 key 匹配)──▶  weapon.quickSlotBindings[key]  ──▶  武器 ItemContainer 槽位（0-based）
 ```
 
-`quickSlotBindings` 的键不是部件路径。完整路径由框架根据当前已安装的部件树自动生成；配置者只需要让 `mount.quick.key` 和 `quickSlotBindings[key]` 完全一致。
+> [!IMPORTANT]
+> `quickSlotBindings` 的键是 **`quick.key`**，**不是**完整部件路径。完整路径由框架根据当前已安装部件树自动解析。
 
-### 1. 在 mount 上声明 Quick Slot
+#### 三步配置示例
 
-Quick Slot 应写在“提供目标挂点”的父部件上。下面的枪管提供 `muzzle` 挂点：
-
+**1. 在提供挂点的父部件上声明 `mount.quick`**
 ```lua
 parts.my_barrel = {
     type = "barrel",
@@ -911,89 +634,41 @@ parts.my_barrel = {
     },
     mounts = {
         {
-            path = "muzzle",
+            path = "muzzle",        -- 决定路径段
             partType = "muzzle",
             nameKey = "my.gunsmith.path.muzzle",
             accepts = { "my_muzzle" },
             anchor = { x = 152, y = 20 },
             quick = {
-                key = "muzzle",
+                key = "muzzle",     -- 武器绑定用的稳定 key（可与 path 同名，但含义不同）
                 nameKey = "my.gunsmith.quick.muzzle",
-                showWhenContained = { "my_suppressor_item" }
+                showWhenContained = { "my_suppressor_item" } -- 可选：仅控制原生槽何时显示，不影响兼容性
             }
         }
     }
 }
 ```
 
-`path = "muzzle"` 决定挂点路径段；`quick.key = "muzzle"` 是武器绑定时使用的稳定键。两者可以同名，但含义不同。
-
-### 2. 在 weapon 上绑定真实容器槽
-
-武器使用同一个 key 把挂点绑定到真实槽位：
-
+**2. 在武器上绑定真实容器槽位**
 ```lua
 weapons.my_rifle.quickSlotTags = { "my_gunsmith_part" }
-
 weapons.my_rifle.quickSlotBindings = {
     muzzle = {
-        slot = 1,
-        itemPosOffset = { x = 0, y = 0 },
-        rotation = 0
+        slot = 1,                           -- 必填，非负整数；同一武器下不可重复
+        itemPosOffset = { x = 0, y = 0 },   -- 可选，相对 mount anchor 的显示偏移
+        rotation = 0                        -- 可选，显示旋转角度
     }
 }
 ```
 
-字段含义：
+**3. 确保配件 Part 与 XML 物品能互相匹配**
+- `part.type` == `mount.partType`（或 `mount.path`）
+- `part.provides` 与 `mount.accepts` 有交集
+- `part.item.identifier` == XML `<Item identifier="...">`
+- XML Item 带有 `weapon.quickSlotTags` 或所属包 `partTags` 允许的 tag
 
-- `slot`：必填，非负整数，表示武器 `ItemContainer` 中从 `0` 开始的槽位索引。同一武器的多个绑定不能使用同一个槽位。
-- `itemPosOffset`：可选，Quick Slot 附件显示点相对 mount `anchor` 的偏移，默认 `{ x = 0, y = 0 }`。
-- `rotation`：可选，Quick Slot 附件的显示旋转角度，默认 `0`。
-- `quickSlotTags`：可选，动态注入槽位允许放入的 XML item tags；省略时使用所属 package 的 `partTags`。
-
-如果武器的 slot `0` 已用于弹匣，通常让 Quick Slot 从 `1` 开始。框架会根据绑定中的最大 slot 自动补充缺少的隐藏 `SubContainer`，因此不需要仅为 Quick Slot 手写一组 XML 槽位。自定义容器注入时可参考前文的 `GunsmithData.quickslotstart`、`quickslotmax`、`quickslotitems` 和 `quickslottags`。
-
-### 3. 让真实 item 对应可安装 part
-
-Quick Slot 中放入的 XML item 必须能映射回一个兼容 part：
-
-```lua
-parts.my_suppressor = {
-    type = "muzzle",
-    nameKey = "my.gunsmith.part.suppressor",
-    provides = { "my_muzzle" },
-    item = { identifier = "my_suppressor_item" },
-    visual = {
-        texture = "%ModDir%/Items/my_parts.png",
-        source = { x = 0, y = 48, w = 64, h = 24 },
-        attachPoint = { x = 4, y = 12 }
-    },
-    quickAttachmentTransform = {
-        muzzleOutletOffset = { x = 60, y = 0 }
-    }
-}
-```
-
-对应的 XML item 至少需要使用同一个 identifier，并带有 `quickSlotTags` 或 package `partTags` 允许的 tag：
-
-```xml
-<Item identifier="my_suppressor_item" tags="smallitem,my_gunsmith_part">
-  <!-- Sprite、Body 等普通 item 组件 -->
-</Item>
-```
-
-这里的三个值必须互相兼容：
-
-```text
-mount.partType / mount.path = "muzzle"
-part.type                  = "muzzle"
-mount.accepts              = { "my_muzzle" }
-part.provides              = { "my_muzzle" }
-```
-
-### 多层路径示例
-
-假设枪托的实际路径是 `receiver/stock_mount/stock`：
+<details>
+<summary>进阶示例：多层嵌套路径的 Quick Slot（如 <code>receiver/stock_mount/stock</code>）</summary>
 
 ```lua
 parts.my_receiver.mounts = {
@@ -1014,123 +689,207 @@ parts.my_buffer_tube = {
             path = "stock",
             accepts = { "my_stock" },
             anchor = { x = -16, y = 0 },
-            quick = { key = "stock" }
+            quick = { key = "stock" }   -- 写在最终提供 stock 挂点的父部件上
         }
     }
 }
 
 weapons.my_rifle.quickSlotBindings = {
-    stock = { slot = 2 }
+    stock = { slot = 2 }                -- 仍写 quick.key，不要写完整路径
 }
 ```
 
-注意：
+要点：
+- 如果有多个可替换的 buffer tube 都希望支持快速换枪托，每个 buffer tube 都需要提供带相同 `quick.key = "stock"` 的 `stock` mount。
+- 运行时仅为**当前已安装部件树中实际存在**的 Quick mount 生成槽位。
 
-- `quick = { key = "stock" }` 写在 buffer tube 提供的 `stock` mount 上，不是写在 receiver 的 `stock_mount` mount 上。
-- 绑定仍然写成 `stock = { slot = 2 }`，不要写成 `["receiver/stock_mount/stock"]`。
-- 如果多个可替换的 buffer tube 都应该支持快速更换枪托，每个 buffer tube 都必须提供带相同 `quick.key = "stock"` 的 `stock` mount。
-- 运行时只会为当前已安装部件树中实际存在的 Quick mount 生成槽位信息。
-- `quick.showWhenContained = { "item_identifier" }` 只控制原生容器槽在装入指定物品时是否显示，不决定 part 兼容性。
+</details>
 
-### 运行时行为
+#### 运行时行为与常见校验报错
 
-- Quick UI 会列出 `type = "muzzle"` 且兼容此 mount 的部件。
-- 安装 `my_suppressor` 时，框架从角色物品栏找 `my_suppressor_item`，再放入武器 slot `1`。
-- 如果玩家直接把 `my_suppressor_item` 拖进 slot `1`，框架会反向同步选择为 `my_suppressor`。
-- 若 slot 内已有其他物品，替换时会先清槽并返还角色物品栏；物品栏放不下时会掉落。
+- **双向同步**：在 Quick UI 安装时，框架会从背包取对应物品放入对应槽位；玩家直接把物品拖进该槽位时，框架会反向同步配件选中状态；替换时旧物品返还背包（满则掉落）。
+- **常见报错排查**：
+  - `does not match a quick mount reachable from this weapon`：没有可达的 mount 声明该 `quick.key`（检查拼写、父链可达性、跨包权限）。
+  - `.slot duplicates slot N`：两个绑定共用了同一个槽位号。
+  - `.slot must be a non-negative integer`：`slot` 必须是 `0, 1, 2...` 非负整数。
+  - Quick UI 中看不到某嵌套挂点：确认当前已安装的父部件确实声明了 `quick`（路径存在 ≠ 声明了 `quick`）。
+  - 能显示但装不上真实物品：检查 `part.item.identifier`、XML identifier、XML tag 以及 `type`/`provides` 兼容性。
 
-### 常见校验错误
+---
 
-运行 `GunsmithFrameworkValidate` 后：
+### 3.3 枪口出口偏移与粒子跟随
 
-- `does not match a quick mount reachable from this weapon`：没有任何该武器可达的 mount 声明同名 `quick.key`。检查 key 拼写、mount 所在 part 是否能从 weapon root 到达，以及跨 package 引用权限。
-- `.slot duplicates slot N`：两个绑定使用了同一个真实容器槽位；为其中一个分配其他 slot。
-- `.slot must be a non-negative integer`：slot 必须是 `0`、`1`、`2` 这样的整数。
-- Quick UI 中没有某个嵌套挂点：检查当前安装的父部件是否真的提供该 mount。完整路径存在并不等于 mount 已声明 `quick`。
-- 能显示但不能安装真实物品：检查 part 是否有 `item.identifier`、XML item identifier 是否一致，以及 `part.type`/`provides` 是否满足 mount 的 `partType`/`accepts`。
+如果枪口附件（消音器、制退器）或下挂武器改变了实际枪口位置，想让枪口火光/火花等粒子自动跟随当前枪口，按下面两步配合使用。
 
-## 本地化
+> [!NOTE]
+> **普通部件不需要此字段**：瞄具、握把、只改外观的护木/枪托均无需配置 `quickAttachmentTransform`，常规贴图对齐仍只看 `visual.attachPoint` 和 `mount.anchor`。
 
-框架会校验以下 key 来源：
-
-- `platform.pathNameKeys`。
-- `part.nameKey`。
-- `mount.nameKey`。
-- `mount.quick.nameKey`。
-- 包、platform 或 weapon 可选 `localizationPrefix` 下的 UI/action/status/stat key。
-
-建议为每个包使用统一前缀：
-
-```xml
-<my.gunsmith.path.receiver>Receiver</my.gunsmith.path.receiver>
-<my.gunsmith.path.barrel>Barrel</my.gunsmith.path.barrel>
-<my.gunsmith.part.receiver>Receiver</my.gunsmith.part.receiver>
-<my.gunsmith.part.suppressor>Suppressor</my.gunsmith.part.suppressor>
-<my.gunsmith.quick.muzzle>Muzzle</my.gunsmith.quick.muzzle>
-```
-
-`localizationPrefix` 不是必填项。只有当你想把框架 UI 文案从默认 `gunsmith.framework.*` 换到自己的前缀时，才需要声明它。
-
-如果你声明了 `localizationPrefix = "my.gunsmith"`，可以覆盖框架 UI 文案，例如：
-
-```xml
-<my.gunsmith.ui.title>Gunsmith: {0}</my.gunsmith.ui.title>
-<my.gunsmith.ui.quick_title>Quick Gunsmith: {0}</my.gunsmith.ui.quick_title>
-<my.gunsmith.action.install>Install</my.gunsmith.action.install>
-<my.gunsmith.stat.ergonomics>Ergonomics</my.gunsmith.stat.ergonomics>
-<my.gunsmith.stattypes.RangedSpreadReduction>Spread Reduction</my.gunsmith.stattypes.RangedSpreadReduction>
-```
-
-`localizationPrefix` 的作用是告诉框架：“这个包、平台或武器的框架 UI 文案去哪个 key 前缀下面找”。它不会自动给 `part.nameKey` 或 `pathNameKeys` 加前缀；这些字段仍然要写完整 key。因此，即使完全不写 `localizationPrefix`，只要 `pathNameKeys` 和 `nameKey` 指向的 key 存在，槽位名和部件名仍会正常显示。
-
-完整例子：
+#### 1. Lua：在配件上声明 `muzzleOutletOffset`
 
 ```lua
-GunsmithFramework.RegisterPackage({
-    modDir = ...,
-    id = "my_gunsmith_mod",
-    entry = "Lua/Scripts/MyGunsmithMod/Config.lua",
-    localizationFiles = { "text/English.xml" },
-    -- 可选：不写也可以。写了以后，框架 UI 会优先找 my.gunsmith.ui.* / my.gunsmith.action.* 等 key。
-    -- localizationPrefix = "my.gunsmith"
-})
-
-GunsmithFramework.Config.platforms.my_platform = {
-    -- 可选：通常不必写；不写时继承所属 package 的前缀。
-    -- localizationPrefix = "my.gunsmith",
-    canvas = { w = 128, h = 64 },
-    rootSlots = {
-        { path = "receiver" }
+parts.my_suppressor = {
+    type = "muzzle",
+    nameKey = "my.gunsmith.part.suppressor",
+    provides = { "my_muzzle" },
+    item = { identifier = "my_suppressor_item" },
+    visual = {
+        texture = "%ModDir%/Items/my_parts.png",
+        source = { x = 0, y = 48, w = 64, h = 24 },
+        attachPoint = { x = 4, y = 12 }
     },
-    pathNameKeys = {
-        receiver = "my.gunsmith.path.receiver"
-    }
-}
-
-GunsmithFramework.Config.parts.my_receiver = {
-    type = "receiver",
-    nameKey = "my.gunsmith.part.receiver",
-    provides = { "my_receiver" },
-    item = { virtual = true }
-}
-
-GunsmithFramework.Config.weapons.my_rifle = {
-    platform = "my_platform",
-    -- 可选：通常不必写；只有这把武器需要不同 UI 文案前缀时才写。
-    -- localizationPrefix = "my.gunsmith",
-    roots = {
-        receiver = {
-            part = "my_receiver",
-            socket = { x = 64, y = 32 }
-        }
+    quickAttachmentTransform = {
+        -- 单位为 Gunsmith canvas 像素（x 向右，y 向下），相对该 Quick Slot 的 anchor 偏移
+        muzzleOutletOffset = { x = 60, y = 0 }
     }
 }
 ```
 
-对应 `text/English.xml`：
+- 目前仅识别两个 `quick.key`：
+  - **`muzzle`**：主枪口（注册为 `primary` barrel rule）。
+  - **`lower_rail`**：专为 **Vanilla-Components-Expanded (VCE)** 下挂武器准备的兼容路径（仅在所装部件声明了 `muzzleOutletOffset` 时注册；不使用 VCE 时普通下导轨附件无需使用该 key）。
+- 省略此字段等价于 `{ x = 0, y = 0 }`（无额外偏移）。
+
+#### 2. XML：给粒子 `StatusEffect` 添加 tag
 
 ```xml
-<?xml version="1.0" encoding="utf-8"?>
+<RangedWeapon barrelpos="0,0">
+  <StatusEffect type="OnUse" target="This" statuseffecttags="Gunsmith_BarrelParticle">
+    <ParticleEmitter particle="muzzleflash" particleamount="1" />
+    <ParticleEmitter particle="spark" particleamount="3" />
+  </StatusEffect>
+</RangedWeapon>
+```
+
+**注意事项**：
+- 只有带 `statuseffecttags="Gunsmith_BarrelParticle"` 的 `StatusEffect` 会被改写生成位置，且必须挂在带 `RangedWeapon` 的武器上，否则报错。
+- 未注册 barrel transform 时自动回退到 XML `RangedWeapon.BarrelPos`；使用 VCE 时，projectile selector `0` 映射 `primary`，`1` 映射 `lower_rail`（下挂未声明偏移时自动回退主枪口）。
+- 请勿再为不同枪口手写多套固定 `barrelpos` / `Distance` 来手动偏移粒子。
+- **适用**：枪口火光（flash）、火花（spark）等需要跟随枪口的粒子。**不适用**：音效、爆炸、抛壳以及不依赖 `StatusEffect` 世界坐标的自定义逻辑。
+
+---
+
+### 3.4 工作台专用改装与 Fabricator 配方过滤
+
+#### 工作台专用改装（`requiresWorkbench = true`）
+
+- 加工台默认接受**所有** Gunsmith 武器；设置 `requiresWorkbench = true` 仅限制离开工作台后的**完整改装 UI（`F1` 键）**，不影响工作台接收武器，也不影响 `Shift+F1` 快速改装。
+- **客户端私有虚拟枪械槽**：
+  - 玩家将背包中的枪拖入枪械槽后，仅当前客户端保存引用并筛选配方；点击独立“打开”按钮才进入完整改装页。
+  - 枪械**不会**离开玩家背包或进入加工台容器，其他玩家也不可见。
+  - 拖出槽外松手取消选择，拖回槽内保留，拖入另一把枪直接切换（不会移动或丢弃背包中的枪）。
+  - 改装请求仍由服务端校验枪械归属、工作台可用性与配置模式；制造队列沿用原版共享队列，造出的部件不会自动安装。
+
+#### Fabricator 配方过滤
+
+框架可在加工台左侧分类栏加入 **Gunsmith 分类按钮**：
+
+- **原版 `fabricator` 默认启用**。
+- **自定义加工台**只需在 `<Fabricator>` 上添加 `gunsmithframeworkbutton="true"`（无需额外手写 `ItemContainer`）：
+  ```xml
+  <Item identifier="my_gunsmith_fabricator" tags="my_gunsmith_fabricator" category="Machine">
+    <Sprite texture="%ModDir%/Items/my_fabricator.png" />
+    <Body width="160" height="96" />
+    <Fabricator canbeselected="true" gunsmithframeworkbutton="true" />
+  </Item>
+  ```
+- **仅过滤原版配方（不凭空生成）**：部件 XML 物品必须自带原版 `<Fabricate suitablefabricators="...">`，且物品 `identifier` 等于该枪理论上可安装的某个 `part.item.identifier`。
+  ```xml
+  <Item identifier="my_suppressor_item" nameidentifier="entityname.my_suppressor_item" category="Weapon" tags="smallitem,my_gunsmith_part">
+    <Sprite texture="%ModDir%/Items/my_parts.png" sourcerect="0,0,64,24" />
+    <Body width="64" height="24" />
+    <Fabricate suitablefabricators="my_gunsmith_fabricator" requiredtime="8">
+      <RequiredItem identifier="steel" />
+    </Fabricate>
+  </Item>
+  ```
+- **列表排序与展示**：
+  - 未选择枪械时不显示配方；选枪后从武器 root parts 递归扫描所有**理论上可安装**的配件（不因当前已装配件动态缩窄）。
+  - 默认按配件 `type` 分组（带组标题与分隔线，名称取 `pathNameKeys` / `path.<type>` / 框架类型名 / 原始 `type`），组内按名称排序。
+  - 搜索、“仅显示可用”与原版排序下拉框（名称/技能/价格）均可用；切回原版分类或关闭加工台后清除选择并恢复原版状态。
+
+> [!TIP]
+> **Gunsmith 分类页为空？优先查这 3 项**：
+> 1. 武器 XML 是否有 `<GunsmithData />`，且 Lua `Config.weapons[identifier]` 已注册。
+> 2. 目标 part 是否有 `item = { identifier = "..." }`，且对应 XML 物品真实存在。
+> 3. 该 XML 物品的 `<Fabricate suitablefabricators="...">` 是否包含当前加工台的 identifier。
+
+---
+
+### 3.5 NPC 预设（NPC Presets）
+
+#### 1. Lua 中定义预设 Profile
+
+```lua
+local profiles = GunsmithFramework.Config.npcPresets.profiles
+
+profiles.guard_rifle = {
+    weapon = "my_rifle",    -- 可选但推荐：限定武器 XML identifier，不匹配时忽略并警告
+    parts = {               -- path -> part id；未列出的路径保持默认
+        receiver = "my_receiver",
+        ["receiver/barrel"] = "my_barrel_short",
+        ["receiver/handguard"] = "my_handguard",
+        ["receiver/handguard/top_rail/optic_mount"] = "my_red_dot",
+        ["receiver/handguard/bottom_rail/grip_mount"] = "my_vertical_grip",
+        ["receiver/barrel/muzzle"] = "my_suppressor"
+    }
+}
+```
+
+#### 2. XML 中引用预设
+
+```xml
+<Item identifier="my_rifle" gunsmithpreset="guard_rifle">
+  <Item identifier="my_magazine" />
+</Item>
+```
+
+> [!WARNING]
+> **不要**在 NPC XML 里把瞄具、握把、枪口等 Quick Slot 配件手动塞进武器容器。把它们写在 Lua profile 的 `parts` 中，框架会自动为带有 `part.item.identifier` 的 Quick Slot 部件生成真实物品（若无 `item.identifier`，则仅生效视觉与属性）。
+
+**应用规则**：
+- 先构建默认配置，再批量应用 `parts`，**整套替换完成后**再做互斥检查（不会被即将替换掉的默认件阻挡）；无效路径或冲突部件会被修剪并输出警告。
+- 单机与服务端会保存应用后的预设；若武器已有非空 `SavedState`，不会覆盖。
+- 多人客户端以服务端下发的配件选择为准，不受容器物品网络到达顺序影响。
+
+---
+
+## 4. 本地化配置
+
+框架校验以下 5 处本地化 key：
+
+1. `platform.pathNameKeys`
+2. `part.nameKey`
+3. `mount.nameKey`
+4. `mount.quick.nameKey`
+5. 可选 `localizationPrefix` 下的框架 UI / action / status / stat key
+
+### 推荐命名风格
+
+为模组使用统一前缀，在 `text/English.xml` 等文本文件中定义完整 key：
+
+```xml
+<infotexts language="English">
+  <!-- 槽位与部件名（在 Lua 的 pathNameKeys / nameKey 中填写完整 key） -->
+  <my.gunsmith.path.receiver>Receiver</my.gunsmith.path.receiver>
+  <my.gunsmith.path.barrel>Barrel</my.gunsmith.path.barrel>
+  <my.gunsmith.part.receiver>Receiver</my.gunsmith.part.receiver>
+  <my.gunsmith.part.suppressor>Suppressor</my.gunsmith.part.suppressor>
+  <my.gunsmith.quick.muzzle>Muzzle</my.gunsmith.quick.muzzle>
+</infotexts>
+```
+
+### 关于可选字段 `localizationPrefix`
+
+- **绝大多数第三方模组不需要填写 `localizationPrefix`**。不写时，框架 UI 文案会自动使用推断的包前缀，找不到时回退到框架默认的 `gunsmith.framework.*`（或原始 key 文本）。
+- 它**只影响框架自带的 UI 文案**（标题、按钮、状态、属性名），**不会**自动给 `part.nameKey` 或 `pathNameKeys` 加前缀（这两者始终要写完整 key）。
+- **覆盖优先级**：
+  - Weapon UI：`weapon.localizationPrefix` → 所属 `package.localizationPrefix` → `gunsmith.framework`
+  - Platform 路径 UI：`platform.localizationPrefix` → 所属 `package.localizationPrefix`
+
+<details>
+<summary>查看自定义框架 UI 文案示例（声明 <code>localizationPrefix = "my.gunsmith"</code> 时）</summary>
+
+```xml
 <infotexts language="English">
   <my.gunsmith.ui.title>Modify: {0}</my.gunsmith.ui.title>
   <my.gunsmith.ui.quick_title>Quick Modify: {0}</my.gunsmith.ui.quick_title>
@@ -1140,32 +899,17 @@ GunsmithFramework.Config.weapons.my_rifle = {
   <my.gunsmith.action.remove>Remove</my.gunsmith.action.remove>
   <my.gunsmith.stat.ergonomics>Ergonomics</my.gunsmith.stat.ergonomics>
   <my.gunsmith.stat.none>No stat changes</my.gunsmith.stat.none>
-
-  <my.gunsmith.path.receiver>Receiver</my.gunsmith.path.receiver>
-  <my.gunsmith.part.receiver>Receiver</my.gunsmith.part.receiver>
+  <my.gunsmith.stattypes.RangedSpreadReduction>Spread Reduction</my.gunsmith.stattypes.RangedSpreadReduction>
 </infotexts>
 ```
 
-这个例子中：
+</details>
 
-- UI 标题、按钮、状态和 stat 显示会使用 `localizationPrefix .. ".ui.title"`、`localizationPrefix .. ".action.install"` 这类 key。
-- 槽位名来自 `platform.pathNameKeys.receiver`，所以要写完整的 `my.gunsmith.path.receiver`。
-- 部件名来自 `part.nameKey`，所以要写完整的 `my.gunsmith.part.receiver`。
-- 如果完全不写 `localizationPrefix`，框架 UI 会使用推断出的 package 前缀；推断不到时使用默认 `gunsmith.framework`。这不会影响显式写好的 `pathNameKeys` 和 `part.nameKey`。
-- 如果 weapon 写了 `localizationPrefix`，weapon UI 优先用 weapon 的前缀；否则用拥有该 weapon 的 package 前缀；再否则用框架默认 `gunsmith.framework`。
-- platform 路径 UI 优先用 platform 的 `localizationPrefix`；否则用拥有该 platform 的 package 前缀。一般第三方模组不需要单独给每个 platform 写这个字段。
+---
 
-未提供时会回退到 key 文本或框架默认文本。
+## 5. 数值属性（`part.stats`）
 
-## Stats 附录
-
-`part.stats` 中可写以下数值键。值必须是 number。
-
-`Ergonomics` 是 GunsmithFramework 自己使用的操控值，会影响瞄准抬枪速度，并显示在 UI 中。
-负值会在改枪界面和物品提示中显示；实际抬枪速度仍受原有最低速度限制。
-
-其他键会作为 Barotrauma `StatTypes` 加到持有该 Gunsmith 武器的角色身上。UI 中大部分 StatTypes 按百分比显示；技能 bonus/override 和少数计数型字段按平值显示。
-百分比属性在显示时最低为 -100%；生效时先与角色原有属性相加，再将结果限制为不低于 -100%，避免伤害等倍率变成负数。平值属性不受此限制。
+`part.stats` 的值必须为 `number`（非数字报 `ERROR`，未知 key 报 `WARN` 且不生效）：
 
 ```lua
 stats = {
@@ -1175,135 +919,68 @@ stats = {
 }
 ```
 
-完整键列表：
+### 生效与显示规则
 
-```text
-Ergonomics
-ElectricalSkillBonus
-HelmSkillBonus
-MechanicalSkillBonus
-MedicalSkillBonus
-WeaponsSkillBonus
-HelmSkillOverride
-MedicalSkillOverride
-WeaponsSkillOverride
-ElectricalSkillOverride
-MechanicalSkillOverride
-MaximumHealthMultiplier
-MovementSpeed
-WalkingSpeed
-SwimmingSpeed
-PropulsionSpeed
-BuffDurationMultiplier
-DebuffDurationMultiplier
-MedicalItemEffectivenessMultiplier
-FlowResistance
-AttackMultiplier
-TeamAttackMultiplier
-RangedAttackSpeed
-RangedAttackMultiplier
-TurretAttackSpeed
-TurretPowerCostReduction
-TurretChargeSpeed
-MeleeAttackSpeed
-MeleeAttackMultiplier
-RangedSpreadReduction
-RepairSpeed
-MechanicalRepairSpeed
-ElectricalRepairSpeed
-DeconstructorSpeedMultiplier
-RepairToolStructureRepairMultiplier
-RepairToolStructureDamageMultiplier
-RepairToolDeattachTimeMultiplier
-MaxRepairConditionMultiplierMechanical
-MaxRepairConditionMultiplierElectrical
-IncreaseFabricationQuality
-GeneticMaterialRefineBonus
-GeneticMaterialTaintedProbabilityReductionOnCombine
-SkillGainSpeed
-ExtraLevelGain
-HelmSkillGainSpeed
-WeaponsSkillGainSpeed
-MedicalSkillGainSpeed
-ElectricalSkillGainSpeed
-MechanicalSkillGainSpeed
-MedicalItemApplyingMultiplier
-BuffItemApplyingMultiplier
-PoisonMultiplier
-TinkeringDuration
-TinkeringStrength
-TinkeringDamage
-ReputationGainMultiplier
-ReputationLossMultiplier
-MissionMoneyGainMultiplier
-ExperienceGainMultiplier
-MissionExperienceGainMultiplier
-ExtraMissionCount
-ExtraSpecialSalesCount
-StoreSellMultiplier
-StoreBuyMultiplierAffiliated
-StoreBuyMultiplier
-ShipyardBuyMultiplierAffiliated
-ShipyardBuyMultiplier
-MaxAttachableCount
-ExplosionRadiusMultiplier
-ExplosionDamageMultiplier
-FabricationSpeed
-BallastFloraDamageMultiplier
-HoldBreathMultiplier
-Apprenticeship
-CPRBoost
-LockedTalents
-HireCostMultiplier
-InventoryExtraStackSize
-SoundRangeMultiplier
-SightRangeMultiplier
-DualWieldingPenaltyReduction
-NaturalMeleeAttackMultiplier
-```
+- **`Ergonomics`（操控值）**：GunsmithFramework 自有属性，影响瞄准抬枪速度并显示在 UI/物品提示中；支持负值，实际抬枪速度仍受最低速度限制。
+- **其他键（Barotrauma `StatTypes`）**：在角色持有该武器时叠加到角色身上。
+  - **百分比类属性**（大部分 `StatTypes`）：显示与生效下限均为 **`-100%`**（生效时先与角色原属性相加，再限制不低于 `-100%`，避免伤害等倍率变负）。
+  - **平值类属性**（技能 bonus/override 与少数计数型字段）：直接按平值显示与叠加，不受 `-100%` 限制。
 
-未知 stat key 会产生 warning，不会作为有效属性应用。非 number 值会产生 error。
+<details>
+<summary>展开查看完整支持的 Stats 键列表（共 82 项）</summary>
 
-## 校验和调试
+#### 框架自有
+`Ergonomics`
 
-启动后框架会自动延迟运行一次配置校验。你也可以在游戏控制台手动运行：
+#### 战斗与武器
+`AttackMultiplier`, `TeamAttackMultiplier`, `RangedAttackSpeed`, `RangedAttackMultiplier`, `RangedSpreadReduction`, `MeleeAttackSpeed`, `MeleeAttackMultiplier`, `NaturalMeleeAttackMultiplier`, `DualWieldingPenaltyReduction`, `TurretAttackSpeed`, `TurretPowerCostReduction`, `TurretChargeSpeed`, `ExplosionRadiusMultiplier`, `ExplosionDamageMultiplier`, `BallastFloraDamageMultiplier`
 
-```text
-GunsmithFrameworkValidate
-```
+#### 移动、生存与感知
+`MaximumHealthMultiplier`, `MovementSpeed`, `WalkingSpeed`, `SwimmingSpeed`, `PropulsionSpeed`, `FlowResistance`, `HoldBreathMultiplier`, `SoundRangeMultiplier`, `SightRangeMultiplier`, `BuffDurationMultiplier`, `DebuffDurationMultiplier`, `MedicalItemEffectivenessMultiplier`, `MedicalItemApplyingMultiplier`, `BuffItemApplyingMultiplier`, `PoisonMultiplier`, `CPRBoost`
 
-自测命令会构造一份故意错误的配置，用来确认校验器能输出错误：
+#### 技能加成、覆盖与成长
+`ElectricalSkillBonus`, `HelmSkillBonus`, `MechanicalSkillBonus`, `MedicalSkillBonus`, `WeaponsSkillBonus`, `ElectricalSkillOverride`, `HelmSkillOverride`, `MechanicalSkillOverride`, `MedicalSkillOverride`, `WeaponsSkillOverride`, `SkillGainSpeed`, `ExtraLevelGain`, `ElectricalSkillGainSpeed`, `HelmSkillGainSpeed`, `MechanicalSkillGainSpeed`, `MedicalSkillGainSpeed`, `WeaponsSkillGainSpeed`, `ExperienceGainMultiplier`, `MissionExperienceGainMultiplier`, `Apprenticeship`, `LockedTalents`
 
-```text
-GunsmithFrameworkValidationSelfTest
-```
+#### 维修、制造与工程
+`RepairSpeed`, `MechanicalRepairSpeed`, `ElectricalRepairSpeed`, `MaxRepairConditionMultiplierMechanical`, `MaxRepairConditionMultiplierElectrical`, `DeconstructorSpeedMultiplier`, `RepairToolStructureRepairMultiplier`, `RepairToolStructureDamageMultiplier`, `RepairToolDeattachTimeMultiplier`, `IncreaseFabricationQuality`, `FabricationSpeed`, `GeneticMaterialRefineBonus`, `GeneticMaterialTaintedProbabilityReductionOnCombine`, `TinkeringDuration`, `TinkeringStrength`, `TinkeringDamage`
 
-开发时建议每次新增平台、武器或部件后都运行一次 `GunsmithFrameworkValidate`。常见输出含义：
+#### 经济、任务与物品栏
+`ReputationGainMultiplier`, `ReputationLossMultiplier`, `MissionMoneyGainMultiplier`, `ExtraMissionCount`, `ExtraSpecialSalesCount`, `StoreSellMultiplier`, `StoreBuyMultiplierAffiliated`, `StoreBuyMultiplier`, `ShipyardBuyMultiplierAffiliated`, `ShipyardBuyMultiplier`, `HireCostMultiplier`, `MaxAttachableCount`, `InventoryExtraStackSize`
 
-- `ERROR`：配置不合法，相关功能可能完全不工作。
-- `WARN`：配置可继续运行，但可能找不到 XML prefab、本地化 key 或没有任何 mount 接受某个 `provides`。
-- `0 errors`：schema 层面通过，仍需进游戏检查坐标、贴图、Quick Slot 和物品返还。
+</details>
 
-## 作者接口速查
+---
 
-常用 Lua 表：
+## 6. 校验、调试与接口速查
+
+### 游戏内控制台命令
+
+框架启动后会自动延迟执行一次校验，开发过程中每次新增平台、武器或部件后建议手动执行：
+
+| 命令 | 说明 |
+| --- | --- |
+| `GunsmithFrameworkValidate` | 校验全部已注册配置，输出 `ERROR` / `WARN` 汇总。 |
+| `GunsmithFrameworkValidationSelfTest` | 构造一份故意错误的配置，用于确认校验器正常工作。 |
+
+**结果判读**：
+- **`ERROR`**：配置不合法，对应功能可能完全不可用。
+- **`WARN`**：可继续运行，但存在缺失 XML prefab、本地化 key 或无 mount 接受的 `provides` 等问题。
+- **`0 errors`**：Schema 校验通过；仍需进游戏实测坐标、贴图、Quick Slot 与物品返还。
+
+### 作者接口速查
 
 ```lua
+-- 配置表（第三方模组主要使用这些表）
 GunsmithFramework.Config.platforms
 GunsmithFramework.Config.weapons
 GunsmithFramework.Config.parts
 GunsmithFramework.Config.exclusiveGroups
 GunsmithFramework.Config.npcPresets.profiles
+
+-- 常用函数
+GunsmithFramework.RegisterPackage(package) -- 注册扩展包
+GunsmithFramework.CurrentPackage()         -- 在入口脚本中获取当前包信息
+GunsmithFramework.Apply(item)              -- 手动应用/刷新武器状态（高级用法）
+GunsmithFramework.Open(item)               -- 手动打开完整改装 UI（高级用法）
+GunsmithFramework.OpenQuick(item)          -- 手动打开快速改装 UI（高级用法）
 ```
-
-常用 Lua 函数：
-
-```lua
-GunsmithFramework.RegisterPackage(package)
-GunsmithFramework.CurrentPackage()
-GunsmithFramework.Apply(item)
-GunsmithFramework.Open(item)
-GunsmithFramework.OpenQuick(item)
-```
-
-通常第三方模组只需要 `RegisterPackage` 和 `Config.*`。`Apply/Open/OpenQuick` 适合你自己写额外交互入口时调用。
