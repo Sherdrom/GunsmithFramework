@@ -147,14 +147,28 @@ public sealed class GunsmithGuiParsingTests
     }
 
     [Fact]
-    public void InsertTooltipStats_PutsStatsBeforeModAndSkillLines()
+    public void InsertTooltipStats_PutsStatsBeforeRequiredSkillsAndContextualHints()
     {
-        const string modLine = "\n‖color:purple‖Deep-Diving-Armory‖color:end‖";
-        const string tooltip = "description" + modLine + "\nrequired skill";
+        const string skillHints = "\n\n‖color:orange‖所需技能：‖color:end‖\n武器操作 50 (46)";
+        const string moreOptions = "\n‖color:gray‖[Shift]更多…‖color:end‖";
+        const string stackLine = "\n‖color:gui.blue‖[Alt+LMB] Take one‖color:end‖";
+        const string headerAndDesc = "HK416\nDeep-Diving-Armory\ndescription";
 
         Assert.Equal(
-            "description\nbonus" + modLine + "\nrequired skill",
-            GunsmithGui.InsertTooltipStats(tooltip, "bonus", modLine));
+            headerAndDesc + "\nbonus" + skillHints + moreOptions,
+            GunsmithGui.InsertTooltipStats(headerAndDesc + skillHints + moreOptions, "bonus", null, skillHints, moreOptions));
+
+        Assert.Equal(
+            headerAndDesc + "\nbonus" + moreOptions,
+            GunsmithGui.InsertTooltipStats(headerAndDesc + moreOptions, "bonus", null, null, moreOptions));
+
+        Assert.Equal(
+            headerAndDesc + "\nbonus" + stackLine + skillHints + moreOptions,
+            GunsmithGui.InsertTooltipStats(headerAndDesc + stackLine + skillHints + moreOptions, "bonus", stackLine, skillHints, moreOptions));
+
+        Assert.Equal(
+            headerAndDesc + "\nbonus",
+            GunsmithGui.InsertTooltipStats(headerAndDesc, "bonus", null, skillHints, moreOptions));
     }
 
     [Fact]
